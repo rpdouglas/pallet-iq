@@ -53,9 +53,16 @@ PALLETIQ-002/006)`. If it exists, cross-check each UI role boundary against the
    boundary enforced in only one layer.
 
 7. **Check IV — Design system adherence.** If the diff touches any file under `src/`
-   affecting components, pages, or styles, dispatch to the `design-system-auditor`
-   subagent and include its findings verbatim. If nothing under `src/` changed (e.g.
-   a docs-only or governance-only PR), report `N/A — no UI code changed`.
+   (components, pages, styles), `public/` (favicon, icons, logo assets), or
+   `index.html`, dispatch to the `design-system-auditor` subagent — **`design-system-auditor`
+   has no `Bash` tool by design (read-only auditor), so it cannot run `git diff`
+   itself.** Pass it the exact list of changed files from step 2 directly in the
+   dispatch prompt (e.g. "audit these changed files: index.html, src/App.tsx" — not
+   "audit the current diff"), and include its findings verbatim in this report. A
+   mismatched favicon or page title is as much a Check IV violation as a wrong color
+   in a component, so don't scope this to `src/` alone. If none of those changed
+   (e.g. a docs-only or governance-only PR), report `N/A — no UI code or brand
+assets changed`.
 
 8. **Report.** Print one compact pass/fail table: the 4-5 npm commands, then Check
    I/II/III/IV each as PASS / FAIL / N/A with a one-line reason. If anything failed,
