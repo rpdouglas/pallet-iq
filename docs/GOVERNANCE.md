@@ -22,6 +22,9 @@ Before any code changes:
 
 ### 2. Autonomous execution
 
+- Implementation happens on a feature branch off `main` (see
+  [`CONTRIBUTING.md`](../CONTRIBUTING.md#branching)) — `main` never receives
+  direct commits or pushes, including for docs-only changes.
 - Implementation proceeds against the agreed plan.
 - Work stays inside the ticket's stated scope. Scope discovered mid-flight
   (a needed refactor, a missing rule, an untested collection) gets logged as
@@ -34,6 +37,9 @@ Before any code changes:
 
 ### 3. Ticket close with drift detection
 
+- The feature branch is merged into `main` via PR (CI green, `pre-pr-check`
+  passed) before the ticket is considered closed — closing a ticket without
+  a merged PR isn't closing it.
 - Compare what shipped against what was planned.
 - **Drift** = anything that changed scope, approach, or assumptions from the
   original plan. Drift isn't a failure — it's expected on nontrivial work —

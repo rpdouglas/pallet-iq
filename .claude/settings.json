@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/git-branch-guard.py",
+            "statusMessage": "Checking branch guard..."
+          }
+        ]
+      }
+    ]
+  }
+}

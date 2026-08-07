@@ -43,6 +43,13 @@ Three standing checks apply across every phase:
 
 ## Conventions
 
+- **Never commit or push directly to `main`.** Always work on a feature
+  branch (`git checkout -b palletiq-NNN-short-slug`) and land changes via PR
+  — see [`CONTRIBUTING.md`](CONTRIBUTING.md#branching). This applies to every
+  change, including docs-only edits like backlog/roadmap updates. A session
+  hook (`.claude/hooks/git-branch-guard.py`) blocks direct `git commit`/`git
+  push` to `main`/`master` as a guardrail, but don't rely on it — branch
+  first, as a matter of habit, not because the hook will catch it.
 - Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused — check
   `docs/BACKLOG.md` for the highest existing ID before minting a new one.
 - Roles are `owner | manager | warehouse | buyer` (`src/types/auth.ts`). This type,

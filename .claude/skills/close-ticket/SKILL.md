@@ -46,5 +46,13 @@ it completes a phase, update the phase status in `docs/ROADMAP.md`."
 7. **Update `docs/ACTIVE_CYCLE.md`'s "Tickets in flight" table** — remove the closed
    ticket's row, or mark it done per that table's convention.
 
-8. **Report a summary**: ticket ID, what shipped, drift recorded (if any), and any
+8. **Commit these doc updates on the same feature branch as the ticket's
+   implementation** (steps 4–7 are all doc edits — `docs/ACTIVE_CYCLE.md`,
+   `docs/BACKLOG.md`, `docs/ROADMAP.md`). They land on `main` through the same PR,
+   not as a separate direct commit — per `CONTRIBUTING.md`, nothing commits straight
+   to `main`. If the PR from `pre-pr-check` already merged before this bookkeeping was
+   done, open a small follow-up PR for just these doc changes rather than pushing
+   directly.
+
+9. **Report a summary**: ticket ID, what shipped, drift recorded (if any), and any
    backlog/roadmap changes made as a result.

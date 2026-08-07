@@ -38,11 +38,20 @@ before implementation starts, not after."
    starts, not be backfilled after. Link the resulting ADR path in the ticket entry.
    Most tickets won't need this — don't force one.
 
-6. **Append to `docs/BACKLOG.md`.** Add a new row to the table: `| PALLETIQ-NNN |
-   Title | Persona | Phase | Planned | Priority |`. Keep the table's existing column
-   formatting.
+6. **Create a feature branch, if not already on one.** Check the current branch
+   (`git rev-parse --abbrev-ref HEAD`). If it's `main`/`master`, create and switch to
+   `git checkout -b palletiq-NNN-short-slug` before touching any files — per
+   `CONTRIBUTING.md`, `main` never receives direct commits, including the
+   `docs/BACKLOG.md` edit in the next step. If already on a feature branch (e.g. this
+   ticket continues earlier work), stay on it rather than creating a second one.
 
-7. **Stop there.** Do not add the ticket to `docs/ACTIVE_CYCLE.md`'s "Tickets in
+7. **Append to `docs/BACKLOG.md`.** Add a new row to the table: `| PALLETIQ-NNN |
+   Title | Persona | Phase | Planned | Priority |`. Keep the table's existing column
+   formatting. Commit this as its own logical commit (e.g. "Open PALLETIQ-NNN:
+   <title>") rather than bundling it silently into a later implementation commit.
+
+8. **Stop there.** Do not add the ticket to `docs/ACTIVE_CYCLE.md`'s "Tickets in
    flight" table — moving a ticket into the active cycle is a separate, deliberate
    decision, not an automatic side effect of opening it. Mention this to the user if
-   they seem to expect it to start immediately.
+   they seem to expect it to start immediately. Don't open a PR yet either — that
+   happens once the ticket's actual work is ready, via `pre-pr-check`.
