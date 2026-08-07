@@ -42,6 +42,8 @@ PalletIQ ingests manifests from multiple liquidation vendors, normalizes them in
 - Tailwind CSS v4
 - TanStack Query, React Router v7
 - React Hook Form, Zod
+- UI source of truth: [`docs/design/`](../design/Pallet-IQ-Design-System.md)
+  (governance Check IV)
 
 **Backend**
 - Firebase Authentication (with custom claims for `tenantId` + role)

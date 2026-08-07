@@ -31,6 +31,14 @@ before implementation starts, not after."
    rules, or RBAC boundaries, name the specific collections and roles affected. This
    is what `firestore-rules-auditor` will later check for parity.
 
+4a. **Flag UI impact.** If the ticket touches UI (new component, page, or visual
+pattern), note which `docs/design/` pattern(s) apply — mobile/responsive, an
+RBAC-hidden field, the explainable-scoring breakdown, or a table/form/empty-state
+from `components.md`. If none of the existing addenda cover what's being built,
+say so explicitly rather than silently improvising a new pattern — that's the
+kind of drift `design-system-auditor` (Check IV) will catch later anyway, so
+better to name it up front.
+
 5. **ADR check.** If the ticket involves an architecturally significant decision
    (new data model shape, a tradeoff with real alternatives, something future work
    will build on), invoke the `new-adr` skill now and get the ADR written _before_
