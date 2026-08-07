@@ -7,18 +7,20 @@ run against.
 
 ## Cycle goal
 
-_What this cycle is trying to accomplish, in one or two sentences._
+Get a real Firebase project provisioned and wired into the repo so Phase 0
+tickets (PALLETIQ-002–005) have somewhere to actually deploy against.
 
 ## Tickets in flight
 
-| ID  | Title | Status | Notes |
-| --- | ----- | ------ | ----- |
-|     |       |        |       |
+| ID           | Title                                                       | Status      | Notes                                                  |
+| ------------ | ----------------------------------------------------------- | ----------- | ------------------------------------------------------ |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo | In Progress | Waiting on project creation (owner has console access) |
 
 ## Blockers
 
-_Anything stopping a ticket from moving forward — external dependency,
-unresolved decision, missing access, etc._
+- PALLETIQ-013 needs a Firebase/GCP project created via console or CLI by
+  someone with Google account + billing access — not something this repo's
+  automation can do on its own.
 
 ## Drift notes
 
