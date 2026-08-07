@@ -1,0 +1,188 @@
+rules_version = '2';
+
+// PalletIQ Firestore security rules — Phase 0 scaffold.
+//
+// Every tenant-owned collection lives under /tenants/{tenantId}/... and is
+// gated by isTenantMember(tenantId). Role checks layer on top for
+// write/RBAC-sensitive paths. `product_intelligence` is the one
+// cross-tenant collection and deliberately lives in its own security
+// domain: anonymized, read-only to authenticated tenant members, and
+// never client-writable (populated by trusted Cloud Functions only).
+//
+// Per docs/GOVERNANCE.md Check I: no collection ships without a rule block
+// here AND a corresponding test in firestore.rules.test.ts.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Shared helpers -------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function tokenTenantId() {
+      return request.auth.token.tenantId;
+    }
+
+    function tokenRole() {
+      return request.auth.token.role;
+    }
+
+    function isTenantMember(tenantId) {
+      return isSignedIn() && tokenTenantId() == tenantId;
+    }
+
+    function hasRole(tenantId, roles) {
+      return isTenantMember(tenantId) && tokenRole() in roles;
+    }
+
+    // Owner/Manager see purchase costs, billing, RBAC admin; Warehouse and
+    // Buyer are intentionally excluded from cost-bearing collections per
+    // the Phase 3 QA requirement (warehouse staff can't see purchase costs).
+    function isOwnerOrManager(tenantId) {
+      return hasRole(tenantId, ['owner', 'manager']);
+    }
+
+    function isOwner(tenantId) {
+      return hasRole(tenantId, ['owner']);
+    }
+
+    // ---- Tenant-scoped collections ---------------------------------------
+    // Default posture: any authenticated member of the tenant may read;
+    // writes are restricted to Owner/Manager until each collection's
+    // real RBAC policy is designed in its own ticket. Tighten per-collection
+    // as each area is implemented — this is a safe-by-default starting
+    // point, not a final policy.
+
+    match /tenants/{tenantId} {
+
+      match /vendors/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /imports/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /imports_errors/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /manifests/{manifestId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+
+        match /lineItems/{docId} {
+          allow read: if isTenantMember(tenantId);
+          allow write: if isOwnerOrManager(tenantId);
+        }
+      }
+
+      match /pallets/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /inventory/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /sales/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /analytics_rollups/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if false; // Cloud Functions only
+      }
+
+      match /favorites/{docId} {
+        allow read, write: if isTenantMember(tenantId);
+      }
+
+      match /watchlists/{docId} {
+        allow read, write: if isTenantMember(tenantId);
+      }
+
+      match /notes/{docId} {
+        allow read, write: if isTenantMember(tenantId);
+      }
+
+      match /tasks/{docId} {
+        allow read, write: if isTenantMember(tenantId);
+      }
+
+      match /settings/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+
+      match /locations/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /bids/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /claims/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrManager(tenantId);
+      }
+
+      match /audit_logs/{docId} {
+        allow read: if isOwnerOrManager(tenantId);
+        allow write: if false; // Cloud Functions only
+      }
+
+      match /subscriptions/{docId} {
+        allow read: if isOwner(tenantId);
+        allow write: if false; // Stripe webhook via Cloud Functions only
+      }
+
+      match /api_keys/{docId} {
+        allow read: if isOwner(tenantId);
+        allow write: if isOwner(tenantId);
+      }
+    }
+
+    // ---- Users -------------------------------------------------------
+    // Mirrors tenantId + role custom claims for query convenience. A user
+    // may read/update their own profile; tenant admins may read/manage
+    // members of their own tenant.
+
+    match /users/{userId} {
+      allow read: if isSignedIn() &&
+        (request.auth.uid == userId || isOwnerOrManager(resource.data.tenantId));
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isSignedIn() &&
+        (request.auth.uid == userId || isOwner(resource.data.tenantId));
+      allow delete: if isSignedIn() && isOwner(resource.data.tenantId);
+    }
+
+    // ---- Cross-tenant: product_intelligence ---------------------------
+    // Separate security domain by design. Pooled, anonymized outcome data
+    // (UPC/ASIN -> historical resale price, sell-through time) with no
+    // tenant-identifying fields. Readable by any authenticated tenant
+    // member; never client-writable — populated exclusively by trusted
+    // Cloud Functions using the Admin SDK, which bypasses these rules.
+
+    match /product_intelligence/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Deny-by-default for anything not explicitly matched above.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

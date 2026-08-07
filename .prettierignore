@@ -1,0 +1,7 @@
+dist
+node_modules
+functions/lib
+package-lock.json
+
+# Verbatim source-of-truth doc — do not reformat
+docs/projects/PROJ-PALLETIQ.md

@@ -1,0 +1,37 @@
+{
+  "name": "PalletIQ",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    }
+  },
+  "postCreateCommand": "npm install && npm install -g firebase-tools",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "toba.vsfire",
+        "streetsidesoftware.code-spell-checker"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      }
+    }
+  },
+  "forwardPorts": [5173, 4000, 8080, 9099, 5000, 9150],
+  "portsAttributes": {
+    "5173": { "label": "Vite dev server" },
+    "4000": { "label": "Firebase Emulator UI" },
+    "8080": { "label": "Firestore emulator" },
+    "9099": { "label": "Auth emulator" },
+    "5000": { "label": "Hosting emulator" }
+  },
+  "remoteUser": "node"
+}
