@@ -1,6 +1,6 @@
 ---
 name: pre-pr-check
-description: Run PalletIQ's pre-PR governance gate - the CONTRIBUTING.md command checklist plus governance Checks I/II/III (rules parity, async AI boundary, RBAC UI/rules parity). Use before opening a PR, before marking a ticket done, or when asked to verify a change is ready to ship.
+description: Run PalletIQ's pre-PR governance gate - the CONTRIBUTING.md command checklist plus governance Checks I/II/III/IV (rules parity, async AI boundary, RBAC UI/rules parity, design system adherence). Use before opening a PR, before marking a ticket done, or when asked to verify a change is ready to ship.
 ---
 
 # Pre-PR check
@@ -52,11 +52,16 @@ PALLETIQ-002/006)`. If it exists, cross-check each UI role boundary against the
    corresponding restriction in `firestore.rules` and `docs/personas/*.md` — flag any
    boundary enforced in only one layer.
 
-7. **Report.** Print one compact pass/fail table: the 4-5 npm commands, then Check
-   I/II/III each as PASS / FAIL / N/A with a one-line reason. If anything failed,
+7. **Check IV — Design system adherence.** If the diff touches any file under `src/`
+   affecting components, pages, or styles, dispatch to the `design-system-auditor`
+   subagent and include its findings verbatim. If nothing under `src/` changed (e.g.
+   a docs-only or governance-only PR), report `N/A — no UI code changed`.
+
+8. **Report.** Print one compact pass/fail table: the 4-5 npm commands, then Check
+   I/II/III/IV each as PASS / FAIL / N/A with a one-line reason. If anything failed,
    stop here — don't suggest the change is ready.
 
-8. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
+9. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
    confirm with the user before pushing (`git push -u origin <branch>`) and opening a
    PR (`gh pr create`) — these are visible-to-others actions, so don't do them
    silently even though the checks passed. If the user declines or this is being run

@@ -65,6 +65,14 @@ Standing checks that apply across every phase of `docs/projects/PROJ-PALLETIQ.md
 - **Check III — RBAC in UI and rules.** A permission boundary enforced only
   in Firestore rules and not reflected in the UI (or vice versa) is
   incomplete. Both layers must agree.
+- **Check IV — Design system adherence.** UI code follows `docs/design/`
+  tokens and patterns: no unapproved hardcoded colors/fonts, denied-role
+  fields are omitted from the DOM (not CSS-hidden — see
+  `docs/design/rbac-ui-patterns.md`), and new components reuse a documented
+  pattern (`docs/design/components.md`) before inventing a new one. See
+  ADR-0002. **Known live gap:** `src/App.tsx` already uses default Tailwind
+  slate colors instead of any design-system token — there's no token system
+  yet for compliant code to use instead (tracked as `PALLETIQ-016`).
 
 ## Document map
 
@@ -76,3 +84,4 @@ Standing checks that apply across every phase of `docs/projects/PROJ-PALLETIQ.md
 | `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope             |
 | `docs/personas/`                 | Role definitions and permission boundaries (RBAC input)        |
 | `docs/adr/`                      | Architecture Decision Records                                  |
+| `docs/design/`                   | Design system + addenda — source of truth for UI (Check IV)    |

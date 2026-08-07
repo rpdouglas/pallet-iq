@@ -29,6 +29,12 @@ Three standing checks apply across every phase:
 - **Check III — RBAC in UI and rules.** A permission boundary enforced only in
   Firestore rules and not reflected in the UI (or vice versa) is incomplete. Not yet
   applicable — no role-gated UI exists yet (pre PALLETIQ-002/006).
+- **Check IV — Design system adherence.** UI code follows `docs/design/` tokens and
+  patterns — no unapproved hardcoded colors/fonts, denied-role fields omitted from
+  the DOM (not CSS-hidden), new components reuse a documented pattern before
+  inventing a new one. See ADR-0002. **Known live gap:** `src/App.tsx` already uses
+  default Tailwind slate colors instead of any design-system token — no token
+  system exists yet for compliant code to use (tracked as `PALLETIQ-016`).
 
 ## Document map
 
@@ -40,6 +46,7 @@ Three standing checks apply across every phase:
 | `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope             |
 | `docs/personas/`                 | Role definitions and permission boundaries (RBAC input)        |
 | `docs/adr/`                      | Architecture Decision Records                                  |
+| `docs/design/`                   | Design system + addenda — source of truth for UI (Check IV)    |
 
 ## Conventions
 
@@ -61,8 +68,8 @@ push` to `main`/`master` as a guardrail, but don't rely on it — branch
 
 - **`open-ticket`** — walk a new ticket through the Planning gate.
 - **`new-adr`** — scaffold a new Architecture Decision Record.
-- **`pre-pr-check`** — run the CONTRIBUTING.md checklist plus governance Checks I/II/III
-  before opening a PR or closing a ticket.
+- **`pre-pr-check`** — run the CONTRIBUTING.md checklist plus governance Checks
+  I/II/III/IV before opening a PR or closing a ticket.
 - **`close-ticket`** — walk a ticket through the Ticket-close gate.
 
 ## Subagents
@@ -70,6 +77,8 @@ push` to `main`/`master` as a guardrail, but don't rely on it — branch
 - **`firestore-rules-auditor`** — audits Check I (rules/tests parity). Invoke after
   any change to `firestore.rules`, `firestore.rules.test.ts`, or code introducing a
   new Firestore collection.
+- **`design-system-auditor`** — audits Check IV (design system adherence). Invoke
+  after any change under `src/` touching components, pages, or styles.
 
 `rbac-parity-auditor` (Check III) and `async-ai-boundary-auditor` (Check II) are
 intentionally not built yet — there's no role-gated UI or AI SDK usage in the
