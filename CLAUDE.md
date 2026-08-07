@@ -1,0 +1,70 @@
+# CLAUDE.md
+
+Guidance for Claude Code sessions working in this repo.
+
+## Governance
+
+PalletIQ uses docs-as-code governance — see [`docs/GOVERNANCE.md`](docs/GOVERNANCE.md)
+for the full model. Read it before starting any ticket-scoped work. Summary:
+
+Every ticket moves through three gates, none skippable: **Planning** (ticket in
+`docs/BACKLOG.md` with Phase/Persona/Priority, scope bounded in/out, ADR first if
+architecturally significant) → **Autonomous execution** (stay in scope; anything
+discovered mid-flight is drift, logged not absorbed; the ticket's phase
+QA/Verification criteria in `docs/projects/PROJ-PALLETIQ.md` must pass) →
+**Ticket close** (diff shipped vs. planned, record drift in `docs/ACTIVE_CYCLE.md`,
+fold lasting-impact changes back into `docs/BACKLOG.md`/`docs/ROADMAP.md`).
+
+Three standing checks apply across every phase:
+
+- **Check I — Rules parity.** Every Firestore collection needs an explicit
+  tenant-isolation (+role-based where relevant) block in `firestore.rules` AND at
+  least one passing/failing test pair in `firestore.rules.test.ts` proving
+  cross-tenant denial. **Known live gap:** `firestore.rules` defines ~20 collections
+  but `firestore.rules.test.ts` currently has only 6 tests (4 tenant-isolation + 2
+  `product_intelligence`) — most collections don't have their own pair yet.
+- **Check II — Async AI boundary.** No Gemini/Vertex call happens inline on a
+  user-facing request path; AI work is queued (Cloud Tasks/Pub-Sub) and polled/pushed
+  back. Not yet applicable — no AI SDK calls exist in the codebase (pre PALLETIQ-005).
+- **Check III — RBAC in UI and rules.** A permission boundary enforced only in
+  Firestore rules and not reflected in the UI (or vice versa) is incomplete. Not yet
+  applicable — no role-gated UI exists yet (pre PALLETIQ-002/006).
+
+## Document map
+
+| File | Purpose |
+| --- | --- |
+| `docs/ROADMAP.md` | Phase-level status (Phase 0–4) |
+| `docs/BACKLOG.md` | Ticket-level backlog across all phases |
+| `docs/ACTIVE_CYCLE.md` | Current cycle's goal, in-flight tickets, blockers, drift notes |
+| `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope |
+| `docs/personas/` | Role definitions and permission boundaries (RBAC input) |
+| `docs/adr/` | Architecture Decision Records |
+
+## Conventions
+
+- Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused — check
+  `docs/BACKLOG.md` for the highest existing ID before minting a new one.
+- Roles are `owner | manager | warehouse | buyer` (`src/types/auth.ts`). This type,
+  the role helpers in `firestore.rules` (`hasRole`/`isOwnerOrManager`/`isOwner`), and
+  `docs/personas/*.md` are one contract — keep them in sync, don't edit one in
+  isolation.
+
+## Skills
+
+- **`open-ticket`** — walk a new ticket through the Planning gate.
+- **`new-adr`** — scaffold a new Architecture Decision Record.
+- **`pre-pr-check`** — run the CONTRIBUTING.md checklist plus governance Checks I/II/III
+  before opening a PR or closing a ticket.
+- **`close-ticket`** — walk a ticket through the Ticket-close gate.
+
+## Subagents
+
+- **`firestore-rules-auditor`** — audits Check I (rules/tests parity). Invoke after
+  any change to `firestore.rules`, `firestore.rules.test.ts`, or code introducing a
+  new Firestore collection.
+
+`rbac-parity-auditor` (Check III) and `async-ai-boundary-auditor` (Check II) are
+intentionally not built yet — there's no role-gated UI or AI SDK usage in the
+codebase for them to check. Add them once PALLETIQ-002/006 and PALLETIQ-005 land,
+respectively.
