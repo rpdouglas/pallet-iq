@@ -32,14 +32,14 @@ Three standing checks apply across every phase:
 
 ## Document map
 
-| File | Purpose |
-| --- | --- |
-| `docs/ROADMAP.md` | Phase-level status (Phase 0–4) |
-| `docs/BACKLOG.md` | Ticket-level backlog across all phases |
-| `docs/ACTIVE_CYCLE.md` | Current cycle's goal, in-flight tickets, blockers, drift notes |
-| `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope |
-| `docs/personas/` | Role definitions and permission boundaries (RBAC input) |
-| `docs/adr/` | Architecture Decision Records |
+| File                             | Purpose                                                        |
+| -------------------------------- | -------------------------------------------------------------- |
+| `docs/ROADMAP.md`                | Phase-level status (Phase 0–4)                                 |
+| `docs/BACKLOG.md`                | Ticket-level backlog across all phases                         |
+| `docs/ACTIVE_CYCLE.md`           | Current cycle's goal, in-flight tickets, blockers, drift notes |
+| `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope             |
+| `docs/personas/`                 | Role definitions and permission boundaries (RBAC input)        |
+| `docs/adr/`                      | Architecture Decision Records                                  |
 
 ## Conventions
 
@@ -48,7 +48,7 @@ Three standing checks apply across every phase:
   — see [`CONTRIBUTING.md`](CONTRIBUTING.md#branching). This applies to every
   change, including docs-only edits like backlog/roadmap updates. A session
   hook (`.claude/hooks/git-branch-guard.py`) blocks direct `git commit`/`git
-  push` to `main`/`master` as a guardrail, but don't rely on it — branch
+push` to `main`/`master` as a guardrail, but don't rely on it — branch
   first, as a matter of habit, not because the hook will catch it.
 - Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused — check
   `docs/BACKLOG.md` for the highest existing ID before minting a new one.

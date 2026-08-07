@@ -20,7 +20,7 @@ it completes a phase, update the phase status in `docs/ROADMAP.md`."
      `docs/projects/PROJ-PALLETIQ.md`, actually pass. Quote the relevant criteria and
      state explicitly how each was verified (test run, manual check, etc.) — don't
      just assert it passes.
-   If either isn't clean, stop and report what's blocking, rather than closing anyway.
+     If either isn't clean, stop and report what's blocking, rather than closing anyway.
 
 2. **Pull the original plan.** Find the ticket's row in `docs/BACKLOG.md` and its
    scope bullets (from when `open-ticket` opened it, or from the conversation/PR

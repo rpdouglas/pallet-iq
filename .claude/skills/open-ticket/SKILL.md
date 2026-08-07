@@ -33,7 +33,7 @@ before implementation starts, not after."
 
 5. **ADR check.** If the ticket involves an architecturally significant decision
    (new data model shape, a tradeoff with real alternatives, something future work
-   will build on), invoke the `new-adr` skill now and get the ADR written *before*
+   will build on), invoke the `new-adr` skill now and get the ADR written _before_
    proceeding — per the governance model, the ADR must land before implementation
    starts, not be backfilled after. Link the resulting ADR path in the ticket entry.
    Most tickets won't need this — don't force one.
@@ -46,7 +46,7 @@ before implementation starts, not after."
    ticket continues earlier work), stay on it rather than creating a second one.
 
 7. **Append to `docs/BACKLOG.md`.** Add a new row to the table: `| PALLETIQ-NNN |
-   Title | Persona | Phase | Planned | Priority |`. Keep the table's existing column
+Title | Persona | Phase | Planned | Priority |`. Keep the table's existing column
    formatting. Commit this as its own logical commit (e.g. "Open PALLETIQ-NNN:
    <title>") rather than bundling it silently into a later implementation commit.
 

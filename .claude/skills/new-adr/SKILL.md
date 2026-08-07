@@ -23,6 +23,7 @@ Scaffolds a new ADR in `docs/adr/` following this repo's convention (see
 
 3. **Write the file** at `docs/adr/NNNN-kebab-case-title.md` using the exact section
    structure from `docs/adr/template.md`:
+
    ```
    # ADR-NNNN: Title
 
@@ -37,6 +38,7 @@ Scaffolds a new ADR in `docs/adr/` following this repo's convention (see
 
    ## Consequences
    ```
+
    `Status` starts as `Proposed` unless the user says it's already decided/accepted.
 
 4. **Report back** the file path and ADR number. If this was invoked from within

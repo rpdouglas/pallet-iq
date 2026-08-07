@@ -15,7 +15,7 @@ rules and a passing/failing rules test).
 directly**, including for docs-only changes like backlog/roadmap updates.
 
 - Branch off `main` before making any change: `git checkout -b
-  palletiq-NNN-short-slug` (ticket ID first if the change is ticket-scoped,
+palletiq-NNN-short-slug` (ticket ID first if the change is ticket-scoped,
   otherwise a short descriptive slug).
 - Commit in logical, reviewable units — one commit per coherent change, not
   one giant commit per ticket and not one commit per file save. Commit
