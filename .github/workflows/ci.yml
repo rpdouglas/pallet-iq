@@ -52,6 +52,30 @@ jobs:
 
       - run: npm run test:rules
 
+  functions:
+    name: Cloud Functions lint, typecheck, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - run: npm ci
+        working-directory: functions
+
+      - run: npm run lint
+        working-directory: functions
+
+      - run: npm run typecheck
+        working-directory: functions
+
+      - run: npm run build
+        working-directory: functions
+
   deploy-hosting:
     name: Deploy to Firebase Hosting
     # Only on a real push to main, never for PRs - PALLETIQ-015 is a

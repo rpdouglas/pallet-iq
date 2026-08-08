@@ -19,7 +19,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Planned     | P1       |
 | PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Planned     | P0       |
 | PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Planned     | P1       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | In Progress | P1       |
 | PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | In Progress | P1       |
 | PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Planned     | P1       |
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Planned     | P2       |
@@ -103,3 +103,26 @@ deploy (separate concern, `PALLETIQ-014`); any deploy target beyond Hosting.
 _ADR:_ not written — this is standard, well-established CI/CD wiring using
 Google's own official GitHub Action, not a novel architectural decision with
 real alternatives to weigh.
+
+_Scope note on `PALLETIQ-014` (2026-08-08):_
+
+_In scope:_ a self-contained `functions/` npm package (own `package.json`,
+`node_modules`, `tsconfig.json` — deliberately not part of the root package's
+dependency graph, so the deployed bundle doesn't drag in frontend deps like
+React/Vite) with one minimal placeholder HTTPS function proving the pipeline
+works end-to-end. `firebase.json`'s `functions` deploy target (source +
+predeploy build hook) and `functions` emulator port, matching the existing
+auth/firestore/storage/hosting emulator entries. A new CI job that installs,
+lints, typechecks, and builds `functions/` — mirroring the root's job, scoped
+to the subdirectory. Root `eslint.config.js` updated so `functions/**/*.ts`
+lints with Node globals, not browser globals.
+
+_Out of scope, deferred:_ the actual RBAC/claims-setting function logic
+(`PALLETIQ-002`); **auto-deploying functions on merge to main** — unlike
+Hosting (`PALLETIQ-015`), functions can have real side effects, so
+auto-deploy-on-merge is a deliberate non-default here, not an oversight;
+deploys stay manual (`firebase deploy --only functions`) until a ticket
+actually needs one live and makes that call explicitly.
+
+_ADR:_ not written — this is package/tooling scaffolding, not an
+architectural decision (no logic to have alternatives about yet).
