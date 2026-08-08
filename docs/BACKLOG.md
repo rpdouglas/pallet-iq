@@ -20,7 +20,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Planned     | P0       |
 | PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done        | P0       |
 | PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Planned     | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | Planned     | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | In Progress | P1       |
 | PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Planned     | P1       |
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Planned     | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
@@ -84,3 +84,22 @@ _Note on `PALLETIQ-006` (2026-08-08): when this ticket starts (first real
 multi-page auth/onboarding flow), that's the trigger to reconsider Playwright —
 deferred until now because there was nothing E2E-worthy to test. See the
 testing/security review in this cycle's drift notes for the full reasoning._
+
+_Scope note on `PALLETIQ-015` (2026-08-08):_
+
+_In scope:_ a new CI job that builds the app and deploys to Firebase Hosting
+(`mrt-pallet-iq.web.app`), gated on the existing `Lint, typecheck, unit tests`
+and `Firestore rules tests` jobs passing first, triggered only on push to
+`main` (not on PRs — no preview-channel deploys in this pass). Uses
+`FirebaseExtended/action-hosting-deploy@v0` authenticated via a dedicated
+service account (`palletiq-ci-hosting-deploy`) scoped to the `Firebase
+Hosting Admin` IAM role only on `mrt-pallet-iq` — not a broader role, and not
+reused from any other project. The key is stored as a GitHub Actions secret,
+never committed.
+
+_Out of scope, deferred:_ preview-channel deploys on PRs; Cloud Functions
+deploy (separate concern, `PALLETIQ-014`); any deploy target beyond Hosting.
+
+_ADR:_ not written — this is standard, well-established CI/CD wiring using
+Google's own official GitHub Action, not a novel architectural decision with
+real alternatives to weigh.
