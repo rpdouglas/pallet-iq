@@ -40,6 +40,7 @@ npm run lint
 npm run typecheck
 npm run test
 npm run test:rules   # if firestore.rules or any tenant-scoped collection changed
+npm run test:storage-rules   # if storage.rules or any tenant-scoped storage path changed
 ```
 
 All of the above run in CI (`.github/workflows/ci.yml`) and must pass
