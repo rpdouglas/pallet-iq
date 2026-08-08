@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/hooks/git-branch-guard.py",
+            "command": "python3 /workspaces/pallet-iq/.claude/hooks/git-branch-guard.py",
             "statusMessage": "Checking branch guard..."
           }
         ]
