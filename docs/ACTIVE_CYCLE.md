@@ -14,22 +14,18 @@ proceed against the real `mrt-pallet-iq` project instead of a placeholder.
 
 ## Tickets in flight
 
-_(PALLETIQ-013 closed this update — see Drift notes. Nothing else currently
-in flight.)_
+_(PALLETIQ-013 and PALLETIQ-018 closed this update — see Drift notes. Nothing
+currently in flight.)_
 
 ## Blockers
 
-- **Firebase Authentication has never been initialized on `mrt-pallet-iq`**
-  (no config exists yet — confirmed via the Identity Toolkit Admin API). This
-  blocks `PALLETIQ-002` (auth custom claims). Needs a one-time manual step in
-  the Firebase console (Authentication → Get Started → enable Email/Password),
-  since there's no API-only path that doesn't risk provisioning the wrong
-  product tier — not something this repo's automation can do on its own.
-- **Cloud Storage has never been provisioned on `mrt-pallet-iq`** (no bucket
-  exists, confirmed via the Storage API, despite the web SDK config
-  referencing a default bucket name). Blocks `PALLETIQ-018`. Also needs a
-  manual console step (Storage → Get Started), matching Firestore's
-  `northamerica-northeast1` location per the decision recorded below.
+None currently open. Both prior blockers (Auth never initialized, Storage
+never provisioned) were manually resolved via the Firebase console and are
+now wired into the repo — see Drift notes.
+
+**Note for `PALLETIQ-002`:** Auth is enabled with Email/Password only. If a
+second sign-in method (e.g. Google) turns out to be needed, that's additional
+console configuration, not something this repo's automation can add.
 
 ## Drift notes
 
@@ -54,3 +50,24 @@ back into `docs/BACKLOG.md` or `docs/ROADMAP.md`._
   ticket since it's an implicit prerequisite already inside `PALLETIQ-002`'s
   scope, just called out here so it isn't a silent surprise when that ticket
   starts.
+
+- **2026-08-08 — PALLETIQ-018 closed.** Planned scope was "provision a Cloud
+  Storage bucket + wire `storage.rules` into repo config." Owner manually
+  completed the console-side bucket creation (Storage → Get Started) between
+  the two tickets. **Drift from the recorded location decision:** Storage was
+  created in `US-EAST1`, not `northamerica-northeast1` (Firestore's region) —
+  `northamerica-northeast1` wasn't available on the free Spark plan's default-
+  bucket location list. Firestore and Storage are now in different regions;
+  not a correctness problem, just a latency tradeoff accepted to stay on the
+  free tier at this stage. Revisit if/when the project moves to Blaze and
+  region co-location becomes worth a bucket migration.
+  Shipped: `storage.rules` (new) applying the same `tenants/{tenantId}/...` +
+  deny-by-default pattern as `firestore.rules`, wired into `firebase.json`
+  (deploy target + emulator port), deployed to production, and verified via
+  the Firebase Rules API that the live ruleset matches the repo — replacing
+  the console's locked-mode default (`allow read, write: if false`).
+  **Known gap, not fixed here:** no automated rules-test suite for
+  `storage.rules` yet (unlike `firestore.rules.test.ts` for Check I) — noted
+  in the rules file itself. Add test coverage alongside `PALLETIQ-008`/`012`
+  (the tickets that will actually exercise uploads), or consider formalizing
+  a storage-rules parity check later if this becomes a recurring gap.
