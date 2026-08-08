@@ -33,9 +33,7 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-`PALLETIQ-001` — `In Progress`, rescoped to closing the rules-test-coverage
-gap (Firestore + Storage). See `docs/BACKLOG.md`'s note on that ticket for
-the exact scope. Nothing else currently in flight.
+None currently in flight. `PALLETIQ-001` closed this update — see Drift notes.
 
 ## Blockers
 
@@ -184,3 +182,36 @@ https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
     Auth-emulator-backed integration test yet, only unit tests against mocked
     Admin SDK calls. Worth an integration-test pass once real UI exists to
     drive it.
+
+- **2026-08-08 — PALLETIQ-001 closed.** Planned scope (per the `BACKLOG.md`
+  rescoping note): close the rules-test-coverage gap for both
+  `firestore.rules.test.ts` (13 tests covering 5 of 23 tenant/role-scoped
+  collection blocks) and `storage.rules.test.ts` (zero tests). Shipped exactly
+  that — `firestore.rules.test.ts` now has 81 tests covering all 23
+  collections (one `assertSucceeds`/`assertFails` pair minimum per collection,
+  `describe.each`-parameterized for the ~10 collections sharing a "tenant
+  member read, owner/manager write" RBAC shape so the pattern doesn't drift
+  out of sync as collections are added); `storage.rules.test.ts` is new, 5
+  tests proving tenant isolation, deny-unauthenticated, and deny-outside-
+  `tenants/`-prefix. No changes to `firestore.rules` or `storage.rules`
+  themselves — test coverage only, as scoped. `firestore-rules-auditor`
+  reviewed before merge.
+  **Drift beyond planned scope:** the `firestore-rules-auditor` review caught
+  that `vendors` and `inventory` — the two collections with pre-existing
+  tests from before this ticket — only had the original cross-tenant
+  read/write denial tests, not the full 4-case matrix (member read,
+  cross-tenant deny, manager write allow, buyer write deny) the newly-written
+  collections got. Folded both into the same `describe.each` group rather
+  than leaving them at a lower coverage standard than everything else.
+  **Drift discovered mid-implementation:** `storage.rules.test.ts` initially
+  failed every `uploadBytes`-based test with a generic `storage/unknown`
+  error under `firebase emulators:exec`, even with correct rules and a
+  correctly-running emulator (isolated via a standalone repro script that
+  connects to the same emulator and succeeds). Root cause: the project's
+  default Vitest environment is `jsdom` (`vite.config.ts`, needed for
+  React component tests), and jsdom's XHR/fetch shim silently breaks
+  Storage's binary upload handling — Firestore's rules tests are unaffected
+  since they don't do binary uploads. Fixed with a per-file
+  `// @vitest-environment node` pragma on `storage.rules.test.ts`, not a
+  project-wide config change. Worth remembering if any other Storage-touching
+  test is added later.
