@@ -1,6 +1,6 @@
 ---
 name: pre-pr-check
-description: Run PalletIQ's pre-PR governance gate - the CONTRIBUTING.md command checklist plus governance Checks I/II/III/IV (rules parity, async AI boundary, RBAC UI/rules parity, design system adherence). Use before opening a PR, before marking a ticket done, or when asked to verify a change is ready to ship.
+description: Run PalletIQ's pre-PR governance gate - the CONTRIBUTING.md command checklist, governance Checks I/II/III/IV (rules parity, async AI boundary, RBAC UI/rules parity, design system adherence), and a re-sync with origin/main to catch conflicts before they hit GitHub. Use before opening a PR, before marking a ticket done, when asked to verify a change is ready to ship, or when a PR shows merge conflicts.
 ---
 
 # Pre-PR check
@@ -68,9 +68,29 @@ assets changed`.
    I/II/III/IV each as PASS / FAIL / N/A with a one-line reason. If anything failed,
    stop here — don't suggest the change is ready.
 
-9. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
-   confirm with the user before pushing (`git push -u origin <branch>`) and opening a
-   PR (`gh pr create`) — these are visible-to-others actions, so don't do them
-   silently even though the checks passed. If the user declines or this is being run
-   mid-work rather than at the end, just report that the change is clear to ship
-   whenever they're ready.
+9. **Re-sync with `origin/main` right before finalizing.** `git fetch origin && git
+merge origin/main`. Do this even if you synced when the branch was created — the
+   whole point is catching anything that merged into `main` _during_ this session's
+   work, which branch-creation-time sync can't. This step exists because
+   `docs/BACKLOG.md`/`docs/ACTIVE_CYCLE.md` get touched by nearly every ticket, so
+   two branches open at once will conflict there even when neither is stale at the
+   moment it was created. If it conflicts:
+   - Resolve directly (these are near-always append-only doc conflicts — keep both
+     sides' content, matching the pattern in recent merge commits) rather than
+     asking the user to do it.
+   - Re-run the command checklist (step 3) if the merge touched anything under
+     `src/`, `functions/`, `firestore.rules`, or `storage.rules` — a doc-only merge
+     doesn't need a re-run, a code-touching one does.
+   - Commit the merge with a message naming which PR it's unblocking.
+
+10. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
+    confirm with the user before pushing (`git push -u origin <branch>`) and opening
+    a PR (`gh pr create`) — these are visible-to-others actions, so don't do them
+    silently even though the checks passed. If the user declines or this is being
+    run mid-work rather than at the end, just report that the change is clear to
+    ship whenever they're ready.
+
+11. **If this is re-run on an already-open PR** (e.g. the user reports a merge
+    conflict GitHub is showing): steps 9-10 are exactly the fix — re-sync, resolve,
+    re-verify, push to the existing branch. No new PR needed, the push updates the
+    open one.
