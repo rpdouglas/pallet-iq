@@ -52,6 +52,26 @@ jobs:
 
       - run: npm run test:rules
 
+  storage-rules:
+    name: Storage rules tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      - run: npm run test:storage-rules
+
   functions:
     name: Cloud Functions lint, typecheck, test, build
     runs-on: ubuntu-latest
@@ -84,7 +104,7 @@ jobs:
     # Only on a real push to main, never for PRs - PALLETIQ-015 is a
     # merge-to-main deploy, not a preview-channel workflow.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint-typecheck-test, firestore-rules]
+    needs: [lint-typecheck-test, firestore-rules, storage-rules]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

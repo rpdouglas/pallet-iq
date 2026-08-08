@@ -19,5 +19,5 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "firestore.rules.test.ts"]
+  "include": ["vite.config.ts", "firestore.rules.test.ts", "storage.rules.test.ts"]
 }

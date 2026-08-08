@@ -208,3 +208,311 @@ describe('product_intelligence (cross-tenant)', () => {
     )
   })
 })
+
+// The remaining collections below share one of a small number of RBAC
+// shapes. Rather than hand-writing a near-identical block per collection,
+// describe.each parameterizes the shared shapes so every collection still
+// gets its own named pair of tests (governance Check I) without the
+// duplication drifting out of sync as collections are added.
+
+describe.each([
+  'vendors',
+  'imports',
+  'imports_errors',
+  'manifests',
+  'pallets',
+  'inventory',
+  'sales',
+  'locations',
+  'bids',
+  'claims',
+])('%s (tenant member read, owner/manager write)', (collection) => {
+  it('allows a tenant member to read a doc in their own tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(memberOfA.firestore().doc(`tenants/${TENANT_A}/${collection}/doc-1`).get())
+  })
+
+  it("denies reading another tenant's doc", async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(memberOfA.firestore().doc(`tenants/${TENANT_B}/${collection}/doc-1`).get())
+  })
+
+  it('allows a manager to write a doc in their own tenant', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertSucceeds(
+      managerOfA.firestore().doc(`tenants/${TENANT_A}/${collection}/doc-1`).set({ seeded: true }),
+    )
+  })
+
+  it('denies a buyer writing a doc in their own tenant', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      buyerOfA.firestore().doc(`tenants/${TENANT_A}/${collection}/doc-1`).set({ seeded: true }),
+    )
+  })
+})
+
+describe('lineItems (nested under manifests, tenant member read, owner/manager write)', () => {
+  it('allows a tenant member to read a line item in their own tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(
+      memberOfA.firestore().doc(`tenants/${TENANT_A}/manifests/manifest-1/lineItems/item-1`).get(),
+    )
+  })
+
+  it("denies reading another tenant's line item", async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      memberOfA.firestore().doc(`tenants/${TENANT_B}/manifests/manifest-1/lineItems/item-1`).get(),
+    )
+  })
+
+  it('allows a manager to write a line item in their own tenant', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertSucceeds(
+      managerOfA
+        .firestore()
+        .doc(`tenants/${TENANT_A}/manifests/manifest-1/lineItems/item-1`)
+        .set({ sku: 'abc' }),
+    )
+  })
+
+  it('denies a buyer writing a line item in their own tenant', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      buyerOfA
+        .firestore()
+        .doc(`tenants/${TENANT_A}/manifests/manifest-1/lineItems/item-1`)
+        .set({ sku: 'abc' }),
+    )
+  })
+})
+
+describe.each(['favorites', 'watchlists', 'notes', 'tasks'])(
+  '%s (any tenant member read/write)',
+  (collection) => {
+    it('allows a tenant member to read and write a doc in their own tenant', async () => {
+      const memberOfA = testEnv.authenticatedContext('buyer-a', {
+        tenantId: TENANT_A,
+        role: 'buyer',
+      })
+
+      await assertSucceeds(
+        memberOfA.firestore().doc(`tenants/${TENANT_A}/${collection}/doc-1`).set({ seeded: true }),
+      )
+    })
+
+    it("denies reading another tenant's doc", async () => {
+      const memberOfA = testEnv.authenticatedContext('buyer-a', {
+        tenantId: TENANT_A,
+        role: 'buyer',
+      })
+
+      await assertFails(memberOfA.firestore().doc(`tenants/${TENANT_B}/${collection}/doc-1`).get())
+    })
+  },
+)
+
+describe('analytics_rollups (system-populated, member read-only)', () => {
+  it('allows a tenant member to read a rollup in their own tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(
+      memberOfA.firestore().doc(`tenants/${TENANT_A}/analytics_rollups/rollup-1`).get(),
+    )
+  })
+
+  it("denies reading another tenant's rollup", async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      memberOfA.firestore().doc(`tenants/${TENANT_B}/analytics_rollups/rollup-1`).get(),
+    )
+  })
+
+  it('denies a client write even from an owner (Cloud Functions only)', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/analytics_rollups/rollup-1`).set({ total: 1 }),
+    )
+  })
+})
+
+describe('settings (member read, owner-only write)', () => {
+  it('allows a tenant member to read settings in their own tenant', async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(buyerA.firestore().doc(`tenants/${TENANT_A}/settings/general`).get())
+  })
+
+  it("denies reading another tenant's settings", async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(buyerA.firestore().doc(`tenants/${TENANT_B}/settings/general`).get())
+  })
+
+  it('denies a manager writing settings (owner-only)', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertFails(
+      managerOfA.firestore().doc(`tenants/${TENANT_A}/settings/general`).set({ timezone: 'UTC' }),
+    )
+  })
+
+  it('allows an owner to write settings in their own tenant', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertSucceeds(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/settings/general`).set({ timezone: 'UTC' }),
+    )
+  })
+})
+
+describe('api_keys (owner-only read/write)', () => {
+  it('allows an owner to read and write api keys in their own tenant', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertSucceeds(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/api_keys/key-1`).set({ label: 'test' }),
+    )
+  })
+
+  it('denies a manager reading api keys (owner-only)', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertFails(managerOfA.firestore().doc(`tenants/${TENANT_A}/api_keys/key-1`).get())
+  })
+
+  it("denies an owner reading another tenant's api keys", async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(ownerOfA.firestore().doc(`tenants/${TENANT_B}/api_keys/key-1`).get())
+  })
+})
+
+describe('audit_logs (owner/manager read-only, Cloud Functions write)', () => {
+  it('allows a manager to read audit logs in their own tenant', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertSucceeds(managerOfA.firestore().doc(`tenants/${TENANT_A}/audit_logs/log-1`).get())
+  })
+
+  it('denies a buyer reading audit logs (owner/manager only)', async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(buyerA.firestore().doc(`tenants/${TENANT_A}/audit_logs/log-1`).get())
+  })
+
+  it('denies a client write even from an owner (Cloud Functions only)', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/audit_logs/log-1`).set({ action: 'test' }),
+    )
+  })
+})
+
+describe('subscriptions (owner-only read, Cloud Functions write)', () => {
+  it('allows an owner to read subscription info in their own tenant', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertSucceeds(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/subscriptions/current`).get(),
+    )
+  })
+
+  it('denies a manager reading subscription info (owner-only)', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertFails(managerOfA.firestore().doc(`tenants/${TENANT_A}/subscriptions/current`).get())
+  })
+
+  it('denies a client write even from an owner (Stripe webhook via Cloud Functions only)', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/subscriptions/current`).set({ plan: 'pro' }),
+    )
+  })
+})
