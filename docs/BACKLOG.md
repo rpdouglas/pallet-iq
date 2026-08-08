@@ -29,3 +29,44 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
 New tickets go through the Planning gate first (see `docs/GOVERNANCE.md`)
 before landing here with a Phase and Priority assigned.
+
+_Scope note on `PALLETIQ-002` (2026-08-08) — Planning gate only, not started:_
+
+_In scope:_ a trusted server-side mechanism (Cloud Function, Admin SDK — custom
+claims can never be set client-side) that sets Firebase Auth custom claims
+(`tenantId`, `role`) on a user, covering two paths: **(a) tenant bootstrap** —
+the first user of a new tenant becomes `role: "owner"` automatically, and
+**(b) invite** — an existing Owner assigns `tenantId` + a role to a new/
+existing user (`docs/personas/owner-admin.md`: "Only role permitted to remove
+or demote other tenant members"). Also: the `users/{userId}` Firestore doc
+mirroring those claims (already has rules in `firestore.rules`, this ticket is
+what starts writing to it), and client-side RBAC scaffolding — a hook/context
+exposing the current user's `tenantId`/`role` (per `src/types/auth.ts`'s
+existing `TenantClaims`/`Role` types) plus a route-guard/permission-check
+utility for gating UI.
+
+_Out of scope, deferred:_ tenant onboarding/signup UI and empty-state UX
+(`PALLETIQ-006`, Phase 1); invite-teammate UI itself; per-page/per-component
+RBAC enforcement in real product UI (happens per-feature as pages get built —
+governance Check III applies then, not here); Cloud Functions CI/deploy
+pipeline (`PALLETIQ-015`); MFA/additional sign-in providers (noted as a live-
+infra follow-up in `docs/ACTIVE_CYCLE.md`, unrelated to this ticket's scope).
+
+_Firestore/RBAC impact:_ `users/{userId}` collection; all four roles affected
+(`owner`/`manager`/`warehouse`/`buyer`) since this is the foundational
+mechanism every role's claims flow through. Must produce claims compatible
+with `firestore.rules`'s `hasRole`/`isOwnerOrManager`/`isOwner` helpers and
+`docs/personas/*.md`'s permission tables — per `CLAUDE.md`, these three stay
+in sync.
+
+_Dependency flag:_ needs at least a minimal Cloud Functions package to exist
+(`PALLETIQ-014` is `Planned`, not started) — either scope a thin Functions
+package as part of this ticket or sequence `014` first. Decide during the
+implementation planning pass.
+
+_ADR needed:_ yes, before implementation starts — how claims get set (trigger
+vs. callable function), the bootstrap-vs-invite distinction, and invite-flow
+security (only Owner can assign roles) are real architectural decisions with
+alternatives and consequences; a flawed claim-setting mechanism is a
+privilege-escalation risk. Not written in this session — write via `new-adr`
+when the dedicated implementation planning pass for this ticket begins.
