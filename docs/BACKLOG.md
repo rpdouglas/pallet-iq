@@ -73,12 +73,14 @@ _Dependency flag:_ needs at least a minimal Cloud Functions package to exist
 package as part of this ticket or sequence `014` first. Decide during the
 implementation planning pass.
 
-_ADR needed:_ yes, before implementation starts — how claims get set (trigger
-vs. callable function), the bootstrap-vs-invite distinction, and invite-flow
-security (only Owner can assign roles) are real architectural decisions with
-alternatives and consequences; a flawed claim-setting mechanism is a
-privilege-escalation risk. Not written in this session — write via `new-adr`
-when the dedicated implementation planning pass for this ticket begins.
+_ADR:_ written — see
+[`docs/adr/0003-auth-custom-claims-rbac-mechanism.md`](../adr/0003-auth-custom-claims-rbac-mechanism.md)
+(2026-08-08). Decision: 4 HTTPS Callables (`createTenant`, `inviteMember`,
+`acceptInvite`, `updateMemberRole`), not a Firestore trigger or Auth blocking
+function. Also found and scoped in: `firestore.rules`'s `users/{userId}`
+block currently lets a client self-set its own `tenantId`/`role` fields on
+create/update — needs tightening to Admin-SDK-only for those two fields as
+part of this ticket's implementation, not deferred.
 
 _Note on `PALLETIQ-006` (2026-08-08): when this ticket starts (first real
 multi-page auth/onboarding flow), that's the trigger to reconsider Playwright —
