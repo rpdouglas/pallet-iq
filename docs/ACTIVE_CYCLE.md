@@ -123,3 +123,17 @@ back into `docs/BACKLOG.md` or `docs/ROADMAP.md`._
   **Still can't be done from this session** (same token-scope limitation as
   branch protection): confirming/enabling GitHub Dependabot alerts and secret
   scanning in Settings → Code security.
+
+- **2026-08-08 — PALLETIQ-015 closed.** Shipped exactly to the scope note in
+  `docs/BACKLOG.md` — no real drift. `deploy-hosting` CI job, gated on both
+  existing checks passing, push-to-`main`-only, via a service account scoped
+  to only `roles/firebasehosting.admin` on `mrt-pallet-iq`. **Verified live,
+  not just assumed from a green CI run:** `curl -I
+https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
+  timestamp matching the merge, and the owner independently confirmed the
+  site loads correctly. **Known gap, not fixed here:** verification was a
+  manual live check, not an automated post-deploy smoke test — nothing in CI
+  itself asserts the deployed site actually serves correctly beyond the
+  deploy action's own exit code. Worth a lightweight smoke-test step
+  (`curl`/status-code check against the Hosting URL) if deploy failures ever
+  need to be caught faster than "someone notices the site is down."
