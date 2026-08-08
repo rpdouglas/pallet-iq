@@ -1,0 +1,40 @@
+rules_version = '2';
+
+// PalletIQ Cloud Storage security rules — Phase 0 scaffold.
+//
+// Applies the same tenant-isolation principle as firestore.rules (see
+// docs/adr/0001-multi-tenant-from-phase-0.md): every tenant-owned object lives
+// under tenants/{tenantId}/... and is gated by isTenantMember(tenantId).
+//
+// Default posture: any authenticated member of the tenant may read/write within
+// their own tenant's folder — a safe-by-default starting point, not a final
+// policy. Tighten per-path (e.g. read-only for Warehouse on cost-adjacent
+// documents) as each upload flow (manifest files, PALLETIQ-008; images) is
+// actually implemented and its real RBAC needs are known.
+//
+// Known gap: unlike firestore.rules.test.ts (governance Check I), there is no
+// automated rules-test suite for storage.rules yet. Add one (Storage emulator +
+// @firebase/rules-unit-testing) alongside PALLETIQ-008/012, or formalize a
+// storage-rules parity check if this becomes a recurring source of drift.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isTenantMember(tenantId) {
+      return isSignedIn() && request.auth.token.tenantId == tenantId;
+    }
+
+    match /tenants/{tenantId}/{allPaths=**} {
+      allow read, write: if isTenantMember(tenantId);
+    }
+
+    // Deny-by-default for anything not explicitly matched above.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
