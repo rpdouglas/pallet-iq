@@ -10,6 +10,15 @@ shipped against what was planned. Drift ... must be written down. Record drift n
 in `docs/ACTIVE_CYCLE.md` ... Update the ticket's status in `docs/BACKLOG.md` and, if
 it completes a phase, update the phase status in `docs/ROADMAP.md`."
 
+**Run this before pushing / opening the PR**, while the implementation is still
+on its local feature branch — `pre-pr-check` hands off to this skill at that
+point for exactly this reason. This skill's doc commits (steps 4-7) need to land
+in the _same PR_ as the implementation; that's only possible while the branch is
+still open. Running this after the PR has already merged still works (step 8
+covers it), but it costs a second, bookkeeping-only PR — treat that as a
+fallback for when a ticket turns out to be done outside this normal sequence,
+not the default way to use this skill.
+
 ## Steps
 
 1. **Verify the gate criteria are met first.** Don't close a ticket that hasn't
@@ -50,9 +59,11 @@ it completes a phase, update the phase status in `docs/ROADMAP.md`."
    implementation** (steps 4–7 are all doc edits — `docs/ACTIVE_CYCLE.md`,
    `docs/BACKLOG.md`, `docs/ROADMAP.md`). They land on `main` through the same PR,
    not as a separate direct commit — per `CONTRIBUTING.md`, nothing commits straight
-   to `main`. If the PR from `pre-pr-check` already merged before this bookkeeping was
-   done, open a small follow-up PR for just these doc changes rather than pushing
-   directly.
+   to `main`. This is why this skill runs before `pre-pr-check`'s push/PR step, not
+   after: the same-PR path only exists while the branch is still open.
+   **Exception, not the default:** if the implementation PR already merged before
+   this bookkeeping ran (ticket-close was skipped or invoked late), open a small
+   follow-up PR for just these doc changes rather than pushing directly to `main`.
 
 9. **Report a summary**: ticket ID, what shipped, drift recorded (if any), and any
    backlog/roadmap changes made as a result.

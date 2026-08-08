@@ -30,6 +30,19 @@ the process itself, not product-scoped work. Logged here per Check
   Check IV's audit surface (`design-system-auditor` + `pre-pr-check`) to cover
   `public/` and `index.html` (not just `src/`), fixed the placeholder
   `<title>`, opened `PALLETIQ-017` for the favicon/icon brand-asset gap.
+- **PR #24** — Fixed a real process bug surfaced by closing `PALLETIQ-001`:
+  `pre-pr-check` offered to push/open the PR with no mention of `close-ticket`,
+  so the natural sequence was pre-pr-check → push → merge → close-ticket —
+  which always hits `close-ticket` step 8's "already merged" fallback and costs
+  a second, bookkeeping-only PR (that's exactly what happened closing
+  `PALLETIQ-001`: PR #22 implementation, then a separate PR #23 just for the
+  `BACKLOG.md`/`ACTIVE_CYCLE.md` updates). `pre-pr-check` step 10 now hands off
+  to `close-ticket` before pushing when the change closes a ticket, so its doc
+  commits land in the same PR as the implementation — the fallback path stays
+  available for tickets closed outside this sequence, but is no longer the
+  path every closed ticket took by default. `CLAUDE.md`'s skill list and
+  `close-ticket`'s own opening section updated to state the ordering
+  explicitly.
 
 ## Tickets in flight
 
