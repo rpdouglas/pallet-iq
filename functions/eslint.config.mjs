@@ -16,7 +16,11 @@ export default tseslint.config(
       ecmaVersion: 2023,
       globals: globals.node,
       parserOptions: {
-        projectService: true,
+        // Explicit project (not projectService auto-discovery) pointing at
+        // tsconfig.eslint.json, not tsconfig.json - the latter excludes
+        // *.test.ts from the production build/typecheck, but ESLint should
+        // still type-aware-lint test files.
+        project: ['./tsconfig.eslint.json'],
         tsconfigRootDir: import.meta.dirname,
       },
     },

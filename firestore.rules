@@ -152,19 +152,39 @@ service cloud.firestore {
         allow read: if isOwner(tenantId);
         allow write: if isOwner(tenantId);
       }
+
+      // Invites are created by inviteMember, redeemed by acceptInvite, and
+      // read/validated inside acceptInvite before the invitee has any
+      // tenant claims to be checked against — all three only make sense as
+      // trusted Cloud Function (Admin SDK) operations. See ADR-0003.
+      match /invites/{inviteId} {
+        allow read, write: if false; // Cloud Functions only
+      }
     }
 
     // ---- Users -------------------------------------------------------
     // Mirrors tenantId + role custom claims for query convenience. A user
-    // may read/update their own profile; tenant admins may read/manage
+    // may read their own profile; tenant admins may read profiles of
     // members of their own tenant.
+    //
+    // tenantId/role are written exclusively by the trusted Cloud Functions
+    // in functions/src/auth/ (createTenant, acceptInvite, updateMemberRole)
+    // via the Admin SDK, which bypasses these rules entirely — never by a
+    // client write. Per ADR-0003: a client that could set its own
+    // tenantId/role on this doc wouldn't gain real Firestore access (every
+    // other rule checks the signed custom claim via request.auth.token, not
+    // this doc's fields) but the mirror would be able to lie about its own
+    // subject's role to anything that trusts it for display, which is a
+    // real bug even if not a privilege-escalation one.
 
     match /users/{userId} {
       allow read: if isSignedIn() &&
         (request.auth.uid == userId || isOwnerOrManager(resource.data.tenantId));
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if false;
       allow update: if isSignedIn() &&
-        (request.auth.uid == userId || isOwner(resource.data.tenantId));
+        (request.auth.uid == userId || isOwner(resource.data.tenantId)) &&
+        request.resource.data.tenantId == resource.data.tenantId &&
+        request.resource.data.role == resource.data.role;
       allow delete: if isSignedIn() && isOwner(resource.data.tenantId);
     }
 

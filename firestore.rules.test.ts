@@ -73,6 +73,120 @@ describe('tenant isolation', () => {
   })
 })
 
+describe('invites (Cloud Functions only)', () => {
+  it('denies a client read even from the inviting owner', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc(`tenants/${TENANT_A}/invites/invite-1`)
+        .set({ email: 'new-hire@example.com', role: 'buyer', status: 'pending' })
+    })
+
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(ownerOfA.firestore().doc(`tenants/${TENANT_A}/invites/invite-1`).get())
+  })
+
+  it('denies a client write even from an owner', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA
+        .firestore()
+        .doc(`tenants/${TENANT_A}/invites/invite-2`)
+        .set({ email: 'attacker@example.com', role: 'owner', status: 'pending' }),
+    )
+  })
+})
+
+describe('users/{userId}', () => {
+  it('denies a client creating its own user doc directly', async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      buyerA
+        .firestore()
+        .doc('users/buyer-a')
+        .set({ tenantId: TENANT_A, role: 'buyer', displayName: 'Buyer A' }),
+    )
+  })
+
+  it('denies a client escalating its own role via update, even on its own doc', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc('users/buyer-a')
+        .set({ tenantId: TENANT_A, role: 'buyer', displayName: 'Buyer A' })
+    })
+
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(buyerA.firestore().doc('users/buyer-a').update({ role: 'owner' }))
+  })
+
+  it("denies an owner changing a member's tenantId via update (must go through updateMemberRole)", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc('users/buyer-a')
+        .set({ tenantId: TENANT_A, role: 'buyer', displayName: 'Buyer A' })
+    })
+
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(ownerOfA.firestore().doc('users/buyer-a').update({ tenantId: TENANT_B }))
+  })
+
+  it('allows a user to update a non-restricted field on its own doc', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc('users/buyer-a')
+        .set({ tenantId: TENANT_A, role: 'buyer', displayName: 'Buyer A' })
+    })
+
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(
+      buyerA.firestore().doc('users/buyer-a').update({ displayName: 'Updated Name' }),
+    )
+  })
+
+  it("denies an owner reading a different tenant's member profile", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await context
+        .firestore()
+        .doc('users/buyer-b')
+        .set({ tenantId: TENANT_B, role: 'buyer', displayName: 'Buyer B' })
+    })
+
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(ownerOfA.firestore().doc('users/buyer-b').get())
+  })
+})
+
 describe('product_intelligence (cross-tenant)', () => {
   it('allows any authenticated tenant member to read', async () => {
     const memberOfA = testEnv.authenticatedContext('buyer-a', {

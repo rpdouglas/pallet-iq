@@ -53,7 +53,7 @@ jobs:
       - run: npm run test:rules
 
   functions:
-    name: Cloud Functions lint, typecheck, build
+    name: Cloud Functions lint, typecheck, test, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -71,6 +71,9 @@ jobs:
         working-directory: functions
 
       - run: npm run typecheck
+        working-directory: functions
+
+      - run: npm run test
         working-directory: functions
 
       - run: npm run build
