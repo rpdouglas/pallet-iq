@@ -69,8 +69,11 @@ push` to `main`/`master` as a guardrail, but don't rely on it — branch
 - **`open-ticket`** — walk a new ticket through the Planning gate.
 - **`new-adr`** — scaffold a new Architecture Decision Record.
 - **`pre-pr-check`** — run the CONTRIBUTING.md checklist plus governance Checks
-  I/II/III/IV before opening a PR or closing a ticket.
-- **`close-ticket`** — walk a ticket through the Ticket-close gate.
+  I/II/III/IV before opening a PR or closing a ticket. Hands off to
+  `close-ticket` (if applicable) before pushing, so closing docs land in the
+  same PR as the implementation.
+- **`close-ticket`** — walk a ticket through the Ticket-close gate. Runs
+  _before_ the PR is pushed/opened, not after it merges.
 
 ## Subagents
 

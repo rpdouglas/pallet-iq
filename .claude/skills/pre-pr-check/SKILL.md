@@ -83,14 +83,25 @@ merge origin/main`. Do this even if you synced when the branch was created — t
      doesn't need a re-run, a code-touching one does.
    - Commit the merge with a message naming which PR it's unblocking.
 
-10. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
+10. **Before pushing, check whether this change closes a ticket.** If the work
+    completes a ticket's full planned scope (or the user has asked to close a
+    specific `PALLETIQ-NNN`), run the `close-ticket` skill now, before pushing —
+    its doc commits (`docs/BACKLOG.md`, `docs/ACTIVE_CYCLE.md`, and
+    `docs/ROADMAP.md` if a phase completed) belong on this same branch, in this
+    same PR, per that skill's step 8. Pushing and merging first means
+    `close-ticket` finds the PR already merged and has to fall back to a second,
+    separate PR just for the bookkeeping — sequencing it here avoids that. If this
+    isn't ticket-closing work (a WIP checkpoint, a process/tooling change with no
+    ticket), skip this and continue.
+
+11. **Offer to push and open the PR.** If everything passed or was legitimately N/A,
     confirm with the user before pushing (`git push -u origin <branch>`) and opening
     a PR (`gh pr create`) — these are visible-to-others actions, so don't do them
     silently even though the checks passed. If the user declines or this is being
     run mid-work rather than at the end, just report that the change is clear to
     ship whenever they're ready.
 
-11. **If this is re-run on an already-open PR** (e.g. the user reports a merge
-    conflict GitHub is showing): steps 9-10 are exactly the fix — re-sync, resolve,
-    re-verify, push to the existing branch. No new PR needed, the push updates the
-    open one.
+12. **If this is re-run on an already-open PR** (e.g. the user reports a merge
+    conflict GitHub is showing): steps 9-11 are exactly the fix — re-sync, resolve,
+    re-verify, close-ticket if applicable and not already done, push to the
+    existing branch. No new PR needed, the push updates the open one.
