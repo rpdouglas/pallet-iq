@@ -33,9 +33,9 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-`PALLETIQ-001` — reopened `In Progress` this update, rescoped to closing the
-rules-test-coverage gap (Firestore + Storage). See `docs/BACKLOG.md`'s note
-on that ticket for the exact scope. Nothing else currently in flight.
+`PALLETIQ-001` — `In Progress`, rescoped to closing the rules-test-coverage
+gap (Firestore + Storage). See `docs/BACKLOG.md`'s note on that ticket for
+the exact scope. Nothing else currently in flight.
 
 ## Blockers
 
@@ -137,3 +137,50 @@ https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
   deploy action's own exit code. Worth a lightweight smoke-test step
   (`curl`/status-code check against the Hosting URL) if deploy failures ever
   need to be caught faster than "someone notices the site is down."
+
+- **2026-08-08 — PALLETIQ-014 closed (belatedly).** Implementation and its PR
+  merged earlier this cycle, but the `docs/BACKLOG.md` status flip and this
+  note were missed at the time — caught while closing `PALLETIQ-002`, which
+  depended on it. No scope drift in the original implementation itself
+  (`functions/` package, deploy target, CI job, all per its scope note); the
+  drift is procedural — a reminder that "PR merged" and "ticket closed" are
+  different steps and skipping the second one leaves the backlog lying about
+  what's actually done.
+
+- **2026-08-08 — PALLETIQ-002 closed.** Shipped per its scope note and
+  ADR-0003: 4 HTTPS Callables (`createTenant`, `inviteMember`, `acceptInvite`,
+  `updateMemberRole`) in `functions/src/auth/`, the `users/{userId}`
+  tightening + new `tenants/{tenantId}/invites/{inviteId}` collection in
+  `firestore.rules` (both with `firestore.rules.test.ts` coverage, 13/13
+  tests passing against a real emulator run — Java 21 wasn't available in
+  this Codespace by default, downloaded a Temurin 21 tarball directly rather
+  than skip verification), and client-side RBAC scaffolding
+  (`AuthProvider`/`useAuth`/`RequireRole` in `src/lib/auth/`, wired into
+  `src/main.tsx`).
+  **Drift beyond planned scope:**
+  - Added 24 unit tests for the 4 callables' authorization/validation logic
+    (mocked Admin SDK, no emulator needed) and 8 for the client-side pieces —
+    not explicitly required by the scope note, but the ADR's own Consequences
+    section flagged "build, test, and eventually secure-review" for
+    privilege-escalation-risk code, so this was treated as required, not
+    optional.
+  - Building those tests surfaced a real gap: `request.data` in all 4
+    callables was typed as if the client-supplied payload were trustworthy
+    (e.g. `tenantName: string`), when it's untrusted input that could be
+    anything at runtime. Retyped as `unknown` with explicit runtime guards
+    throughout — a genuine correctness fix, not just a lint satisfaction.
+  - `functions/` needed its own `vitest.config.mts` and a second,
+    lint-only `tsconfig.eslint.json` (test files excluded from the
+    production `tsconfig.json`/build, but still type-aware-linted) —
+    retroactively extends `PALLETIQ-014`'s scaffold, which didn't anticipate
+    a test runner.
+  - The `users/{userId}` rule tightening flagged in ADR-0003 shipped here
+    (not folded into `PALLETIQ-001`) — the ADR left that an open decision;
+    implementation-time call was to keep it with the ticket that actually
+    depends on it.
+    **Known gap, not fixed here:** `PALLETIQ-006`'s onboarding UI (and any
+    later invite-teammate UI) is the first real caller of `createTenant`/
+    `acceptInvite`/`inviteMember` — nothing has exercised these against a live
+    Auth-emulator-backed integration test yet, only unit tests against mocked
+    Admin SDK calls. Worth an integration-test pass once real UI exists to
+    drive it.
