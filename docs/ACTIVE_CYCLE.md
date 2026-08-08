@@ -14,8 +14,9 @@ proceed against the real `mrt-pallet-iq` project instead of a placeholder.
 
 ## Tickets in flight
 
-_(PALLETIQ-013 and PALLETIQ-018 closed this update — see Drift notes. Nothing
-currently in flight.)_
+`PALLETIQ-001` — reopened `In Progress` this update, rescoped to closing the
+rules-test-coverage gap (Firestore + Storage). See `docs/BACKLOG.md`'s note
+on that ticket for the exact scope. Nothing else currently in flight.
 
 ## Blockers
 
@@ -71,3 +72,25 @@ back into `docs/BACKLOG.md` or `docs/ROADMAP.md`._
   in the rules file itself. Add test coverage alongside `PALLETIQ-008`/`012`
   (the tickets that will actually exercise uploads), or consider formalizing
   a storage-rules parity check later if this becomes a recurring gap.
+
+- **2026-08-08 — Testing & security review.** Full pass across dependencies
+  (`npm audit`: 5 moderate, all transitive through the `firebase-tools`
+  devDependency, low real risk), GitHub repo hygiene, CI hardening, and
+  Firebase Auth configuration. Verified clean: no secrets ever committed
+  (checked full git history), no public IAM grants on the Storage bucket,
+  both rules files deny-by-default with live tenant isolation.
+  **Shipped:** `.github/dependabot.yml`, `permissions: contents: read` +
+  `npm audit --audit-level=high` in `ci.yml`, `CODEOWNERS`, `SECURITY.md`.
+  Deployed a real Firebase Auth password policy (was the 6-char/no-complexity
+  default) — `minPasswordLength: 10`, requires lowercase + uppercase +
+  numeric, `ENFORCE`; verified live via a fresh GET against the Identity
+  Platform config API, not just the PATCH response. **Rescoped, not fixed
+  here:** `PALLETIQ-001` reopened to close the rules-test-coverage gap (see
+  Tickets in flight). **Explicitly deferred, logged not silently dropped:**
+  Playwright/E2E (no multi-page flow exists yet to test — revisit when
+  `PALLETIQ-006` starts, see its `BACKLOG.md` note), Firebase App Check, and
+  Hosting security headers (both real design decisions, need their own
+  tickets once there's a live page/API surface to actually protect).
+  **Still can't be done from this session** (same token-scope limitation as
+  branch protection): confirming/enabling GitHub Dependabot alerts and secret
+  scanning in Settings → Code security.
