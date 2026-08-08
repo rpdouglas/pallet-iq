@@ -7,3 +7,7 @@ export { createTenant } from './auth/createTenant'
 export { inviteMember } from './auth/inviteMember'
 export { acceptInvite } from './auth/acceptInvite'
 export { updateMemberRole } from './auth/updateMemberRole'
+
+// PALLETIQ-005 / ADR-0004.
+export { enqueueDummyTask } from './ai-tasks/enqueueDummyTask'
+export { processDummyTask } from './ai-tasks/processDummyTask'

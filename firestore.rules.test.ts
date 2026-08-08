@@ -516,3 +516,34 @@ describe('subscriptions (owner-only read, Cloud Functions write)', () => {
     )
   })
 })
+
+describe('ai_tasks (system-populated, member read-only)', () => {
+  it('allows a tenant member to read a task in their own tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(memberOfA.firestore().doc(`tenants/${TENANT_A}/ai_tasks/task-1`).get())
+  })
+
+  it("denies reading another tenant's task", async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(memberOfA.firestore().doc(`tenants/${TENANT_B}/ai_tasks/task-1`).get())
+  })
+
+  it('denies a client write even from an owner (Cloud Functions only)', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/ai_tasks/task-1`).set({ status: 'queued' }),
+    )
+  })
+})
