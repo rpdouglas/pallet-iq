@@ -129,3 +129,40 @@ actually needs one live and makes that call explicitly.
 
 _ADR:_ not written — this is package/tooling scaffolding, not an
 architectural decision (no logic to have alternatives about yet).
+
+_Scope note on `PALLETIQ-005` (2026-08-08) — Planning gate only, not started:_
+
+_In scope:_ the async task queue mechanism itself, proven end-to-end with one
+dummy task type — not real Gemini/Vertex integration (that's Phase 2's "async
+batched Gemini product analysis," `docs/ROADMAP.md`). Concretely: an HTTPS
+Callable (`enqueueDummyTask`) that creates a `tenants/{tenantId}/ai_tasks/{taskId}`
+doc and enqueues a Cloud Tasks task; an HTTP-triggered worker function
+(`processDummyTask`), authenticated via Cloud Tasks' OIDC mechanism, that
+processes it and writes the result back; the `ai_tasks` collection's
+`firestore.rules` block + `firestore.rules.test.ts` coverage (Check I);
+provisioning the actual Cloud Tasks queue and its invoker service account in
+`mrt-pallet-iq`.
+
+_Out of scope, deferred:_ any real Gemini/Vertex SDK call or product-analysis
+logic (Phase 2); Secret Manager wiring for the eventual Gemini API key
+(`PALLETIQ-004`, separate ticket — the dummy task needs no credentials); any
+UI surfacing task status to a user (no async-AI-consuming UI exists yet);
+rate-limit/concurrency tuning specific to Gemini's real quotas (can't tune
+against limits that don't apply to a dummy call).
+
+_Firestore/RBAC impact:_ new collection `tenants/{tenantId}/ai_tasks/{taskId}`.
+`read: isTenantMember` (any authenticated tenant member can poll task
+status — matches other operational collections); `write: if false`
+(Cloud Functions only, mirroring `analytics_rollups`/`audit_logs`).
+
+_Known verification gap, flagged up front:_ the Firebase Emulator Suite has no
+Cloud Tasks emulator. The enqueue/worker logic gets unit-tested in isolation
+(mocked Cloud Tasks client + Admin SDK, same pattern as `PALLETIQ-002`'s
+callables); the real end-to-end queue round-trip is verified live against the
+GCP project, not via CI or the emulator suite.
+
+_ADR:_ written — see
+[`docs/adr/0004-async-ai-task-pipeline-cloud-tasks.md`](../adr/0004-async-ai-task-pipeline-cloud-tasks.md)
+(2026-08-08). Decision: Cloud Tasks (not Pub/Sub) for the queue mechanism, plus
+a new `ai_tasks` collection for task-status tracking/polling, built now so
+Phase 2's real pipeline reuses this shape instead of designing it from scratch.
