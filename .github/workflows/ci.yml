@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   lint-typecheck-test:
     name: Lint, typecheck, unit tests
@@ -26,6 +29,8 @@ jobs:
       - run: npm run typecheck
 
       - run: npm run test
+
+      - run: npm audit --audit-level=high
 
   firestore-rules:
     name: Firestore rules tests
