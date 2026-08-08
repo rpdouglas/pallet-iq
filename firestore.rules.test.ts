@@ -216,10 +216,12 @@ describe('product_intelligence (cross-tenant)', () => {
 // duplication drifting out of sync as collections are added.
 
 describe.each([
+  'vendors',
   'imports',
   'imports_errors',
   'manifests',
   'pallets',
+  'inventory',
   'sales',
   'locations',
   'bids',
