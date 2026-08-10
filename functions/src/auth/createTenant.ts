@@ -39,6 +39,18 @@ export const createTenant = onCall<CreateTenantRequest>(async (request) => {
     createdBy: uid,
   })
 
+  // PALLETIQ-003 / ADR-0005. The doc always exists once a tenant does,
+  // rather than "no doc" meaning Free by absence.
+  await db.doc(`tenants/${tenantId}/subscriptions/current`).set({
+    plan: 'free',
+    status: 'free',
+    stripeCustomerId: null,
+    stripeSubscriptionId: null,
+    currentPeriodEnd: null,
+    usage: {},
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+
   await db.doc(`users/${uid}`).set({
     tenantId,
     role: 'owner',

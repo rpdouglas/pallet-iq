@@ -46,11 +46,25 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-None currently in flight. `PALLETIQ-005` closed this update — see Drift notes.
+- **`PALLETIQ-003`** — Stripe billing mechanism. Implementation shipped
+  (`createCheckoutSession`, `stripeWebhook`, `incrementUsage`, Secret Manager
+  wiring via `defineSecret`, per ADR-0005) and fully unit-tested against
+  mocks, but not closeable yet — see Blockers.
 
 ## Blockers
 
-None currently open. `PALLETIQ-013`'s Firebase-project blocker, the Auth/
+- **`PALLETIQ-003`** blocked on live Stripe verification. Per the Planning-
+  gate conversation, the owner chose to have the mechanism built and
+  unit-tested against mocks now, with live wiring (a real Stripe test-mode
+  account, a Pro Price, the two Secret Manager secrets
+  `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and the `STRIPE_PRO_PRICE_ID`
+  param) deferred until the owner can supply test-mode credentials through a
+  secure channel (not pasted into a chat transcript). Phase 0's QA
+  criterion — "a test Stripe subscription can be created, upgraded, and
+  canceled end-to-end" — can't be verified until then; `close-ticket` should
+  not run for `PALLETIQ-003` until it can be.
+
+None else currently open. `PALLETIQ-013`'s Firebase-project blocker, the Auth/
 Storage initialization gaps, and GitHub branch protection on `main` (was
 undocumented via API for several review passes) are all resolved as of this
 update — see Drift notes for the first three; branch protection was applied

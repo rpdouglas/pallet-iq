@@ -11,3 +11,7 @@ export { updateMemberRole } from './auth/updateMemberRole'
 // PALLETIQ-005 / ADR-0004.
 export { enqueueDummyTask } from './ai-tasks/enqueueDummyTask'
 export { processDummyTask } from './ai-tasks/processDummyTask'
+
+// PALLETIQ-003 / ADR-0005.
+export { createCheckoutSession } from './billing/createCheckoutSession'
+export { stripeWebhook } from './billing/stripeWebhook'

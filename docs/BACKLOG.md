@@ -4,26 +4,26 @@ Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused. Status
 follows the 3-phase gate model in [`docs/GOVERNANCE.md`](./GOVERNANCE.md):
 Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
-| ID           | Title                                                                          | Persona     | Phase | Status  | Priority |
-| ------------ | ------------------------------------------------------------------------------ | ----------- | ----- | ------- | -------- |
-| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)    | Owner/Admin | 0     | Done    | P0       |
-| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                     | Owner/Admin | 0     | Done    | P0       |
-| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)              | Owner/Admin | 0     | Planned | P0       |
-| PALLETIQ-004 | Secret Manager wiring for third-party credentials                              | Owner/Admin | 0     | Planned | P1       |
-| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                       | Buyer       | 0     | Done    | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Planned | P0       |
-| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Planned | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Planned | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Planned | P1       |
-| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)      | Buyer       | 1     | Planned | P1       |
-| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Planned | P1       |
-| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Planned | P0       |
-| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done    | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Done    | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | Done    | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Planned | P1       |
-| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Planned | P2       |
-| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done    | P1       |
+| ID           | Title                                                                          | Persona     | Phase | Status      | Priority |
+| ------------ | ------------------------------------------------------------------------------ | ----------- | ----- | ----------- | -------- |
+| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)    | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                     | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)              | Owner/Admin | 0     | In Progress | P0       |
+| PALLETIQ-004 | Secret Manager wiring for third-party credentials                              | Owner/Admin | 0     | Planned     | P1       |
+| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                       | Buyer       | 0     | Done        | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Planned     | P0       |
+| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Planned     | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Planned     | P0       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)      | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Planned     | P1       |
+| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Planned     | P0       |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Planned     | P1       |
+| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Planned     | P2       |
+| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -166,3 +166,54 @@ _ADR:_ written — see
 (2026-08-08). Decision: Cloud Tasks (not Pub/Sub) for the queue mechanism, plus
 a new `ai_tasks` collection for task-status tracking/polling, built now so
 Phase 2's real pipeline reuses this shape instead of designing it from scratch.
+
+_Scope note on `PALLETIQ-003` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ the billing _mechanism_, proven end-to-end in Stripe test mode —
+not real Free/Pro pricing or feature-gating (no Phase 1+ feature exists yet to
+gate). Concretely: an owner-only HTTPS Callable (`createCheckoutSession`) that
+creates a Stripe Checkout Session for a single placeholder test-mode Pro
+price and returns its redirect URL; an unauthenticated-by-Firebase `onRequest`
+webhook (`stripeWebhook`) that verifies Stripe's signature and syncs
+`tenants/{tenantId}/subscriptions/current` on `checkout.session.completed`/
+`customer.subscription.updated`/`customer.subscription.deleted`;
+`createTenant` initializing that doc with `plan: 'free'` at tenant creation;
+an internal `incrementUsage(tenantId, key)` helper (usage-counter hook, no
+caller yet); the two Secret Manager secrets (`STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`) this needs, via `firebase-functions/params`'
+`defineSecret` — pulled forward from `PALLETIQ-004` per the Planning-gate
+conversation, since a live payment-processor credential shouldn't sit in a
+less secure spot in the meantime.
+
+_Out of scope, deferred:_ real Free/Pro price points and feature
+differentiation (whichever ticket first needs to gate a feature on `plan`
+decides that then); any billing/upgrade UI (no page exists to host a
+Checkout-redirect button yet — this ticket is only the Callable + webhook);
+Stripe Elements/embedded checkout (deferred until there's a real billing page
+and a reason to keep the tenant in-app during payment, see ADR-0005); usage
+_enforcement_ (the `incrementUsage` hook exists, nothing calls it or checks
+limits yet — no Phase 1 feature exists to meter); any other third-party
+secret (`PALLETIQ-004` stays open, narrowed to "remaining" secrets since
+Stripe's are handled here).
+
+_Firestore/RBAC impact:_ `tenants/{tenantId}/subscriptions/current` —
+schema now defined (previously rules-only, no shape). No `firestore.rules`
+change expected (`PALLETIQ-001` already scaffolded `read: isOwner`,
+`write: false`, and `firestore.rules.test.ts` already asserts the
+`subscriptions/current` path) — confirm during implementation rather than
+assume, and flag `firestore-rules-auditor` if the doc shape needs a rule
+adjustment.
+
+_Known verification gap, flagged up front:_ no Stripe webhook emulator
+exists in the Firebase Emulator Suite (same class of gap as Cloud Tasks in
+`ADR-0004`). Verification path is Stripe CLI (`stripe trigger`,
+`stripe listen`) forwarding real test-mode events to a local/deployed
+endpoint, not CI or the emulator suite.
+
+_ADR:_ written — see
+[`docs/adr/0005-stripe-billing-mechanism.md`](../adr/0005-stripe-billing-mechanism.md)
+(2026-08-10). Decisions: implicit Free / explicit Stripe Pro (no `$0` Stripe
+object for Free); Stripe Checkout redirect, not Elements; webhook (not
+client-side redirect handling) is the only source of truth for subscription
+state; `defineSecret`, not a manual Secret Manager client, for the two Stripe
+secrets.
