@@ -7,7 +7,7 @@ const mockDocSet = vi.fn()
 vi.mock('firebase-admin/firestore', () => ({
   getFirestore: () => ({
     collection: () => ({ doc: () => ({ id: 'generated-tenant-id' }) }),
-    doc: () => ({ set: mockDocSet }),
+    doc: (path: string) => ({ set: (data: unknown) => void mockDocSet(path, data) }),
   }),
   FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
 }))
@@ -67,5 +67,27 @@ describe('createTenant', () => {
       tenantId: 'generated-tenant-id',
       role: 'owner',
     })
+  })
+
+  it('initializes subscriptions/current on Free, per ADR-0005', async () => {
+    mockDocSet.mockClear()
+
+    await createTenant.run(
+      request({ tenantName: 'Acme' }, {
+        uid: 'u1',
+        token: { email: 'a@example.com' },
+      } as CallableRequest['auth']),
+    )
+
+    expect(mockDocSet).toHaveBeenCalledWith(
+      'tenants/generated-tenant-id/subscriptions/current',
+      expect.objectContaining({
+        plan: 'free',
+        status: 'free',
+        stripeCustomerId: null,
+        stripeSubscriptionId: null,
+        usage: {},
+      }),
+    )
   })
 })

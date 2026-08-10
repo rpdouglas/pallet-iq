@@ -505,6 +505,15 @@ describe('subscriptions (owner-only read, Cloud Functions write)', () => {
     await assertFails(managerOfA.firestore().doc(`tenants/${TENANT_A}/subscriptions/current`).get())
   })
 
+  it("denies an owner reading another tenant's subscription info (cross-tenant)", async () => {
+    const ownerOfB = testEnv.authenticatedContext('owner-b', {
+      tenantId: TENANT_B,
+      role: 'owner',
+    })
+
+    await assertFails(ownerOfB.firestore().doc(`tenants/${TENANT_A}/subscriptions/current`).get())
+  })
+
   it('denies a client write even from an owner (Stripe webhook via Cloud Functions only)', async () => {
     const ownerOfA = testEnv.authenticatedContext('owner-a', {
       tenantId: TENANT_A,
