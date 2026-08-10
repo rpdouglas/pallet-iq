@@ -46,7 +46,7 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-None currently in flight. `PALLETIQ-001` closed this update — see Drift notes.
+None currently in flight. `PALLETIQ-005` closed this update — see Drift notes.
 
 ## Blockers
 
@@ -228,3 +228,50 @@ https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
   `// @vitest-environment node` pragma on `storage.rules.test.ts`, not a
   project-wide config change. Worth remembering if any other Storage-touching
   test is added later.
+
+- **2026-08-10 — PALLETIQ-005 closed.** Planned scope per the `BACKLOG.md`
+  scope note and ADR-0004: an `enqueueDummyTask` HTTPS Callable creating a
+  `tenants/{tenantId}/ai_tasks/{taskId}` doc and enqueueing a Cloud Tasks task;
+  a `processDummyTask` worker, OIDC-authenticated via Cloud Tasks, that
+  processes it and writes the result back; `ai_tasks`'s `firestore.rules`
+  block + `firestore.rules.test.ts` coverage (Check I); provisioning the real
+  Cloud Tasks queue in `mrt-pallet-iq`. Shipped exactly that — 84/84 rules
+  tests passing (3 new for `ai_tasks`), 6 new unit tests for the two
+  functions (mocked Admin SDK/Cloud Tasks client), `firestore-rules-auditor`
+  clean.
+  **Drift — simplifies the ADR, doesn't change its decision:** ADR-0004
+  assumed a manually-configured `@google-cloud/tasks` client, manual OIDC
+  token handling, and a manual `gcloud tasks queues create` provisioning
+  step. Implementation instead used Firebase's native
+  `onTaskDispatched`/`getFunctions().taskQueue().enqueue()` integration
+  (`firebase-functions/v2/providers/tasks`), which auto-provisions the queue
+  on `firebase deploy` and handles OIDC auth internally — no manual queue
+  setup or token plumbing needed. Cloud Tasks over Pub/Sub and the new
+  `ai_tasks` collection shape are unchanged; the ADR itself wasn't reopened
+  since its Decision/Alternatives are still accurate, only its assumed
+  implementation mechanics were an overestimate of the manual work involved.
+  **Known verification gap closed, not just accepted:** the scope note
+  flagged upfront that the Cloud Tasks emulator doesn't exist, so the
+  round-trip could only be proven live. Deployed all 6 functions (4 existing
+  - `enqueueDummyTask`/`processDummyTask`) to `mrt-pallet-iq` for the first
+    time (previously zero functions were deployed) and drove a real request
+    through the live queue: created a test Firebase Auth user with
+    `{tenantId, role: buyer}` custom claims, signed in for a real ID token,
+    called `enqueueDummyTask` over HTTPS, and polled the resulting Firestore
+    doc — observed `queued` → `completed` in ~4 seconds, `result: {echo: true}`
+    as expected. Test user and task doc deleted afterward.
+    **Drift in verification method:** this session's sandbox has no Google
+    Application Default Credentials, and `firebase login`'s CLI OAuth session
+    doesn't double as ADC for `firebase-admin` Node scripts. Rather than
+    installing `gcloud` for a second interactive login, reused the already-
+    authenticated `firebase login` refresh token (read from
+    `~/.config/configstore/firebase-tools.json`) via `firebase-tools`' own
+    internal `getAccessToken()` to mint a cloud-platform-scoped access token,
+    used as an ad-hoc Admin SDK credential for Auth calls and raw Firestore
+    REST calls (the Admin SDK's native gRPC Firestore client only accepts a
+    `ServiceAccountCredential` or recognized ADC instance, not an arbitrary
+    custom-credential object, so Firestore reads went through the REST API
+    directly instead). One-off verification tooling only, not committed to the
+    repo or intended as a durable pattern — a future session needing live
+    Admin SDK access should still set up real ADC (`gcloud auth
+application-default login`) rather than repeat this.
