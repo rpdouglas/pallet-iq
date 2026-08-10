@@ -166,3 +166,54 @@ _ADR:_ written — see
 (2026-08-08). Decision: Cloud Tasks (not Pub/Sub) for the queue mechanism, plus
 a new `ai_tasks` collection for task-status tracking/polling, built now so
 Phase 2's real pipeline reuses this shape instead of designing it from scratch.
+
+_Scope note on `PALLETIQ-003` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ the billing _mechanism_, proven end-to-end in Stripe test mode —
+not real Free/Pro pricing or feature-gating (no Phase 1+ feature exists yet to
+gate). Concretely: an owner-only HTTPS Callable (`createCheckoutSession`) that
+creates a Stripe Checkout Session for a single placeholder test-mode Pro
+price and returns its redirect URL; an unauthenticated-by-Firebase `onRequest`
+webhook (`stripeWebhook`) that verifies Stripe's signature and syncs
+`tenants/{tenantId}/subscriptions/current` on `checkout.session.completed`/
+`customer.subscription.updated`/`customer.subscription.deleted`;
+`createTenant` initializing that doc with `plan: 'free'` at tenant creation;
+an internal `incrementUsage(tenantId, key)` helper (usage-counter hook, no
+caller yet); the two Secret Manager secrets (`STRIPE_SECRET_KEY`,
+`STRIPE_WEBHOOK_SECRET`) this needs, via `firebase-functions/params`'
+`defineSecret` — pulled forward from `PALLETIQ-004` per the Planning-gate
+conversation, since a live payment-processor credential shouldn't sit in a
+less secure spot in the meantime.
+
+_Out of scope, deferred:_ real Free/Pro price points and feature
+differentiation (whichever ticket first needs to gate a feature on `plan`
+decides that then); any billing/upgrade UI (no page exists to host a
+Checkout-redirect button yet — this ticket is only the Callable + webhook);
+Stripe Elements/embedded checkout (deferred until there's a real billing page
+and a reason to keep the tenant in-app during payment, see ADR-0005); usage
+_enforcement_ (the `incrementUsage` hook exists, nothing calls it or checks
+limits yet — no Phase 1 feature exists to meter); any other third-party
+secret (`PALLETIQ-004` stays open, narrowed to "remaining" secrets since
+Stripe's are handled here).
+
+_Firestore/RBAC impact:_ `tenants/{tenantId}/subscriptions/current` —
+schema now defined (previously rules-only, no shape). No `firestore.rules`
+change expected (`PALLETIQ-001` already scaffolded `read: isOwner`,
+`write: false`, and `firestore.rules.test.ts` already asserts the
+`subscriptions/current` path) — confirm during implementation rather than
+assume, and flag `firestore-rules-auditor` if the doc shape needs a rule
+adjustment.
+
+_Known verification gap, flagged up front:_ no Stripe webhook emulator
+exists in the Firebase Emulator Suite (same class of gap as Cloud Tasks in
+`ADR-0004`). Verification path is Stripe CLI (`stripe trigger`,
+`stripe listen`) forwarding real test-mode events to a local/deployed
+endpoint, not CI or the emulator suite.
+
+_ADR:_ written — see
+[`docs/adr/0005-stripe-billing-mechanism.md`](../adr/0005-stripe-billing-mechanism.md)
+(2026-08-10). Decisions: implicit Free / explicit Stripe Pro (no `$0` Stripe
+object for Free); Stripe Checkout redirect, not Elements; webhook (not
+client-side redirect handling) is the only source of truth for subscription
+state; `defineSecret`, not a manual Secret Manager client, for the two Stripe
+secrets.
