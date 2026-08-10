@@ -296,6 +296,53 @@ https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
     Admin SDK access should still set up real ADC (`gcloud auth
 application-default login`) rather than repeat this.
 
+- **2026-08-10 — `PALLETIQ-016` in progress: Playwright adopted now, not
+  deferred to `PALLETIQ-006`.** The 2026-08-08 testing/security review (below)
+  deferred Playwright/E2E until `PALLETIQ-006` on the reasoning that there was
+  no multi-page flow yet worth testing. Mid-implementation on `PALLETIQ-016`,
+  the owner asked to install it now instead, since it'll see heavy use for UI
+  verification going forward, not just full E2E flows — a narrower use
+  (single-page computed-style/console-error checks against the dev server)
+  than the original deferral note anticipated, but the same tool. Installed as
+  `@playwright/test` in the root `package.json` (a real devDependency, not a
+  scratchpad-only install) with Chromium cached via `npx playwright install`.
+  `docs/BACKLOG.md`'s `PALLETIQ-006` note updated to mark itself superseded
+  rather than left silently stale. No `playwright.config.ts` or committed test
+  suite yet — this cycle's usage was one ad-hoc verification script
+  (`verify-ui.mjs`); formalizing into real specs is follow-on work, not part
+  of `PALLETIQ-016`'s scope.
+
+- **2026-08-10 — `PALLETIQ-016` closed.** Shipped exactly to the `BACKLOG.md`
+  scope note: the 8-color/5-type-scale `@theme` token block in
+  `src/index.css`, self-hosted Inter + Poppins ExtraBold via `@fontsource/*`,
+  `lucide-react` installed, and `src/App.tsx` updated to use the new tokens
+  end-to-end — closing the exact `App.tsx`-uses-default-Tailwind-slate gap
+  `CLAUDE.md`/`ADR-0002` called out by name. Verified visually and
+  programmatically via the Playwright script above (computed styles matched
+  intended tokens exactly, zero console errors) before the script was deleted
+  as scratch tooling, not committed. `design-system-auditor` run before close:
+  no unapproved colors/fonts, no non-Lucide icons, no default-Tailwind-color
+  regressions.
+  **Drift beyond planned scope:** the Playwright adoption above; the
+  Success/Danger color-gap fix and Poppins-vs-Baloo-2 pick were both already
+  folded into the scope note itself during Planning-gate scoping, so no
+  separate drift entry for those. `design-system-auditor` caught one real
+  Check IV mismatch mid-implementation — `App.tsx`'s helper text paired the
+  Body size token with the Slate Gray color, a combination the design doc's
+  typography table doesn't specify (it pairs Body→Ink Navy, Label/Caption→
+  Slate Gray) — fixed by switching to `text-label` to match the documented
+  pairing.
+  **Known gaps, not fixed here:** (1) the `@theme` block adds brand tokens
+  without disabling Tailwind's built-in `slate-*`/`gray-*`/`blue-*`/`cyan-*`
+  utilities, so nothing stops a future diff from reaching for a default
+  Tailwind color out of habit instead of the brand token — Check IV audits
+  will keep catching this reactively until/unless it's enforced structurally
+  (e.g. a theme reset or lint rule); (2) `--color-navy` (`#1E3A8A`, Deep Navy)
+  and `--color-ink-navy` (`#0F172A`) are similarly-named but different colors
+  — low risk of mixup today given how few components exist, worth a clearer
+  name if this ever causes a real mistake. Neither blocks close; both are
+  cheap to fix later if they bite.
+
 - **2026-08-10 — Live production bug found and fixed: Hosting deployed with
   an entirely undefined Firebase config.** The owner hit
   `auth/invalid-api-key` loading the live site. Root cause: `ci.yml`'s

@@ -1,1 +1,30 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource/poppins/800.css';
+
+/*
+ * Brand tokens from docs/design/Pallet-IQ-Design-System.md (governance
+ * Check IV, ADR-0002/PALLETIQ-016). Named distinctly from Tailwind's
+ * built-in blue/slate/cyan scales on purpose, so a brand token vs. a
+ * leftover default color is obvious in a diff or audit.
+ */
+@theme {
+  --color-navy: #1e3a8a;
+  --color-brand-blue: #2563eb;
+  --color-cyan-accent: #06b6d4;
+  --color-cloud-gray: #f1f5f9;
+  --color-slate-gray: #475569;
+  --color-ink-navy: #0f172a;
+  --color-success: #15803d;
+  --color-danger: #b91c1c;
+
+  --font-sans: 'Inter Variable', 'Inter', sans-serif;
+  --font-display: 'Poppins', sans-serif;
+
+  /* Upper bound of each doc-specified range - see PALLETIQ-016 scope note. */
+  --text-h1: 28px;
+  --text-h2: 20px;
+  --text-body: 15px;
+  --text-label: 13px;
+  --text-metric: 32px;
+}

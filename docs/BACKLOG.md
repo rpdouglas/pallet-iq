@@ -21,7 +21,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done        | P0       |
 | PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Planned     | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Planned     | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 
@@ -83,10 +83,14 @@ block currently lets a client self-set its own `tenantId`/`role` fields on
 create/update — needs tightening to Admin-SDK-only for those two fields as
 part of this ticket's implementation, not deferred.
 
-_Note on `PALLETIQ-006` (2026-08-08): when this ticket starts (first real
-multi-page auth/onboarding flow), that's the trigger to reconsider Playwright —
-deferred until now because there was nothing E2E-worthy to test. See the
-testing/security review in this cycle's drift notes for the full reasoning._
+_Note on `PALLETIQ-006` (2026-08-08, superseded 2026-08-10): when this ticket
+starts (first real multi-page auth/onboarding flow), that's the trigger to
+reconsider Playwright — deferred until now because there was nothing
+E2E-worthy to test. See the testing/security review in this cycle's drift
+notes for the full reasoning. **Superseded:** the owner asked to keep and
+use Playwright now, during `PALLETIQ-016`, rather than wait for `PALLETIQ-006`
+— see that ticket's drift note in `ACTIVE_CYCLE.md`. `@playwright/test` is now
+a permanent devDependency, not a one-off tool._
 
 _Scope note on `PALLETIQ-015` (2026-08-08):_
 
