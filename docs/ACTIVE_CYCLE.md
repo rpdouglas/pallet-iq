@@ -66,25 +66,21 @@ None currently in flight. `PALLETIQ-003` is shelved, not active — see below.
   accepted, not a bug. Resume via the checklist in this session's
   transcript (Stripe Dashboard setup → `firebase functions:secrets:set` →
   deploy → live exercise) whenever the owner returns to it — don't
-  re-derive it from scratch.
+  re-derive it from scratch. **Added 2026-08-10:** `STRIPE_SECRET_KEY`,
+  `STRIPE_WEBHOOK_SECRET`, and `STRIPE_PRO_PRICE_ID` (the latter in
+  `functions/.env.mrt-pallet-iq`) currently hold inert placeholder values,
+  set only to unblock an unrelated functions redeploy — replace all three
+  with real values as the first step of this resume checklist, don't assume
+  their mere existence means this ticket is further along than it is.
 
 ## Blockers
 
-- **Deployed `createTenant` is stale (found 2026-08-10, closing `PALLETIQ-006`).**
-  The live Cloud Function predates `PALLETIQ-003`'s `subscriptions/current`
-  write — every tenant created through the production app right now gets no
-  subscription doc, contrary to `ADR-0005`. Fix is a `firebase deploy --only
-functions` (or a full deploy) to pick up everything merged since the last
-  manual deploy during `PALLETIQ-005`'s close — not a code change, an
-  operational action needing the owner's go-ahead since it touches live
-  infrastructure. See this update's `PALLETIQ-006` drift note for how it was
-  found.
-
-`PALLETIQ-013`'s Firebase-project blocker, the Auth/Storage initialization
-gaps, and GitHub branch protection on `main` (was undocumented via API for
-several review passes) are all resolved as of this update — see Drift notes
-for the first three; branch protection was applied directly via the GitHub UI
-and reconfirmed live (`protected: true`) via the API.
+None currently open. `PALLETIQ-013`'s Firebase-project blocker, the Auth/
+Storage initialization gaps, GitHub branch protection on `main` (was
+undocumented via API for several review passes), and the stale-`createTenant`
+deploy gap below are all resolved as of this update — see Drift notes for
+details; branch protection was applied directly via the GitHub UI and
+reconfirmed live (`protected: true`) via the API.
 
 **Note for `PALLETIQ-002`:** Auth is enabled with Email/Password only. If a
 second sign-in method (e.g. Google) turns out to be needed, that's additional
@@ -436,3 +432,31 @@ application-default login`) rather than repeat this.
     Not fixed in this PR — redeploying Cloud Functions is a deliberate
     production action, out of scope for a frontend-only ticket, and needs the
     owner's go-ahead. Logged as an open blocker below, not silently absorbed.
+
+- **2026-08-10 — Stale-`createTenant` blocker resolved (functions redeployed).**
+  Owner approved a targeted `firebase deploy --only functions:createTenant,
+inviteMember,acceptInvite,updateMemberRole,enqueueDummyTask,processDummyTask`
+  against `mrt-pallet-iq`, deliberately excluding `createCheckoutSession`/
+  `stripeWebhook` (`PALLETIQ-003`'s functions stay untouched while that
+  ticket is shelved). **Drift discovered mid-deploy:** `firebase-tools`
+  resolves every `defineSecret`/`defineString` param across the _entire_
+  codebase before filtering to `--only` targets, so even this narrow deploy
+  demanded real values for `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+  (Secret Manager, previously never provisioned — Secret Manager API itself
+  had to be enabled on the project too, its first use) and
+  `STRIPE_PRO_PRICE_ID` (a plain string param, via a new `functions/.env.
+mrt-pallet-iq` file). Set inert placeholder values for all three, gitignored
+  the new `functions/.env.mrt-pallet-iq` file (`.gitignore` gained
+  `functions/.env`/`functions/.env.*` patterns, mirroring the root `.env`
+  entries), and confirmed `createCheckoutSession`/`stripeWebhook` are still
+  unwired to any UI so the placeholders are inert, not a live (if fake)
+  Stripe integration. **Fold-forward for whoever resumes `PALLETIQ-003`:**
+  these three placeholder values need replacing with real ones (`firebase
+functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
+  real price ID in `functions/.env.mrt-pallet-iq`) as part of that ticket's
+  existing resume checklist above — added as an explicit step there.
+  **Verified fixed**, not just deployed: repeated the same live sign-up →
+  onboarding round trip as `PALLETIQ-006`'s close, this time confirming
+  `tenants/{tenantId}/subscriptions/current` was created (`plan: "free"`,
+  `status: "free"`) alongside `settings/general`. Test account and docs
+  deleted afterward, same as every other live-verification pass this cycle.
