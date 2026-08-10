@@ -582,3 +582,78 @@ and documented here in full, matching how this repo's existing ADRs are
 all architecture/infrastructure decisions (multi-tenant shape, design
 governance, auth mechanism, async pipeline, billing mechanism, manifest
 parsing architecture) rather than calculation formulas.
+
+_Scope note on `PALLETIQ-010` (2026-08-10) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping - a real gap in the ticket's own
+title:_ "today's opportunities" has no data source yet (needs Phase 2's
+scoring engine) and "inventory totals" has no data source yet
+(`PALLETIQ-011`, not started). Rather than fake either with placeholder/
+mock data or reorder the backlog to build `PALLETIQ-011` first, this
+ticket ships the shell now with only real data - those two cards are
+omitted entirely, not stubbed, and get added in follow-on tickets once
+their real data exists.
+
+_In scope:_
+
+- **`AppShell`** - the sidebar nav layout this repo's own docs have been
+  pointing at since `PALLETIQ-006` (`docs/design/mobile-responsive.md`:
+  "sidebar nav collapses below `md`"; multiple earlier scope notes:
+  "The sidebar/app-shell pattern starts with `PALLETIQ-010`"). Desktop
+  (`md`+): fixed sidebar, Deep Navy → Ink Navy gradient, Brand Blue pill
+  active state, per `Pallet-IQ-Design-System.md` §4's Navigation spec.
+  Below `md`: collapses to a top app bar with a hamburger/drawer, per
+  `mobile-responsive.md` - implementing the documented behavior for real,
+  not skipping the mobile case. Nav items: **Dashboard, Vendors,
+  Manifests only** - the three pages that actually exist. No dead links to
+  Pallets/Inventory/Analytics/Settings, which don't exist yet.
+- A react-router layout route (`<AppShell /><Outlet /></AppShell>`,
+  wrapped in the existing `RequireRole`) so `/`, `/vendors`, `/manifests`,
+  and `/manifests/:importId` all render inside the shell instead of each
+  page carrying its own ad-hoc "← Back" links and full-page wrapper.
+  `VendorsPage.tsx`, `ManifestsPage.tsx`, and `ManifestDetailPage.tsx` all
+  get retrofitted to drop that now-redundant chrome (the sidebar replaces
+  it) - this is a required consequence of building the shell, not scope
+  creep.
+- **A new `DashboardPage`** replacing the old placeholder at `/` (the
+  `LandingPage.tsx` empty-state `PALLETIQ-006` shipped, explicitly
+  "temporary until PALLETIQ-010"). Real content only: four stat cards
+  (vendor count, manifests imported count, total line items imported,
+  total import errors - all computed from fields already on the
+  `imports`/`vendors` docs, no extra subcollection reads) plus a "Recent
+  imports" list (last 5, vendor name resolved, status, date, links to
+  `ManifestDetailPage`). None of this is cost data, so no new Check III
+  field-omission concern - every role can already read `vendors`/`imports`
+  today.
+- `docs/design/mobile-responsive.md`'s stat-card grid breakpoints (4-up
+  `xl`, 2-up `md`-`lg`, 1-up below `md`) - the first real usage of that
+  spec in the app.
+
+_Out of scope, deferred:_ "today's opportunities" card (Phase 2 scoring);
+"inventory totals" card (`PALLETIQ-011`); the base design doc's "profit
+trend chart" (no meaningful time-series data exists yet with only a
+handful of test imports - a chart with one data point isn't worth
+building; revisit once there's real import history); Warehouse's
+documented mobile-first **bottom tab bar** nav (`mobile-responsive.md`
+specifies this explicitly for Warehouse, but there are no real mobile
+scanning screens yet for it to attach to - `PALLETIQ-011`'s job. Until
+then, Warehouse also sees the standard sidebar as a pragmatic default,
+which is "out of spec" for that persona but not worth a second nav
+paradigm before there's a real surface for the real one).
+
+_Firestore/RBAC impact:_ none. The dashboard aggregates fields already on
+`vendors`/`imports` docs that every tenant member can already read - no
+new collection, no new field-level exposure, no rules change.
+
+_UI pattern notes:_ `Pallet-IQ-Design-System.md` §4's Navigation spec
+(sidebar) and Cards/Stat-tiles spec, both implemented for the first time
+in this ticket; `mobile-responsive.md`'s breakpoint table, first real
+usage; `docs/design/components.md`'s Data table pattern reused for
+"Recent imports" (same conventions as the vendors/imports tables already
+in the app).
+
+_ADR:_ not written. The sidebar/app-shell pattern is already fully
+specified in `Pallet-IQ-Design-System.md` §4 and `mobile-responsive.md` -
+implementing an already-decided design spec via standard React Router
+layout routes isn't a new architectural decision, same reasoning
+`PALLETIQ-016` used for wiring already-decided design tokens.
