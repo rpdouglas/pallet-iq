@@ -7,7 +7,13 @@ interface RequireRoleProps {
   /** Omit to require any authenticated tenant member, regardless of role. */
   roles?: readonly Role[]
   children: ReactNode
+  /** Where to send an unauthenticated user. */
   redirectTo?: string
+  /**
+   * Where to send an authenticated user with no tenant/role claim yet.
+   * Defaults to `redirectTo` for callers that don't distinguish the two cases.
+   */
+  noTenantRedirectTo?: string
 }
 
 /**
@@ -17,15 +23,24 @@ interface RequireRoleProps {
  * enforcement; this is the UI's reflection of the same policy, so a denied
  * route doesn't even attempt requests the rules would reject anyway.
  */
-export function RequireRole({ roles, children, redirectTo = '/' }: RequireRoleProps) {
+export function RequireRole({
+  roles,
+  children,
+  redirectTo = '/',
+  noTenantRedirectTo,
+}: RequireRoleProps) {
   const { user, tenantId, role, loading } = useAuth()
 
   if (loading) {
     return null
   }
 
-  if (!user || !tenantId || !role) {
+  if (!user) {
     return <Navigate to={redirectTo} replace />
+  }
+
+  if (!tenantId || !role) {
+    return <Navigate to={noTenantRedirectTo ?? redirectTo} replace />
   }
 
   if (roles && !roles.includes(role)) {

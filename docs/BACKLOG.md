@@ -11,7 +11,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)              | Owner/Admin | 0     | In Progress | P2       |
 | PALLETIQ-004 | Secret Manager wiring for third-party credentials                              | Owner/Admin | 0     | Planned     | P1       |
 | PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                       | Buyer       | 0     | Done        | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Planned     | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Done        | P0       |
 | PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Planned     | P0       |
 | PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Planned     | P0       |
 | PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Planned     | P1       |
@@ -271,6 +271,73 @@ Baloo 2 for the display font (doc allowed either; only one gets installed).
 
 _Firestore/RBAC impact:_ none — this is a frontend styling/tooling ticket,
 touches no Firestore collection, rule, or RBAC boundary.
+
+_Scope note on `PALLETIQ-006` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ the auth + tenant-onboarding UI that `PALLETIQ-002`'s scope note
+explicitly deferred here. Concretely: a **sign-up** page (email/password via
+Firebase Auth, plus a tenant-name field) that, on success, calls the existing
+`createTenant` callable to bootstrap a new tenant with the signing-up user as
+`owner`; a **sign-in** page (email/password); an **accept-invite** page (route
+carrying `tenantId`/`inviteId`/`token`, per `acceptInvite`'s existing
+signature) for a user landing on an invite link, prompting sign-in/sign-up
+first if needed, then calling the existing `acceptInvite` callable; a
+**sign-out** action; and route-level gating built on the already-existing
+`RequireRole`/`useAuth` (`PALLETIQ-002`): unauthenticated → redirect to
+sign-in; authenticated with no `tenantId`/`role` claim → onboarding (create-
+tenant, unless arriving via an invite link); authenticated with a tenant →
+a minimal authenticated landing route. Forms use React Hook Form + Zod per
+`docs/design/components.md`'s form-input pattern; route gating reuses
+`docs/design/rbac-ui-patterns.md`'s "entire route unreachable" pattern rather
+than a visible-but-disabled nav item. All new UI uses `PALLETIQ-016`'s design
+tokens.
+
+_Empty-state UX, scoped narrowly:_ Phase 1's QA verification
+(`docs/projects/PROJ-PALLETIQ.md`) requires empty-state UX for tenant
+onboarding, and `docs/design/components.md`'s Empty States pattern calls for
+"one primary action button... don't show an empty state with no path forward
+when a clear next action exists." Since no other Phase 1 feature UI exists yet
+(vendor management is `PALLETIQ-007`, dashboard is `PALLETIQ-010`), there is
+no real next-action route to link to today. The post-onboarding landing state
+here is a confirmation placeholder (tenant created, centered icon + message,
+per the pattern's visual treatment) without a CTA to a page that doesn't exist
+yet — revisit with a real primary action once `PALLETIQ-007`'s vendor page
+ships, rather than fabricate a dead link now.
+
+_Out of scope, deferred:_ the full sidebar app shell / dashboard
+(`PALLETIQ-010`); invite-**teammate** UI (the owner-side "send an invite"
+form) — `PALLETIQ-002`'s scope note deferred this without assigning it a
+ticket number, and it stays unassigned here too, since it's a team-management/
+settings concern, not part of the signup/onboarding critical path; per-page/
+per-component RBAC enforcement beyond "is there a tenant/role at all"
+route gating (happens per-feature as real data pages get built — Check III
+applies then, not here, same carve-out `PALLETIQ-002` used); password-reset/
+forgot-password flow (a real gap for a P0 auth ticket, but not required by
+Phase 1's QA criteria — flagging so it isn't forgotten, not silently dropped);
+MFA/additional sign-in providers (Email/Password only, per the existing
+`docs/ACTIVE_CYCLE.md` note); settings/billing/audit-log pages (all
+Owner-only per `docs/personas/owner-admin.md`, none built yet, each is its own
+ticket).
+
+_UI pattern notes:_ `docs/design/mobile-responsive.md` scopes Owner/Admin as
+desktop-first with the sidebar nav pattern — but these are pre-tenant/
+pre-dashboard pages with no sidebar to show yet, so they're simple centered-
+card layouts that are responsive by default, not an instance of that pattern.
+The sidebar/app-shell pattern starts with `PALLETIQ-010`.
+
+_Firestore/RBAC impact:_ none — no new collection or rule. All tenant/role
+mutations go through the existing `createTenant`/`acceptInvite` Cloud
+Functions (Admin SDK, already covered by `firestore.rules` +
+`firestore.rules.test.ts` from `PALLETIQ-001`/`002`). If this ticket's
+implementation ends up needing a direct client read (e.g. displaying the
+tenant name), that reads `tenants/{tenantId}`, already covered by existing
+rules — run `firestore-rules-auditor` before close regardless, as a parity
+check, not because a new rule is expected.
+
+_ADR:_ not written. The architectural decisions here (custom-claims mechanism,
+the 4-callable shape) were already made in `ADR-0003`; this ticket only
+consumes those callables from new UI and adds client-side routing — no new
+data-model shape or tradeoff with real alternatives to record.
 
 _ADR:_ not written — implementing an already-decided spec (`ADR-0002` already
 made the governance decision; `Pallet-IQ-Design-System.md` already specifies

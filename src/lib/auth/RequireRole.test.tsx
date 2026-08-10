@@ -14,7 +14,11 @@ const baseAuthState: AuthState = {
   refreshClaims: () => Promise.resolve(),
 }
 
-function renderProtected(authState: AuthState, roles?: readonly Role[]) {
+function renderProtected(
+  authState: AuthState,
+  roles?: readonly Role[],
+  noTenantRedirectTo?: string,
+) {
   return render(
     <AuthContext.Provider value={authState}>
       <MemoryRouter initialEntries={['/protected']}>
@@ -22,12 +26,13 @@ function renderProtected(authState: AuthState, roles?: readonly Role[]) {
           <Route
             path="/protected"
             element={
-              <RequireRole roles={roles}>
+              <RequireRole roles={roles} noTenantRedirectTo={noTenantRedirectTo}>
                 <div>Protected content</div>
               </RequireRole>
             }
           />
           <Route path="/" element={<div>Redirected home</div>} />
+          <Route path="/onboarding" element={<div>Onboarding</div>} />
         </Routes>
       </MemoryRouter>
     </AuthContext.Provider>,
@@ -85,5 +90,18 @@ describe('RequireRole', () => {
     })
 
     expect(screen.getByText('Protected content')).toBeInTheDocument()
+  })
+
+  it('sends an authenticated user with no tenant claim to redirectTo by default', () => {
+    renderProtected({ ...baseAuthState, user: {} as User })
+
+    expect(screen.getByText('Redirected home')).toBeInTheDocument()
+  })
+
+  it('sends an authenticated user with no tenant claim to noTenantRedirectTo when given', () => {
+    renderProtected({ ...baseAuthState, user: {} as User }, undefined, '/onboarding')
+
+    expect(screen.getByText('Onboarding')).toBeInTheDocument()
+    expect(screen.queryByText('Redirected home')).not.toBeInTheDocument()
   })
 })

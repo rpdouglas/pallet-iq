@@ -70,12 +70,21 @@ None currently in flight. `PALLETIQ-003` is shelved, not active — see below.
 
 ## Blockers
 
-None currently open. `PALLETIQ-013`'s Firebase-project blocker, the Auth/
-Storage initialization gaps, and GitHub branch protection on `main` (was
-undocumented via API for several review passes) are all resolved as of this
-update — see Drift notes for the first three; branch protection was applied
-directly via the GitHub UI and reconfirmed live (`protected: true`) via the
-API.
+- **Deployed `createTenant` is stale (found 2026-08-10, closing `PALLETIQ-006`).**
+  The live Cloud Function predates `PALLETIQ-003`'s `subscriptions/current`
+  write — every tenant created through the production app right now gets no
+  subscription doc, contrary to `ADR-0005`. Fix is a `firebase deploy --only
+functions` (or a full deploy) to pick up everything merged since the last
+  manual deploy during `PALLETIQ-005`'s close — not a code change, an
+  operational action needing the owner's go-ahead since it touches live
+  infrastructure. See this update's `PALLETIQ-006` drift note for how it was
+  found.
+
+`PALLETIQ-013`'s Firebase-project blocker, the Auth/Storage initialization
+gaps, and GitHub branch protection on `main` (was undocumented via API for
+several review passes) are all resolved as of this update — see Drift notes
+for the first three; branch protection was applied directly via the GitHub UI
+and reconfirmed live (`protected: true`) via the API.
 
 **Note for `PALLETIQ-002`:** Auth is enabled with Email/Password only. If a
 second sign-in method (e.g. Google) turns out to be needed, that's additional
@@ -371,3 +380,59 @@ application-default login`) rather than repeat this.
   just hypothetically. Worth a real smoke test (e.g. a headless-browser
   console-error check against the live URL) if this kind of runtime-only
   failure needs to be caught by CI instead of a user hitting it first.
+
+- **2026-08-10 — `PALLETIQ-006` closed.** Shipped: sign-up, sign-in,
+  accept-invite, and sign-out, plus route-level gating (`RequireGuest`,
+  `RequireNoTenant`, and an extended `RequireRole`) wired through
+  `src/App.tsx` on top of `PALLETIQ-002`'s existing `createTenant`/
+  `acceptInvite` callables and `useAuth`/`RequireRole` scaffolding. Verified
+  live end-to-end against the real `mrt-pallet-iq` project (not just unit
+  tests): sign-up → onboarding → workspace creation → landing page → sign-out
+  → sign-in round trip, driven with Playwright, zero console errors, screen-
+  shots visually confirmed correct token/font/spacing usage. Test account and
+  its `users`/`tenants` docs deleted afterward via the same firebase-tools
+  refresh-token-to-access-token trick used in `PALLETIQ-005`'s close (this
+  time the originally-granted `loginScopes` had to be reused verbatim — asking
+  for an additional scope, e.g. `identitytoolkit`, made Google's token
+  endpoint reject the whole refresh, not just decline the extra scope).
+  `design-system-auditor` and `firestore-rules-auditor` both clean;
+  `firestore-rules-auditor` confirmed the new client-side read
+  (`tenants/{tenantId}/settings/general` on the landing page) is already
+  covered by `PALLETIQ-001`'s existing `settings` rule + test pair — no new
+  rule needed, and `npm run test:rules` (real emulator, Java downloaded
+  fresh into this session same as `PALLETIQ-002`'s close) confirmed 85/85
+  passing.
+  **Drift beyond planned scope:**
+  - The scope note described sign-up as collecting a tenant name and calling
+    `createTenant` directly. Implementation instead split this: `SignUpPage`
+    only creates the Firebase Auth account (no tenant-name field) and always
+    lands on `/`, letting the route guards bounce a tenant-less user to
+    `/onboarding`; `createTenant` is called from `OnboardingPage` alone. This
+    is the only way `AcceptInvitePage`'s `redirect`-param flow works cleanly
+    — a user arriving via an invite link who needs to create an account first
+    must not be forced through a "name your workspace" field on the way to
+    joining someone _else's_ workspace. One page, one responsibility, per the
+    code comment left on `SignUpPage.tsx`.
+  - Added three small route guards (`RequireGuest`, `RequireNoTenant`, and an
+    extended `RequireRole` with a new `noTenantRedirectTo` prop) rather than
+    the single existing `RequireRole` the scope note assumed would be enough
+    — the actual state matrix (unauthenticated / authenticated-no-tenant /
+    fully authenticated) needs three distinct redirect targets depending on
+    which route is asking, which the original single-target `RequireRole`
+    couldn't express without conflating "no auth" and "no tenant yet."
+  - Built five shared components not itemized in the scope note (`Button`,
+    `TextField`, `EmptyState`, `BrandMark`, `AuthCard`) — the first real
+    instances of `docs/design/components.md`'s form-input and empty-state
+    patterns, and `docs/design/Pallet-IQ-Design-System.md`'s button variants.
+    Directly in service of the scoped pages (five forms needed consistent
+    inputs/buttons), not scope creep.
+    **Real gap discovered, not fixed here:** live verification surfaced that
+    the _deployed_ `createTenant` Cloud Function is stale — it still predates
+    `PALLETIQ-003`'s addition of the `tenants/{tenantId}/subscriptions/current`
+    write. The test tenant's `settings/general` doc was created correctly but
+    `subscriptions/current` 404'd. This means **every real tenant created
+    through the live app right now silently has no subscription doc**,
+    contrary to `ADR-0005`'s "the doc always exists once a tenant does" design.
+    Not fixed in this PR — redeploying Cloud Functions is a deliberate
+    production action, out of scope for a frontend-only ticket, and needs the
+    owner's go-ahead. Logged as an open blocker below, not silently absorbed.
