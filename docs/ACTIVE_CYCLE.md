@@ -295,3 +295,32 @@ https://mrt-pallet-iq.web.app` returned `200` with a `last-modified`
     repo or intended as a durable pattern — a future session needing live
     Admin SDK access should still set up real ADC (`gcloud auth
 application-default login`) rather than repeat this.
+
+- **2026-08-10 — Live production bug found and fixed: Hosting deployed with
+  an entirely undefined Firebase config.** The owner hit
+  `auth/invalid-api-key` loading the live site. Root cause: `ci.yml`'s
+  `deploy-hosting` job (`PALLETIQ-015`) runs `npm run build` with none of the
+  6 `VITE_FIREBASE_*` env vars set — `.env` is gitignored
+  (`docs/ACTIVE_CYCLE.md`'s `PALLETIQ-013` note), so the CI checkout never
+  has them, and Vite bakes `undefined` into every reference. Confirmed by
+  downloading the live bundle and finding
+  `apiKey:void 0,authDomain:void 0,projectId:void 0,...` verbatim — this has
+  almost certainly been broken since `PALLETIQ-015`'s very first deploy, not
+  a regression from a specific later change. **Why the existing
+  verification didn't catch it:** `PALLETIQ-015`'s drift note already
+  flagged "no automated post-deploy smoke test" as a known gap, but even
+  that suggested fix (a `curl`/status-code check) wouldn't have caught this
+  specific bug — the failure only happens at JS runtime when the Auth SDK
+  initializes client-side, not at the HTTP-response level `curl` can see.
+  **Fixed:** added the 6 `VITE_FIREBASE_*` values as GitHub Actions repo
+  secrets (values aren't actually sensitive by Firebase's own security
+  model — Auth + Firestore/Storage rules are the real boundary, not hiding
+  this key — stored as secrets only because that's the existing mechanism
+  for getting `.env`-gitignored values into a CI build) and wired them into
+  `deploy-hosting`'s build step via `env:`. **Still not fixed, logged not
+  silently dropped:** no automated check actually asserts the deployed app
+  initializes Firebase without error post-deploy — same class of gap
+  `PALLETIQ-015` already flagged, now confirmed to matter in practice, not
+  just hypothetically. Worth a real smoke test (e.g. a headless-browser
+  console-error check against the live URL) if this kind of runtime-only
+  failure needs to be caught by CI instead of a user hitting it first.
