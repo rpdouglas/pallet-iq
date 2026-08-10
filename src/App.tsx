@@ -4,6 +4,8 @@ import { RequireNoTenant } from './lib/auth/RequireNoTenant'
 import { RequireRole } from './lib/auth/RequireRole'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { LandingPage } from './pages/LandingPage'
+import { ManifestDetailPage } from './pages/ManifestDetailPage'
+import { ManifestsPage } from './pages/ManifestsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { SignInPage } from './pages/SignInPage'
 import { SignUpPage } from './pages/SignUpPage'
@@ -50,6 +52,22 @@ function App() {
         element={
           <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
             <VendorsPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/manifests"
+        element={
+          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
+            <ManifestsPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/manifests/:importId"
+        element={
+          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
+            <ManifestDetailPage />
           </RequireRole>
         }
       />

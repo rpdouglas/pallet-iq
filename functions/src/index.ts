@@ -15,3 +15,7 @@ export { processDummyTask } from './ai-tasks/processDummyTask'
 // PALLETIQ-003 / ADR-0005.
 export { createCheckoutSession } from './billing/createCheckoutSession'
 export { stripeWebhook } from './billing/stripeWebhook'
+
+// PALLETIQ-008 / ADR-0006.
+export { enqueueManifestImport } from './manifests/enqueueManifestImport'
+export { processManifestImport } from './manifests/processManifestImport'

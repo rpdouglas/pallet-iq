@@ -48,6 +48,13 @@ service cloud.firestore {
       return hasRole(tenantId, ['owner']);
     }
 
+    // PALLETIQ-008 / ADR-0006. Manifest import is Buyer's core daily
+    // workflow (docs/personas/buyer.md), not an admin task - unlike
+    // vendors (PALLETIQ-007), Manager stays read-only here too.
+    function isOwnerOrBuyer(tenantId) {
+      return hasRole(tenantId, ['owner', 'buyer']);
+    }
+
     // ---- Tenant-scoped collections ---------------------------------------
     // Default posture: any authenticated member of the tenant may read;
     // writes are restricted to Owner/Manager until each collection's
@@ -68,23 +75,31 @@ service cloud.firestore {
         allow write: if isOwner(tenantId);
       }
 
+      // PALLETIQ-008: tightened from the placeholder isOwnerOrManager to
+      // isOwnerOrBuyer - see docs/adr/0006-manifest-import-parsing-
+      // architecture.md for the full RBAC reasoning. lineItems' unitCost
+      // is a UI field-level omission for Warehouse (same pattern as
+      // vendors' terms in PALLETIQ-007), not a rules-level restriction.
       match /imports/{docId} {
         allow read: if isTenantMember(tenantId);
-        allow write: if isOwnerOrManager(tenantId);
+        allow write: if isOwnerOrBuyer(tenantId);
       }
 
+      // Cloud-Functions-only write (processManifestImport, Admin SDK) -
+      // no client ever creates an error record directly, same posture as
+      // analytics_rollups.
       match /imports_errors/{docId} {
         allow read: if isTenantMember(tenantId);
-        allow write: if isOwnerOrManager(tenantId);
+        allow write: if false;
       }
 
       match /manifests/{manifestId} {
         allow read: if isTenantMember(tenantId);
-        allow write: if isOwnerOrManager(tenantId);
+        allow write: if isOwnerOrBuyer(tenantId);
 
         match /lineItems/{docId} {
           allow read: if isTenantMember(tenantId);
-          allow write: if isOwnerOrManager(tenantId);
+          allow write: if isOwnerOrBuyer(tenantId);
         }
       }
 
