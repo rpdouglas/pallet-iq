@@ -460,3 +460,38 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   `tenants/{tenantId}/subscriptions/current` was created (`plan: "free"`,
   `status: "free"`) alongside `settings/general`. Test account and docs
   deleted afterward, same as every other live-verification pass this cycle.
+
+- **2026-08-10 — `PALLETIQ-007` closed.** Shipped per the `BACKLOG.md` scope
+  note: CRUD UI for `vendors` (name, `manifestFormat`, contact, `terms`), a
+  new `SelectField` component matching `TextField`'s pattern, a real
+  `/vendors` route, and closing `PALLETIQ-006`'s landing-page dead-end
+  placeholder with an actual "Go to vendors" CTA. `firestore.rules`' vendors
+  write rule tightened from the placeholder `isOwnerOrManager` to the real
+  `isOwner` policy, with a dedicated rules-test block (pulled out of the
+  shared `describe.each`) proving the tightened policy, not just added
+  coverage — 87/87 rules tests passing against the real emulator. Verified
+  live end-to-end against `mrt-pallet-iq`: sign-up → onboarding → landing →
+  vendors → add → edit → delete, zero console errors. Test account and
+  Firestore docs deleted afterward.
+  **Drift, caught by `design-system-auditor` before merge, fixed in this
+  PR:** `VendorsPage.tsx`'s "Vendors" page heading initially copied
+  `BrandMark.tsx`'s `font-display`/`font-extrabold` classes — those are
+  scoped to the "PalletIQ" wordmark only per
+  `docs/design/Pallet-IQ-Design-System.md` §3, not ordinary page titles.
+  Fixed to `font-bold` (default Inter), matching the H1 spec ("24–28px,
+  Bold, Ink Navy"). Worth watching for on future pages copying `BrandMark`'s
+  classes instead of just its component.
+  **Known gaps, not fixed here (both flagged by `design-system-auditor` as
+  non-blocking):** (1) `listVendors()` fetches the full vendor doc including
+  `terms` for every role — the Warehouse-role omission is client-side only
+  (render-time, per `rbac-ui-patterns.md`'s explicitly-permitted pattern),
+  so `terms` is still visible in the network payload/dev-tools for a
+  Warehouse user even though it never paints. Compliant with the documented
+  pattern as written, but worth a `firestore.rules` field-level look if that
+  ever needs tightening. (2) The vendor table has no sticky header or
+  row-hover treatment (`components.md` calls for both on "long tables") —
+  reasonable for a 2–3-vendor MVP list, revisit if vendor counts grow.
+  (3) The `terms` field is a single-line `TextField`, not a textarea —
+  `components.md` doesn't document a textarea pattern at all yet, so this
+  is a gap in the doc, not a violation; worth adding one if free-text
+  fields recur.

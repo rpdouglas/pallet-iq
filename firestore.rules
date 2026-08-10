@@ -57,9 +57,15 @@ service cloud.firestore {
 
     match /tenants/{tenantId} {
 
+      // PALLETIQ-007: tightened from the placeholder isOwnerOrManager to the
+      // real policy - docs/personas/owner-admin.md lists vendors under
+      // Owner's read/write; docs/personas/store-manager.md's write list
+      // excludes vendors. Read stays open to every tenant member (incl.
+      // Warehouse) - docs/design/rbac-ui-patterns.md treats vendor
+      // pricing/terms as a field-level UI omission, not a route-level block.
       match /vendors/{docId} {
         allow read: if isTenantMember(tenantId);
-        allow write: if isOwnerOrManager(tenantId);
+        allow write: if isOwner(tenantId);
       }
 
       match /imports/{docId} {

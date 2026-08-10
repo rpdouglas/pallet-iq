@@ -216,7 +216,6 @@ describe('product_intelligence (cross-tenant)', () => {
 // duplication drifting out of sync as collections are added.
 
 describe.each([
-  'vendors',
   'imports',
   'imports_errors',
   'manifests',
@@ -264,6 +263,68 @@ describe.each([
 
     await assertFails(
       buyerOfA.firestore().doc(`tenants/${TENANT_A}/${collection}/doc-1`).set({ seeded: true }),
+    )
+  })
+})
+
+describe('vendors (tenant member read, owner-only write)', () => {
+  it('allows a tenant member to read a vendor in their own tenant', async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(buyerA.firestore().doc(`tenants/${TENANT_A}/vendors/vendor-1`).get())
+  })
+
+  it("denies reading another tenant's vendor", async () => {
+    const buyerA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(buyerA.firestore().doc(`tenants/${TENANT_B}/vendors/vendor-1`).get())
+  })
+
+  it('allows a warehouse-role user to read a vendor in their own tenant', async () => {
+    const warehouseA = testEnv.authenticatedContext('warehouse-a', {
+      tenantId: TENANT_A,
+      role: 'warehouse',
+    })
+
+    await assertSucceeds(warehouseA.firestore().doc(`tenants/${TENANT_A}/vendors/vendor-1`).get())
+  })
+
+  it('allows an owner to write a vendor in their own tenant', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertSucceeds(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/vendors/vendor-1`).set({ name: 'Acme' }),
+    )
+  })
+
+  it('denies a manager writing a vendor (owner-only, tightened from the old placeholder policy)', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertFails(
+      managerOfA.firestore().doc(`tenants/${TENANT_A}/vendors/vendor-1`).set({ name: 'Acme' }),
+    )
+  })
+
+  it('denies a buyer writing a vendor in their own tenant', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      buyerOfA.firestore().doc(`tenants/${TENANT_A}/vendors/vendor-1`).set({ name: 'Acme' }),
     )
   })
 })
