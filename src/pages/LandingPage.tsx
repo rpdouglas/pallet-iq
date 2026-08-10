@@ -1,7 +1,9 @@
 import { PackageSearch } from 'lucide-react'
 import { doc, getDoc } from 'firebase/firestore'
 import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import { Button } from '../components/Button'
+import { buttonClasses } from '../components/buttonVariants'
 import { EmptyState } from '../components/EmptyState'
 import { db } from '../lib/firebase'
 import { useAuth } from '../lib/auth/useAuth'
@@ -11,11 +13,11 @@ interface TenantSettings {
   name: string
 }
 
-// The tenant's landing page immediately after onboarding. No CTA to a real
-// feature yet - vendor management (PALLETIQ-007) and the dashboard
-// (PALLETIQ-010) don't exist, so per docs/design/components.md's Empty
-// States guidance, this is a confirmation placeholder rather than a link to
-// nowhere. Revisit with a real primary action once PALLETIQ-007 ships.
+// The tenant's landing page immediately after onboarding. PALLETIQ-007
+// shipped the first real feature page (vendors), so this now has a real
+// primary action instead of the dead-end placeholder PALLETIQ-006 left here
+// per docs/design/components.md's Empty States guidance. Still no full
+// dashboard (PALLETIQ-010) - just this one link for now.
 export function LandingPage() {
   const { tenantId } = useAuth()
 
@@ -35,8 +37,13 @@ export function LandingPage() {
         icon={PackageSearch}
         message={
           tenantName
-            ? `${tenantName} is set up. There's nothing here yet — feature pages are on the way.`
-            : "You're set up. There's nothing here yet — feature pages are on the way."
+            ? `${tenantName} is set up. Get started below.`
+            : "You're set up. Get started below."
+        }
+        action={
+          <Link to="/vendors" className={buttonClasses()}>
+            Go to vendors
+          </Link>
         }
       />
       <Button variant="ghost" onClick={() => void signOutUser()}>

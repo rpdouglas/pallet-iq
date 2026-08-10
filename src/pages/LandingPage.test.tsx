@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
 import { AuthContext, type AuthState } from '../lib/auth/AuthContext'
@@ -28,7 +29,9 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <AuthContext.Provider value={authState}>
-        <LandingPage />
+        <MemoryRouter>
+          <LandingPage />
+        </MemoryRouter>
       </AuthContext.Provider>
     </QueryClientProvider>,
   )
@@ -56,5 +59,14 @@ describe('LandingPage', () => {
     screen.getByRole('button', { name: /sign out/i }).click()
 
     expect(signOutUser).toHaveBeenCalled()
+  })
+
+  it('links to the vendors page as the primary action', () => {
+    getDoc.mockReturnValue(new Promise(() => undefined))
+    renderPage()
+
+    expect(screen.getByRole('link', { name: 'Go to vendors' }).getAttribute('href')).toBe(
+      '/vendors',
+    )
   })
 })

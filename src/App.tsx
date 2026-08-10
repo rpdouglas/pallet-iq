@@ -7,6 +7,7 @@ import { LandingPage } from './pages/LandingPage'
 import { OnboardingPage } from './pages/OnboardingPage'
 import { SignInPage } from './pages/SignInPage'
 import { SignUpPage } from './pages/SignUpPage'
+import { VendorsPage } from './pages/VendorsPage'
 
 function App() {
   return (
@@ -44,6 +45,14 @@ function App() {
         }
       />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
+      <Route
+        path="/vendors"
+        element={
+          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
+            <VendorsPage />
+          </RequireRole>
+        }
+      />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
