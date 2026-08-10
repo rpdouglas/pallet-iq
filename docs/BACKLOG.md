@@ -14,7 +14,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Done        | P0       |
 | PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Done        | P0       |
 | PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Done        | P1       |
 | PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)      | Buyer       | 1     | Planned     | P1       |
 | PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Planned     | P1       |
 | PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Planned     | P0       |
@@ -493,3 +493,92 @@ Decision: server-side parsing reusing `PALLETIQ-005`'s Cloud Tasks
 pipeline (`enqueueManifestImport` callable + `processManifestImport` task
 worker), `papaparse`/`exceljs` as the parsing libraries, and the
 Owner+Buyer write RBAC resolved above.
+
+_Scope note on `PALLETIQ-009` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ turning each line item's `unitCost` (purchase price,
+`PALLETIQ-008`) into a landed cost per unit by allocating a manifest's
+shared freight/fees across its line items. Freight/fees are entered once
+per `imports/{importId}` (one shipment = one manifest, matches how a buyer
+actually pays for shipping) via two new optional numeric fields,
+`freightCost` and `otherFees` (default 0), editable only by Owner/Buyer
+(same role boundary as import write generally - no `firestore.rules`
+change needed, the existing `isOwnerOrBuyer` write rule from `PALLETIQ-008`
+already covers this doc). Allocation method, resolved with the owner during
+scoping: **value-weighted**, proportional to each line item's share of the
+import's total purchase value (`unitCost × quantity`). This is standard
+landed-cost accounting (higher-value items absorb proportionally more of
+shared shipping/handling) and simplifies algebraically to one clean,
+explainable formula applied uniformly to every line item in the import:
+`landedCost = unitCost × (1 + (freightCost + otherFees) / totalPurchaseValue)`
+
+- i.e. every item in the same import gets the same % markup, computed
+  once from the import's totals. `totalPurchaseValue = 0` (no line items, or
+  all zero-cost) short-circuits to a 1× multiplier rather than dividing by
+  zero. Computed client-side as a pure function, on read, wherever line
+  items are displayed - not persisted as a stored field on `lineItems` docs.
+  `ManifestDetailPage.tsx` gains a small "Shipping & fees" form (Owner/Buyer
+  only, same visibility boundary as the existing Import action) and a new
+  "Landed cost" column alongside the existing "Unit cost" column (both shown
+  together, not one replacing the other - transparency about the markup
+  matters for an "explainable" product, per
+  `docs/projects/PROJ-PALLETIQ.md`'s design principles).
+
+_Not persisting landed cost, and why that's not just a shortcut:_ freight/
+fees can be edited after import (a corrected invoice, a discovered fee),
+and a persisted-and-recompute approach would need either a Cloud Function
+triggered on every edit or a client-side batch rewrite of every `lineItems`
+doc in that manifest - real complexity with no current consumer that needs
+landed cost to be queryable/sortable/aggregatable in Firestore itself
+(nothing in Phase 1 needs "sort inventory by landed cost" - that's a
+plausible Phase 2/3 need, not a real one yet). Computing on read keeps
+freight/fee edits instantly reflected everywhere with no staleness window
+and no extra write path. Revisit if a future ticket genuinely needs
+landed cost as a queryable Firestore field - don't build that speculatively
+here.
+
+_Out of scope, deferred:_ per-line-item manual freight/fee override (the
+"manual entry" allocation alternative considered and not chosen); a
+dashboard-level "total landed cost across inventory" rollup
+(`PALLETIQ-010`, needs a real dashboard to live in); showing landed cost
+anywhere in `ManifestsPage.tsx`'s import list (that page shows job-level
+status, not unit-level economics - landed cost only matters where line
+items are actually visible, `ManifestDetailPage.tsx`); ROI/ bid-guidance
+calculations that consume landed cost (Phase 1's "Basic dashboard" /
+Phase 2's scoring engine, separate tickets - this ticket only produces the
+number, not what's built on top of it).
+
+_Firestore/RBAC impact:_ none beyond what `PALLETIQ-008` already
+established. `freightCost`/`otherFees` live on the existing
+`imports/{importId}` doc, already `isOwnerOrBuyer`-gated for write and
+`isTenantMember`-gated for read; landed cost itself is never written to
+Firestore at all (computed client-side, see above), so there's no new
+field-level exposure to reason about beyond the existing `unitCost`
+omission for Warehouse (`canSeeCost = role !== 'warehouse'`, already
+implemented in `PALLETIQ-008`, reused as-is for the new Landed Cost
+column and the freight/fees form's visibility).
+
+_UI pattern notes:_ `docs/design/components.md`'s Form inputs pattern for
+the freight/fees form (`TextField` with `type="number"` - the first
+numeric input field in the app; existing text/email/tel inputs don't
+establish a numeric-formatting convention, so this ticket sets one: plain
+numbers, no currency-symbol input masking, formatted with a `$` prefix
+only at display time via the same `.toFixed(2)` convention `PALLETIQ-008`
+already used for `unitCost`); Data tables pattern (extending
+`ManifestDetailPage.tsx`'s existing line-items table with one more
+right-aligned numeric column, same zebra-striping/header treatment already
+in place); `docs/design/rbac-ui-patterns.md`'s field-omission pattern,
+reused unchanged (no new instance, same `canSeeCost` flag now gates two
+cost-adjacent things instead of one).
+
+_ADR:_ not written. The allocation _formula_ (value-weighted, simplifying
+to a uniform per-import markup) is a real decision with alternatives
+(quantity-weighted, manual entry) that future ROI/scoring work will build
+on, but it's a business-logic/calculation choice, not an architectural or
+infrastructure one - no new collection, no new Cloud Function, no new
+trust boundary, nothing future code depends on beyond "call this pure
+function." Resolved directly with the owner during scoping (see above)
+and documented here in full, matching how this repo's existing ADRs are
+all architecture/infrastructure decisions (multi-tenant shape, design
+governance, auth mechanism, async pipeline, billing mechanism, manifest
+parsing architecture) rather than calculation formulas.

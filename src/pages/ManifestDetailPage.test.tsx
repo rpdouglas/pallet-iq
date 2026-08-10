@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
@@ -11,7 +11,20 @@ const getImport = vi.fn<(tenantId: string, importId: string) => Promise<ImportSu
 const listLineItems = vi.fn<(tenantId: string, importId: string) => Promise<LineItem[]>>()
 const listImportErrors =
   vi.fn<(tenantId: string, importId: string) => Promise<ImportErrorRecord[]>>()
-vi.mock('../lib/manifests/manifestActions', () => ({ getImport, listLineItems, listImportErrors }))
+const updateImportCosts =
+  vi.fn<
+    (
+      tenantId: string,
+      importId: string,
+      costs: { freightCost: number; otherFees: number },
+    ) => Promise<void>
+  >()
+vi.mock('../lib/manifests/manifestActions', () => ({
+  getImport,
+  listLineItems,
+  listImportErrors,
+  updateImportCosts,
+}))
 
 const { ManifestDetailPage } = await import('./ManifestDetailPage')
 
@@ -25,6 +38,10 @@ const IMPORT: ImportSummary = {
   successCount: 1,
   errorCount: 1,
   error: null,
+  // $10 freight + $5 fees over a $45 total purchase value (one $4.50 x 10
+  // line item) -> 1.3333x multiplier -> landed cost $6.00 exactly.
+  freightCost: 10,
+  otherFees: 5,
 }
 
 const LINE_ITEM: LineItem = {
@@ -110,5 +127,69 @@ describe('ManifestDetailPage', () => {
 
     expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
     expect(listImportErrors).not.toHaveBeenCalled()
+  })
+
+  it('shows the landed cost column with the value-weighted markup applied, for a buyer', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByText('Landed cost')).toBeInTheDocument()
+    // $10 freight + $5 fees over $45 total purchase value -> 1.3333x -> $6.00
+    expect(screen.getByText('$6.00')).toBeInTheDocument()
+    expect(screen.getByText("Adds 33.3% to every item's landed cost.")).toBeInTheDocument()
+  })
+
+  it('omits the landed cost column and shipping & fees form for a warehouse-role user', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('warehouse')
+
+    expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
+    expect(screen.queryByText('Landed cost')).not.toBeInTheDocument()
+    expect(screen.queryByText('$6.00')).not.toBeInTheDocument()
+    expect(screen.queryByText('Shipping & fees')).not.toBeInTheDocument()
+  })
+
+  it('shows the shipping & fees form for a buyer', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByText('Shipping & fees')).toBeInTheDocument()
+  })
+
+  it('does not show the shipping & fees form for a manager (read-only on imports)', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('manager')
+
+    expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
+    expect(screen.queryByText('Shipping & fees')).not.toBeInTheDocument()
+  })
+
+  it('saves edited freight/fees and shows a confirmation', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    updateImportCosts.mockResolvedValueOnce(undefined)
+    renderPage('owner')
+
+    await screen.findByText('Shipping & fees')
+    const freightInput = screen.getByLabelText('Freight cost')
+    fireEvent.change(freightInput, { target: { value: '20' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => {
+      expect(updateImportCosts).toHaveBeenCalledWith('tenant-a', 'import-1', {
+        freightCost: 20,
+        otherFees: 5,
+      })
+    })
+    expect(await screen.findByText('Saved.')).toBeInTheDocument()
   })
 })

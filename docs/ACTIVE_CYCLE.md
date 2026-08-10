@@ -545,3 +545,44 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   cap; sticky table headers and row-hover states are still missing from
   every table in the app (`PALLETIQ-007`'s pre-existing gap, not
   reintroduced here, not yet fixed either).
+
+- **2026-08-10 — `PALLETIQ-009` closed.** Shipped per the `BACKLOG.md` scope
+  note: value-weighted freight/fee allocation, resolved with the owner
+  during scoping over quantity-weighted and manual-entry alternatives.
+  `freightCost`/`otherFees` added to the existing `imports/{importId}` doc
+  (initialized to 0 by `enqueueManifestImport`, editable via a new
+  "Shipping & fees" form, Owner/Buyer only - no `firestore.rules` change
+  needed, reuses `PALLETIQ-008`'s `isOwnerOrBuyer` write gate exactly as
+  scoped). Landed cost is computed client-side on read
+  (`src/lib/manifests/landedCost.ts`, a pure function, never persisted) and
+  shown as a new "Landed cost" column alongside the existing "Unit cost"
+  column on `ManifestDetailPage.tsx`, both omitted from the DOM for
+  Warehouse via the same `canSeeCost` flag `PALLETIQ-008` already
+  established. No new ADR - a calculation-formula decision, not an
+  architecture one, documented in full in the scope note.
+  **This closes the second half of Phase 1's QA criterion that's been open
+  since `PALLETIQ-008`:** "a real vendor manifest... imports cleanly
+  end-to-end with **correct landed cost per unit**." Verified live against
+  `mrt-pallet-iq` (redeployed `enqueueManifestImport` for its new default
+  fields): imported a real 2-row CSV manifest, confirmed a 1x multiplier
+  before any freight/fees were entered, entered $9.50 freight, confirmed
+  the resulting 10% markup applied identically to both line items
+  regardless of their different unit costs ($4.50→$4.95, $10.00→$11.00) -
+  exactly the value-weighted-simplifies-to-uniform-markup behavior the
+  formula is supposed to produce. Zero console errors; test tenant/vendor/
+  import/manifest/lineItems/Storage file/Auth user all deleted afterward.
+  Phase 1's QA criterion's other half (malformed/corrupt files rejected
+  safely) still isn't met - that's `PALLETIQ-012`, unchanged by this
+  ticket.
+  **Drift beyond planned scope:** none of substance - `design-system-auditor`
+  ran clean (no blocking findings, unlike `PALLETIQ-007`/`008`'s audits
+  which each caught a real Check IV bug). One purely cosmetic fix applied
+  anyway (the two numeric fields in the new form now size evenly via
+  `flex-1`, per the auditor's minor observation). One real TypeScript
+  friction point worth remembering for future numeric-input forms: Zod's
+  `z.coerce.number()` has a wider input type (`unknown`, since raw
+  `&lt;input&gt;` values arrive as strings) than its output type (`number`),
+  which breaks a plain `useForm&lt;T&gt;()` call - fixed by using RHF's
+  three-generic `useForm&lt;InputType, unknown, OutputType&gt;()` form
+  (`z.input&lt;typeof schema&gt;` / `z.output&lt;typeof schema&gt;`), the first
+  numeric form in the app to hit this.

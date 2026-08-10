@@ -1,12 +1,25 @@
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth/useAuth'
-import { getImport, listImportErrors, listLineItems } from '../lib/manifests/manifestActions'
+import {
+  getImport,
+  listImportErrors,
+  listLineItems,
+  updateImportCosts,
+} from '../lib/manifests/manifestActions'
+import {
+  calculateLandedCost,
+  calculateLandedCostMultiplier,
+  calculateTotalPurchaseValue,
+} from '../lib/manifests/landedCost'
+import { LandedCostForm } from '../components/LandedCostForm'
 
 export function ManifestDetailPage() {
   const { importId } = useParams<{ importId: string }>()
   const { tenantId, role } = useAuth()
+  const queryClient = useQueryClient()
   const canSeeCost = role !== 'warehouse'
+  const canManageCosts = role === 'owner' || role === 'buyer'
 
   const importQuery = useQuery({
     queryKey: ['imports', tenantId, importId],
@@ -26,8 +39,26 @@ export function ManifestDetailPage() {
     enabled: !!tenantId && !!importId && (importQuery.data?.errorCount ?? 0) > 0,
   })
 
+  const costsMutation = useMutation({
+    mutationFn: (values: { freightCost: number; otherFees: number }) =>
+      updateImportCosts(tenantId ?? '', importId ?? '', values),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['imports', tenantId, importId] })
+    },
+  })
+
   const lineItems = lineItemsQuery.data ?? []
   const errors = errorsQuery.data ?? []
+
+  // PALLETIQ-009: value-weighted allocation - every line item in this
+  // import gets the same % markup, computed once from the import's totals.
+  const totalPurchaseValue = calculateTotalPurchaseValue(lineItems)
+  const landedCostMultiplier = calculateLandedCostMultiplier(
+    totalPurchaseValue,
+    importQuery.data?.freightCost ?? 0,
+    importQuery.data?.otherFees ?? 0,
+  )
+  const markupPercent = ((landedCostMultiplier - 1) * 100).toFixed(1)
 
   return (
     <main className="bg-cloud-gray min-h-svh p-6">
@@ -49,6 +80,24 @@ export function ManifestDetailPage() {
           ) : null}
         </div>
 
+        {canManageCosts && importQuery.data ? (
+          <div className="rounded-xl bg-white p-6 shadow-sm">
+            <h2 className="text-h2 text-ink-navy mb-2 font-semibold">Shipping &amp; fees</h2>
+            <LandedCostForm
+              initialValues={{
+                freightCost: importQuery.data.freightCost,
+                otherFees: importQuery.data.otherFees,
+              }}
+              onSubmit={(values) => costsMutation.mutateAsync(values)}
+            />
+            {canSeeCost && totalPurchaseValue > 0 ? (
+              <p className="text-label text-slate-gray mt-2">
+                Adds {markupPercent}% to every item&apos;s landed cost.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
+
         <div className="rounded-xl bg-white p-6 shadow-sm">
           {lineItemsQuery.isLoading ? (
             <div className="flex flex-col gap-2">
@@ -69,6 +118,9 @@ export function ManifestDetailPage() {
                     {canSeeCost ? (
                       <th className="px-2 py-2 text-right font-medium">Unit cost</th>
                     ) : null}
+                    {canSeeCost ? (
+                      <th className="px-2 py-2 text-right font-medium">Landed cost</th>
+                    ) : null}
                     <th className="px-2 py-2 font-medium">Condition</th>
                   </tr>
                 </thead>
@@ -85,6 +137,11 @@ export function ManifestDetailPage() {
                       <td className="px-2 py-2 text-right">{item.quantity}</td>
                       {canSeeCost ? (
                         <td className="px-2 py-2 text-right">${item.unitCost.toFixed(2)}</td>
+                      ) : null}
+                      {canSeeCost ? (
+                        <td className="px-2 py-2 text-right">
+                          ${calculateLandedCost(item.unitCost, landedCostMultiplier).toFixed(2)}
+                        </td>
                       ) : null}
                       <td className="px-2 py-2">
                         {item.condition ?? <span className="text-slate-gray">—</span>}
