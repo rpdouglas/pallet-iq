@@ -74,7 +74,7 @@ None currently in flight. `PALLETIQ-003` is shelved, not active — see below.
   The live Cloud Function predates `PALLETIQ-003`'s `subscriptions/current`
   write — every tenant created through the production app right now gets no
   subscription doc, contrary to `ADR-0005`. Fix is a `firebase deploy --only
-  functions` (or a full deploy) to pick up everything merged since the last
+functions` (or a full deploy) to pick up everything merged since the last
   manual deploy during `PALLETIQ-005`'s close — not a code change, an
   operational action needing the owner's go-ahead since it touches live
   infrastructure. See this update's `PALLETIQ-006` drift note for how it was
@@ -411,7 +411,7 @@ application-default login`) rather than repeat this.
     is the only way `AcceptInvitePage`'s `redirect`-param flow works cleanly
     — a user arriving via an invite link who needs to create an account first
     must not be forced through a "name your workspace" field on the way to
-    joining someone *else's* workspace. One page, one responsibility, per the
+    joining someone _else's_ workspace. One page, one responsibility, per the
     code comment left on `SignUpPage.tsx`.
   - Added three small route guards (`RequireGuest`, `RequireNoTenant`, and an
     extended `RequireRole` with a new `noTenantRedirectTo` prop) rather than
@@ -426,13 +426,13 @@ application-default login`) rather than repeat this.
     patterns, and `docs/design/Pallet-IQ-Design-System.md`'s button variants.
     Directly in service of the scoped pages (five forms needed consistent
     inputs/buttons), not scope creep.
-  **Real gap discovered, not fixed here:** live verification surfaced that
-  the *deployed* `createTenant` Cloud Function is stale — it still predates
-  `PALLETIQ-003`'s addition of the `tenants/{tenantId}/subscriptions/current`
-  write. The test tenant's `settings/general` doc was created correctly but
-  `subscriptions/current` 404'd. This means **every real tenant created
-  through the live app right now silently has no subscription doc**,
-  contrary to `ADR-0005`'s "the doc always exists once a tenant does" design.
-  Not fixed in this PR — redeploying Cloud Functions is a deliberate
-  production action, out of scope for a frontend-only ticket, and needs the
-  owner's go-ahead. Logged as an open blocker below, not silently absorbed.
+    **Real gap discovered, not fixed here:** live verification surfaced that
+    the _deployed_ `createTenant` Cloud Function is stale — it still predates
+    `PALLETIQ-003`'s addition of the `tenants/{tenantId}/subscriptions/current`
+    write. The test tenant's `settings/general` doc was created correctly but
+    `subscriptions/current` 404'd. This means **every real tenant created
+    through the live app right now silently has no subscription doc**,
+    contrary to `ADR-0005`'s "the doc always exists once a tenant does" design.
+    Not fixed in this PR — redeploying Cloud Functions is a deliberate
+    production action, out of scope for a frontend-only ticket, and needs the
+    owner's go-ahead. Logged as an open blocker below, not silently absorbed.
