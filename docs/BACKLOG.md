@@ -345,3 +345,71 @@ the actual values) via Tailwind v4's standard CSS-first `@theme` mechanism
 isn't a novel architectural decision with real alternatives to weigh, same
 reasoning as `PALLETIQ-015`'s "standard, well-established... not a novel
 architectural decision."
+
+_Scope note on `PALLETIQ-007` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ CRUD UI for the `vendors` collection — list, add, edit, delete —
+scoped to what a real vendor record needs before manifest import
+(`PALLETIQ-008`) can reference it: `name`, `manifestFormat` (`'csv' |
+'xlsx'` — the ticket title's "1–2 manifest formats" is this field, not a
+parser; PALLETIQ-008 reads it to pick an importer), `contactEmail`,
+`contactPhone`, and `terms` (free text — the "pricing/terms" field
+`docs/design/rbac-ui-patterns.md` and `docs/personas/warehouse.md` both
+reference). A `SelectField` component (matches `TextField`'s visual
+treatment) for the format picker, since none exists yet and this is the
+first field that needs one. Wires a real `/vendors` route into `App.tsx`
+(reachable by any tenant member, no role restriction — see RBAC below) and
+updates `LandingPage.tsx`'s empty-state placeholder with an actual "Go to
+vendors" action, closing the gap its own code comment flagged when
+`PALLETIQ-006` shipped it (`docs/design/components.md`: "don't show an empty
+state with no path forward when a clear next action exists" — there wasn't
+one until now).
+
+_Out of scope, deferred:_ manifest file upload/parsing/normalization
+(`PALLETIQ-008` — `manifestFormat` here is metadata only, no parser is
+built); vendor scorecards/reliability scoring (`docs/projects/PROJ-PALLETIQ.md`
+Phase 2: "Vendor reliability scoring... a data product with value beyond the
+core tool" — explicitly a later phase); vendor claims/disputes (the separate
+`claims` collection, Phase 3, Warehouse-driven); sidebar/app-shell navigation
+(`PALLETIQ-010` — `/vendors` is a standalone page like every page `PALLETIQ-006`
+shipped, no persistent nav chrome yet).
+
+_Firestore/RBAC impact, found while scoping — a real tightening, not just a
+parity check:_ `firestore.rules`' `vendors` block currently reads `allow
+write: if isOwnerOrManager(tenantId)`, but that's explicitly the file's own
+documented placeholder ("Tighten per-collection as each area is implemented
+— this is a safe-by-default starting point, not a final policy"). Cross-
+referencing the actual persona docs for the real policy:
+`docs/personas/owner-admin.md` lists `vendors` under Owner's explicit
+read/write; `docs/personas/store-manager.md`'s **Read** list includes
+`vendors` but its **Write** list does not; `docs/projects/PROJ-PALLETIQ.md`'s
+top-level role table assigns "manages... vendors" to Owner/Admin specifically.
+Tightening write to `isOwner(tenantId)` only. Read stays `isTenantMember`
+(unchanged) — `docs/design/rbac-ui-patterns.md`'s own worked example lists
+"Vendor pricing/terms fields (Warehouse has no access to vendor pricing)" as
+a field-omission case (parallel to its Cost-column example), separate from
+its own next bullet naming `settings`/`subscriptions`/`api_keys`/`audit_logs`
+as the route-level "entire pages unreachable" case — so Warehouse reads the
+`vendors` collection like everyone else, but the UI omits the `terms` field
+for that role specifically, the first real instance of that specific pattern
+(distinct from `PALLETIQ-006`'s route-level omission). `firestore.rules.test.ts`
+gets `vendors` pulled out of the shared `describe.each` placeholder-policy
+block into its own dedicated block (member read succeeds, cross-tenant read
+denied, owner write succeeds, **manager write now denied** — a real behavior
+change from today, not just added coverage — buyer write denied).
+
+_UI pattern notes:_ `docs/design/components.md`'s Data table pattern (first
+real instance in the app — zebra striping, Slate Gray sticky header, numeric
+columns unused here since nothing's numeric yet); Form inputs pattern
+(second instance after `PALLETIQ-006`, reusing `TextField` plus the new
+`SelectField`); Empty States pattern (second instance, this time with a real
+primary action for Owner — "Add your first vendor" — while non-Owner roles
+correctly get no CTA per the pattern's own "don't fake a path forward" rule,
+since they can't add one). `docs/design/rbac-ui-patterns.md`'s field-omission
+pattern, as detailed above.
+
+_ADR:_ not written. This is CRUD against an already-scoped Firestore
+collection using the existing rules mechanism (`hasRole`/`isOwner` helpers
+from `ADR-0003`); the write-permission tightening resolves an already-
+documented placeholder against already-written persona docs, not a new
+policy decision with real alternatives to weigh.
