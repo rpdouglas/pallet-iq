@@ -11,6 +11,10 @@ export interface ImportSummary {
   successCount: number
   errorCount: number
   error: string | null
+  // PALLETIQ-009 - Owner/Buyer-edited, landed cost computed from these on
+  // read (src/lib/manifests/landedCost.ts), never persisted.
+  freightCost: number
+  otherFees: number
 }
 
 export interface LineItem {

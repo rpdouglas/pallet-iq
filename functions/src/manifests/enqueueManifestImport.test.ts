@@ -104,7 +104,13 @@ describe('enqueueManifestImport', () => {
     expect(mockDoc).toHaveBeenCalledWith('tenants/tenant-a/manifests/import-1')
     expect(mockSet).toHaveBeenCalledWith(
       'tenants/tenant-a/imports/import-1',
-      expect.objectContaining({ status: 'queued', format: 'xlsx', vendorId: 'vendor-1' }),
+      expect.objectContaining({
+        status: 'queued',
+        format: 'xlsx',
+        vendorId: 'vendor-1',
+        freightCost: 0,
+        otherFees: 0,
+      }),
     )
     expect(mockSet).toHaveBeenCalledWith(
       'tenants/tenant-a/manifests/import-1',

@@ -88,6 +88,8 @@ export const enqueueManifestImport = onCall<
     successCount: 0,
     errorCount: 0,
     error: null,
+    freightCost: 0,
+    otherFees: 0,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }

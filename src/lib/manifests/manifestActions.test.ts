@@ -12,7 +12,17 @@ const getDocs = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const orderBy = vi.fn<(...args: unknown[]) => unknown>((...args: unknown[]) => args)
 const query = vi.fn<(...args: unknown[]) => unknown>((...args: unknown[]) => args)
 const where = vi.fn<(...args: unknown[]) => unknown>((...args: unknown[]) => args)
-vi.mock('firebase/firestore', () => ({ collection, doc, getDoc, getDocs, orderBy, query, where }))
+const updateDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+vi.mock('firebase/firestore', () => ({
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  where,
+  updateDoc,
+}))
 
 const ref = vi.fn<(...args: unknown[]) => unknown>((_storage: unknown, path: unknown) => path)
 const uploadBytes = vi.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -33,6 +43,7 @@ const {
   getImport,
   listLineItems,
   listImportErrors,
+  updateImportCosts,
 } = await import('./manifestActions')
 
 describe('manifestActions', () => {
@@ -108,6 +119,18 @@ describe('manifestActions', () => {
     expect(await listLineItems('tenant-a', 'import-1')).toEqual([
       { id: 'item-1', description: 'Widget', quantity: 1, unitCost: 1 },
     ])
+  })
+
+  it('updateImportCosts writes freightCost/otherFees to the import doc', async () => {
+    updateDoc.mockResolvedValueOnce(undefined)
+
+    await updateImportCosts('tenant-a', 'import-1', { freightCost: 20, otherFees: 5 })
+
+    expect(doc).toHaveBeenCalledWith({}, 'tenants/tenant-a/imports/import-1')
+    expect(updateDoc).toHaveBeenCalledWith(
+      { id: 'generated-id', path: 'tenants/tenant-a/imports/import-1' },
+      { freightCost: 20, otherFees: 5 },
+    )
   })
 
   it('listImportErrors maps docs into ImportErrorRecord objects', async () => {

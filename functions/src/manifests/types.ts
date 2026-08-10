@@ -15,6 +15,12 @@ export interface ImportDoc {
   successCount: number
   errorCount: number
   error: string | null
+  // PALLETIQ-009 - client-edited (Owner/Buyer), not touched by this
+  // package's own functions. Landed cost itself is computed on read from
+  // these plus lineItems' unitCost, never persisted - see
+  // src/lib/manifests/landedCost.ts and the PALLETIQ-009 scope note.
+  freightCost: number
+  otherFees: number
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

@@ -1,4 +1,13 @@
-import { collection, doc, getDoc, getDocs, orderBy, query, where } from 'firebase/firestore'
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { app, db, storage } from '../firebase'
@@ -50,6 +59,17 @@ export async function getImport(tenantId: string, importId: string): Promise<Imp
     return null
   }
   return { id: snap.id, ...(snap.data() as Omit<ImportSummary, 'id'>) }
+}
+
+// PALLETIQ-009. Direct client write, no Cloud Function - the existing
+// isOwnerOrBuyer rule on imports/{importId} (PALLETIQ-008) already covers
+// this doc. Landed cost itself is never written; only the raw inputs are.
+export async function updateImportCosts(
+  tenantId: string,
+  importId: string,
+  costs: { freightCost: number; otherFees: number },
+): Promise<void> {
+  await updateDoc(doc(db, `tenants/${tenantId}/imports/${importId}`), costs)
 }
 
 export async function listLineItems(tenantId: string, importId: string): Promise<LineItem[]> {

@@ -60,6 +60,8 @@ const IMPORT: ImportSummary = {
   successCount: 9,
   errorCount: 1,
   error: null,
+  freightCost: 0,
+  otherFees: 0,
 }
 
 function renderPage(role: Role) {

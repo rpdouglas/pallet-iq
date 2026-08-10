@@ -38,6 +38,7 @@ vi.mock('./lib/manifests/manifestActions', () => ({
   newImportId: vi.fn(),
   uploadManifestFile: vi.fn(),
   enqueueManifestImport: vi.fn(),
+  updateImportCosts: vi.fn(),
 }))
 
 const baseAuthState: AuthState = {
