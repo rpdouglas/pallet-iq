@@ -6,7 +6,7 @@ import type { User } from 'firebase/auth'
 import App from './App'
 import { AuthContext, type AuthState } from './lib/auth/AuthContext'
 
-vi.mock('./lib/firebase', () => ({ auth: {}, db: {} }))
+vi.mock('./lib/firebase', () => ({ auth: {}, db: {}, app: {}, storage: {} }))
 vi.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: vi.fn(),
   signInWithEmailAndPassword: vi.fn(),
@@ -16,9 +16,28 @@ vi.mock('firebase/firestore', () => ({
   doc: vi.fn(),
   getDoc: vi.fn().mockReturnValue(new Promise(() => undefined)),
 }))
+vi.mock('firebase/functions', () => ({
+  getFunctions: vi.fn(),
+  httpsCallable: vi.fn(),
+}))
 vi.mock('./lib/auth/tenantActions', () => ({
   createTenant: vi.fn(),
   acceptInvite: vi.fn(),
+}))
+vi.mock('./lib/vendors/vendorActions', () => ({
+  listVendors: vi.fn().mockReturnValue(new Promise(() => undefined)),
+  createVendor: vi.fn(),
+  updateVendor: vi.fn(),
+  deleteVendor: vi.fn(),
+}))
+vi.mock('./lib/manifests/manifestActions', () => ({
+  listImports: vi.fn().mockReturnValue(new Promise(() => undefined)),
+  getImport: vi.fn().mockReturnValue(new Promise(() => undefined)),
+  listLineItems: vi.fn().mockReturnValue(new Promise(() => undefined)),
+  listImportErrors: vi.fn().mockReturnValue(new Promise(() => undefined)),
+  newImportId: vi.fn(),
+  uploadManifestFile: vi.fn(),
+  enqueueManifestImport: vi.fn(),
 }))
 
 const baseAuthState: AuthState = {

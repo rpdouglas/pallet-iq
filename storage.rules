@@ -28,8 +28,32 @@ service firebase.storage {
       return isSignedIn() && request.auth.token.tenantId == tenantId;
     }
 
-    match /tenants/{tenantId}/{allPaths=**} {
-      allow read, write: if isTenantMember(tenantId);
+    function tokenRole() {
+      return request.auth.token.role;
+    }
+
+    // PALLETIQ-008 / ADR-0006. The raw manifest file has unitCost as a
+    // plain column, so it must not bypass lineItems' UI-level cost-field
+    // omission for Warehouse (firestore.rules) - read is Owner/Manager/
+    // Buyer, write is Owner/Buyer, matching firestore.rules' isOwnerOrBuyer
+    // for imports/manifests. This has to be its own match block *and* the
+    // blanket rule below has to explicitly exclude manifests/ (see its
+    // comment) - Storage Security Rules union every matching block, so a
+    // permissive catch-all would silently re-grant what this block denies
+    // otherwise.
+    match /tenants/{tenantId}/manifests/{importId}/{fileName} {
+      allow read: if isTenantMember(tenantId) && tokenRole() in ['owner', 'manager', 'buyer'];
+      allow write: if isTenantMember(tenantId) && tokenRole() in ['owner', 'buyer'];
+    }
+
+    // Excludes manifests/ (handled above with a tighter policy) - see that
+    // block's comment for why this exclusion is required, not optional.
+    // Storage Rules has no string .matches()/regex support (unlike
+    // Firestore rules), so the exclusion is done structurally: capture the
+    // first path segment on its own and compare it directly, rather than
+    // pattern-match the full remaining path.
+    match /tenants/{tenantId}/{firstSegment}/{rest=**} {
+      allow read, write: if isTenantMember(tenantId) && firstSegment != 'manifests';
     }
 
     // Deny-by-default for anything not explicitly matched above.

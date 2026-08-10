@@ -495,3 +495,53 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   `components.md` doesn't document a textarea pattern at all yet, so this
   is a gap in the doc, not a violation; worth adding one if free-text
   fields recur.
+
+- **2026-08-10 — `PALLETIQ-008` closed.** Shipped per `ADR-0006` and the
+  `BACKLOG.md` scope note: `enqueueManifestImport` callable +
+  `processManifestImport` Cloud Tasks worker (reusing `PALLETIQ-005`'s
+  queue infrastructure), `papaparse`/`exceljs` parsers, a common
+  `LineItem` schema with header-alias matching (`sku`/`upc`/`description`/
+  `quantity`/`unitCost`/`condition`/`category`, tolerant of `$`/`,`-
+  formatted numbers), partial-success row handling (bad rows land in
+  `imports_errors`, not a whole-file failure), and `/manifests` +
+  `/manifests/:importId` UI. `firestore.rules` gained a new
+  `isOwnerOrBuyer` helper; `imports`/`manifests`/`lineItems` write
+  tightened to it (a real behavior change - Manager write now denied,
+  previously allowed under the placeholder policy) and `imports_errors`
+  moved to Cloud-Functions-only write. `storage.rules` gained its first
+  path-specific tightening since `PALLETIQ-001` (`manifests/{importId}/
+{fileName}`: read Owner/Manager/Buyer, write Owner/Buyer) plus new
+  `storage.rules.test.ts` coverage - closing that file's own long-standing
+  "known gap: no automated rules-test suite" note from its original
+  `PALLETIQ-001`-era scaffold comment. `docs/personas/buyer.md` corrected
+  to list `imports`/`manifests` under Write (was read-only, a real
+  documentation gap found during `ADR-0006`'s scoping, not the intended
+  policy).
+  **Verified live, not just via emulator:** deployed both new functions
+  plus the updated rules to `mrt-pallet-iq`, then drove a real CSV import
+  (one valid row, one row with a missing description) and a real XLSX
+  import through the full pipeline via Playwright - correct normalization,
+  correct per-row error capture (`row 3, "Missing description"`), correct
+  landed values ($4.50 unit cost rendered exactly), zero console errors.
+  Test tenant, vendors, imports, manifests, lineItems, imports_errors,
+  Storage files, and the Auth user all deleted afterward.
+  **Drift beyond planned scope:** `design-system-auditor` caught two real,
+  new-instance Check IV findings before merge, both fixed in this PR: an
+  `&lt;h2&gt;` using `font-bold` instead of the H2 spec's Semibold
+  (`ManifestDetailPage.tsx`'s error-rows heading - the first real H2
+  instance in the app besides the wordmark's unrelated `font-display`
+  case), and numeric columns (Rows/Errors/Qty/Unit cost) not right-aligned
+  per `components.md`'s Data tables rule (the first tables in the app with
+  actual numeric columns to test that rule against - `PALLETIQ-007`'s
+  vendor table has none). Small "Vendors ↔ Manifests" cross-links added to
+  both pages' headers for discoverability, since there's still no
+  persistent nav (`PALLETIQ-010`).
+  **Known gaps, not fixed here:** no file-upload input pattern exists yet
+  in `docs/design/components.md` - `ImportForm.tsx`'s native, unstyled
+  file input is flagged as the first instance of that gap rather than
+  inventing a pattern unilaterally; `PALLETIQ-012` still owns the deeper
+  upload-security hardening (magic-byte validation beyond mimetype,
+  malware scanning, rate limiting) beyond this ticket's basic 10 MB size
+  cap; sticky table headers and row-hover states are still missing from
+  every table in the app (`PALLETIQ-007`'s pre-existing gap, not
+  reintroduced here, not yet fixed either).

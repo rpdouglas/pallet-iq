@@ -68,9 +68,14 @@ export function VendorsPage() {
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
-            <Link to="/" className="text-label text-brand-blue">
-              ← Back
-            </Link>
+            <div className="flex gap-3">
+              <Link to="/" className="text-label text-brand-blue">
+                ← Back
+              </Link>
+              <Link to="/manifests" className="text-label text-brand-blue">
+                Manifests →
+              </Link>
+            </div>
             <h1 className="text-h1 text-ink-navy font-bold">Vendors</h1>
           </div>
           {isOwner && mode.kind === 'list' && vendors.length > 0 ? (

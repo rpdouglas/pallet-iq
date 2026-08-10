@@ -13,7 +13,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                       | Buyer       | 0     | Done        | P0       |
 | PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Done        | P0       |
 | PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Planned     | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Done        | P0       |
 | PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Planned     | P1       |
 | PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)      | Buyer       | 1     | Planned     | P1       |
 | PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Planned     | P1       |
@@ -413,3 +413,83 @@ collection using the existing rules mechanism (`hasRole`/`isOwner` helpers
 from `ADR-0003`); the write-permission tightening resolves an already-
 documented placeholder against already-written persona docs, not a new
 policy decision with real alternatives to weigh.
+
+_Scope note on `PALLETIQ-008` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ turning an uploaded vendor manifest (CSV or XLSX, per the
+vendor's `manifestFormat` from `PALLETIQ-007`) into normalized `lineItems`
+docs under a common product schema (`sku?`, `upc?`, `description`,
+`quantity`, `unitCost`, `condition?`, `category?`), with job-level status
+tracking (`imports`) and per-row error tracking (`imports_errors`) for
+partial failures. Concretely: client uploads the raw file to Cloud Storage,
+calls a new `enqueueManifestImport` callable, a `processManifestImport`
+Cloud Tasks worker parses and normalizes server-side (`papaparse` for CSV,
+`exceljs` for XLSX) and writes the results. Full architecture, library
+choices, and the alternatives weighed are in `ADR-0006`. A `/manifests`
+route: list of past imports (vendor, format, status, row/error counts) +
+an "Import manifest" form (pick vendor, upload file); clicking an import
+shows its line items and any errors. Basic sane upload limits (file size
+cap, extension/mimetype matches the vendor's `manifestFormat`) - not the
+full `PALLETIQ-012` hardening scope, just baseline hygiene so this ticket
+isn't shipping something egregiously unsafe in the meantime.
+
+_Out of scope, deferred:_ deep upload security hardening - magic-byte
+validation beyond mimetype, malware scanning, sandboxed execution beyond
+"runs server-side in a Cloud Function," rate limiting (`PALLETIQ-012`,
+separate ticket, already scoped for exactly this); landed cost calculation
+(`PALLETIQ-009` - `unitCost` is captured here but purchase price + freight/
+fees rollup is that ticket's job); creating `pallets`/`inventory` records
+from imported line items (implied by "Basic inventory lifecycle tracking,"
+`PALLETIQ-011`, not this ticket's literal scope of "import → normalize →
+common schema"); AI enrichment/scoring of imported products (Phase 2);
+manifest comparison across vendors (a Buyer need named in
+`docs/personas/buyer.md`, but a query/analysis feature building on this
+ticket's data, not part of ingesting it).
+
+_RBAC, resolved with the owner during scoping - see `ADR-0006` for full
+reasoning:_ `manifests`/`imports`/`lineItems` write goes to **Owner and
+Buyer**, not Owner-only (the more literal reading of the current persona
+docs, and what `PALLETIQ-007`'s vendors precedent would suggest) - Buyer's
+role description names manifest sourcing as their core job, so import
+can't depend on Owner being available for every file. Manager and
+Warehouse stay read-only. `docs/personas/buyer.md`'s Write list is
+corrected in this same PR to name `imports`/`manifests` explicitly, since
+it previously only listed read access - a real documentation gap, not the
+intended policy. `lineItems`' `unitCost` field is omitted from the UI for
+Warehouse (matching `docs/design/rbac-ui-patterns.md`'s field-omission
+pattern, same shape as `PALLETIQ-007`'s vendor terms/pricing), and
+`storage.rules` gets a real, non-placeholder rule for the raw uploaded
+file - Owner/Manager/Buyer read, Owner/Buyer write - since the raw file has
+`unitCost` as a plain column and would otherwise bypass the `lineItems`
+field-level omission entirely for Warehouse.
+
+_Firestore/RBAC impact:_ `firestore.rules`' `imports`, `manifests`, and
+`manifests/{id}/lineItems` blocks tighten from the placeholder
+`isOwnerOrManager` to a new `isOwnerOrBuyer`-shaped check (write); read
+stays `isTenantMember`. `imports_errors` write moves to Cloud-Functions-only
+(Admin SDK), matching `analytics_rollups`' existing "system-populated"
+pattern, since only the task worker ever creates error records - no client
+write path exists for it at all. New `storage.rules` block for
+`tenants/{tenantId}/manifests/{importId}/...` (see above). All of this
+needs `firestore-rules-auditor` and dedicated rules-test coverage
+(Firestore and Storage) before close, same as `PALLETIQ-007`.
+
+_UI pattern notes:_ `docs/design/components.md`'s Data table pattern (third
+instance, same table conventions as `PALLETIQ-007`'s vendor list) for both
+the imports list and the line-items view; Form inputs pattern for the
+import form (vendor picker via `SelectField`, native file input - no
+documented file-upload pattern exists yet in `components.md`, flagging
+that gap rather than silently inventing one); Empty States pattern for "no
+imports yet" (real primary action: "Import a manifest", since this ticket
+makes that a real next step); `docs/design/rbac-ui-patterns.md`'s
+field-omission pattern for the `unitCost` column, as detailed above. Async
+job status (`queued`/`processing`/`completed`/`failed`) has no documented
+loading-state precedent beyond `components.md`'s generic skeleton-blocks
+guidance - using that, not inventing a new pattern.
+
+_ADR:_ written - see
+[`docs/adr/0006-manifest-import-parsing-architecture.md`](../adr/0006-manifest-import-parsing-architecture.md).
+Decision: server-side parsing reusing `PALLETIQ-005`'s Cloud Tasks
+pipeline (`enqueueManifestImport` callable + `processManifestImport` task
+worker), `papaparse`/`exceljs` as the parsing libraries, and the
+Owner+Buyer write RBAC resolved above.

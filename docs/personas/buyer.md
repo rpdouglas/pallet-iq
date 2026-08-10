@@ -21,7 +21,10 @@ Custom claim: `role: "buyer"`
 - **Read:** vendors, imports, manifests, pallets, inventory (read-only),
   bids, favorites, watchlists, notes, tasks, `product_intelligence`
   (cross-tenant, anonymized)
-- **Write:** own bids, favorites, watchlists, notes, pass/reject logging
+- **Write:** `imports`, `manifests` (importing/uploading manifests - see
+  `ADR-0006`; this is Buyer's core daily workflow, not an admin task like
+  vendor management), own bids, favorites, watchlists, notes, pass/reject
+  logging
 - **No access to:** `settings` (tenant config), `subscriptions` (billing),
   `api_keys`, `audit_logs`, team/user management
 
