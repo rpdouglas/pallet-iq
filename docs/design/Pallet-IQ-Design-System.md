@@ -40,12 +40,21 @@
 | ⬜     | Cloud Gray  | `#F1F5F9` | Backgrounds, cards, subtle surfaces                               |
 | ◾     | Slate Gray  | `#475569` | Secondary text, muted labels, inactive icons                      |
 | ⬛     | Ink Navy    | `#0F172A` | Primary text, dark UI surfaces (sidebar, footer)                  |
+| 🟩     | Success     | `#15803D` | Positive deltas (with ↑ arrow), success states, form validation   |
+| 🟥     | Danger      | `#B91C1C` | Negative deltas (with ↓ arrow), error states, destructive actions |
 
 > **Revised 2026-08-07** — Slate Gray was `#64748B` (Tailwind slate-500); changed to
 > `#475569` (slate-600). At `#64748B`, Slate Gray text on a Cloud Gray background
 > measured 4.34:1, failing WCAG AA for normal text (needs 4.5:1) — exactly the
 > combination this doc prescribes for captions/labels. `#475569` measures 6.92:1 on
 > Cloud Gray and 7.58:1 on white; both pass. No other palette values changed.
+>
+> **Revised 2026-08-10** — Added explicit hex values for Success/Danger. Both were
+> referenced repeatedly (delta convention below, `components.md`'s form errors,
+> `explainable-scoring.md`'s contribution indicators) but never defined — a real gap
+> found while scoping `PALLETIQ-016`'s token wiring. `#15803D` measures 5.01:1 on
+> white and `#B91C1C` measures 6.47:1 on white; both pass WCAG AA for normal text
+> (needs 4.5:1), consistent with this doc's existing contrast bar.
 
 **Usage guidelines:**
 
@@ -54,13 +63,13 @@
 - **Deep Navy** for the sidebar/nav and structural UI elements
 - **Cloud Gray** as the default page/card background — never pure white, to keep the product feeling designed
 - **Slate Gray** for timestamps, helper text, and disabled states
-- Reserve pure accent colors (green/red) outside this palette only for data deltas (e.g. "↑18.6%") — always pair the color with a directional icon/arrow, never color alone, so the delta reads correctly for colorblind users
+- Reserve Success/Danger outside this palette only for data deltas (e.g. "↑18.6%"), form validation, and destructive actions — always pair the color with a directional icon/arrow (for deltas) or explicit text, never color alone, so the signal reads correctly for colorblind users
 
 ---
 
 ## 3. Typography
 
-- **Wordmark/Display:** Rounded, extra-bold geometric sans (e.g. Poppins ExtraBold / Baloo 2) — used only for the "Pallet IQ" logotype and large marketing headlines. Both are Google Fonts / OFL-licensed — safe for general web use.
+- **Wordmark/Display:** Rounded, extra-bold geometric sans (e.g. Poppins ExtraBold / Baloo 2) — used only for the "Pallet IQ" logotype and large marketing headlines. Both are Google Fonts / OFL-licensed — safe for general web use. (**Implemented 2026-08-10, `PALLETIQ-016`** — Poppins ExtraBold is the one actually wired in as `font-display`; Baloo 2 was never installed. Either was acceptable per this doc, this just records which one code depends on so it doesn't drift.)
 - **UI/Product font:** **Inter** for all app and dashboard text. (**Revised 2026-08-07** — "SF Pro" was previously listed as an alternative; dropped because Apple restricts SF Pro/SF Pro Text to Apple-platform contexts in its license, so it isn't legally usable as a general webfont. Inter is the sole UI font, no alternative.)
   - **H1 (Page title):** 24–28px, Bold, Ink Navy
   - **H2 (Section header):** 18–20px, Semibold, Ink Navy
