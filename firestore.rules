@@ -160,6 +160,14 @@ service cloud.firestore {
       match /invites/{inviteId} {
         allow read, write: if false; // Cloud Functions only
       }
+
+      // Async AI task queue (Cloud Tasks). Any tenant member can poll a
+      // task's status/result; only the trusted enqueueDummyTask/
+      // processDummyTask Cloud Functions ever write one. See ADR-0004.
+      match /ai_tasks/{taskId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if false; // Cloud Functions only
+      }
     }
 
     // ---- Users -------------------------------------------------------
