@@ -224,3 +224,53 @@ credentials is on indefinite hold at the owner's choice, not planned again
 soon. Priority dropped `P0` → `P2` accordingly; ticket stays `In Progress`.
 See `docs/ACTIVE_CYCLE.md`'s "Shelved, not a near-term blocker" section for
 the resume checklist.
+
+_Scope note on `PALLETIQ-016` (2026-08-10) — Planning gate only, not started:_
+
+_In scope:_ turning `docs/design/Pallet-IQ-Design-System.md` into enforceable
+code, per `ADR-0002`'s Consequences ("`PALLETIQ-016` is the follow-up ticket
+that turns this doc into enforceable code"). Concretely: a Tailwind v4
+`@theme` block in `src/index.css` defining every palette color as a named CSS
+token (`--color-navy`, `--color-brand-blue`, `--color-cyan-accent`,
+`--color-cloud-gray`, `--color-slate-gray`, `--color-ink-navy`,
+`--color-success`, `--color-danger` — deliberately not reusing Tailwind's
+built-in `blue`/`slate`/`cyan` scale names, so a brand token vs. a leftover
+default is visually obvious in a diff/audit) and the five named type-scale
+tokens (H1/H2/Body/Label/Metric, picking the upper bound of each doc-specified
+px range as the single concrete value); self-hosted font loading for Inter
+(UI/product font, becomes the default `font-sans`) and Poppins ExtraBold
+(wordmark/display font, opt-in `font-display` utility) via `@fontsource/*`
+packages, not a Google Fonts CDN link (avoids a third-party runtime request);
+installing `lucide-react` as the icon library dependency; updating the
+existing `src/App.tsx` scaffold to use the new tokens instead of default
+Tailwind slate colors, closing the specific gap `CLAUDE.md`/`ADR-0002`
+already call out by name.
+
+_Out of scope, deferred:_ actual reusable UI components (Button, Card, data
+table, form input, etc.) — `docs/design/components.md` itself says it "should
+grow incrementally as real components get built," and the natural place to
+build them is against real UI needs starting with `PALLETIQ-006`, not
+speculatively here; the brand-mark/logo artwork and favicon
+(`PALLETIQ-017`, separate ticket, already scoped as the Check IV asset gap);
+responsive breakpoints (`docs/design/mobile-responsive.md` explicitly says
+"Standard Tailwind scale — don't invent custom breakpoints," so there's
+nothing to wire); dark mode (explicitly out of scope in the base doc itself).
+
+_Design-doc gap found and closed during scoping:_ the palette table defined
+6 colors, but the base doc's own delta convention plus two addenda
+(`components.md` form errors, `explainable-scoring.md` contribution
+indicators) all reference green/red without ever giving hex values. Resolved
+with the owner: `#15803D` (Success) / `#B91C1C` (Danger), both ≥ 4.5:1 on
+white per this doc's existing WCAG bar — added to the palette table itself
+(not just code) so it stays canonical. Also picked Poppins ExtraBold over
+Baloo 2 for the display font (doc allowed either; only one gets installed).
+
+_Firestore/RBAC impact:_ none — this is a frontend styling/tooling ticket,
+touches no Firestore collection, rule, or RBAC boundary.
+
+_ADR:_ not written — implementing an already-decided spec (`ADR-0002` already
+made the governance decision; `Pallet-IQ-Design-System.md` already specifies
+the actual values) via Tailwind v4's standard CSS-first `@theme` mechanism
+isn't a novel architectural decision with real alternatives to weigh, same
+reasoning as `PALLETIQ-015`'s "standard, well-established... not a novel
+architectural decision."
