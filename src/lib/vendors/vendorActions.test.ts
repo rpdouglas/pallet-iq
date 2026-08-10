@@ -6,8 +6,8 @@ const addDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const updateDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const deleteDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const getDocs = vi.fn<(...args: unknown[]) => Promise<unknown>>()
-const collection = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: string) => path)
-const doc = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: string) => path)
+const collection = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => path)
+const doc = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => path)
 const serverTimestamp = vi.fn<() => string>(() => 'SERVER_TIMESTAMP')
 vi.mock('firebase/firestore', () => ({
   addDoc,
