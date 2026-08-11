@@ -793,3 +793,98 @@ _ADR:_ `docs/adr/0008-manifest-upload-security-hardening.md` - covers the
 size-limit/magic-byte/macro-rejection/resource-bound decisions and why
 malware scanning and content-type allowlisting were both rejected for
 this ticket.
+
+_Scope note on `PALLETIQ-017` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ the owner supplied the real
+brand mark - a single flattened PNG (`docs/design/assets/
+palletiq-logo-lockup-source.png`, kept as source-of-truth reference, not
+shipped to `public/`) showing the horizontal lockup:
+`docs/design/Pallet-IQ-Design-System.md` §1's primary mark (isometric
+pallet + magnifying-glass-with-bar-chart) at left, "Pallet IQ" wordmark
+and the tagline ("Smarter Buys. Higher Profits.") at right, all in the
+doc's documented "all-white on brand-blue background" color variant. No
+separate full-color (navy+blue) light-background variant or vector source
+was provided - this ticket works from the one flattened asset.
+
+_In scope:_
+
+- **Icon extraction.** The icon is chroma-keyed out of its source
+  background (ImageMagick, ~8% fuzz tolerance against the sampled
+  `srgb(0,60,227)` backdrop) and trimmed to a tight bounding box, producing
+  a transparent-background white icon (`src/assets/palletiq-icon.png`).
+  Inspecting the extraction closely: the icon's internal detail (pallet
+  face dividers, the magnifying-glass lens interior) is genuine negative
+  space in the source art, not solid white - meaning this asset is only
+  designed to be viewed against a colored/dark backdrop, never directly on
+  white (the lens would read as a blank gap). This is consistent with the
+  design doc's own "all-white on dark or brand-blue backgrounds" framing
+  for this color variant, not a defect in the extraction.
+- **`BrandMark.tsx` updated to render the real icon**, replacing the
+  `lucide-react` `PackageSearch` stand-in every prior ticket's comments
+  flagged as temporary ("not the literal split-color logo asset - that's
+  PALLETIQ-017's scope," `PALLETIQ-010`). Given the icon-needs-a-backdrop
+  constraint above: the dark variant (used today only in `AppShell`'s navy
+  sidebar) renders the icon directly, matching the source exactly; the
+  light variant (used in `AuthCard`, a white surface) wraps the icon in a
+  small Brand Blue rounded-square badge rather than inventing an
+  unverified two-tone navy+blue recoloring the doc describes but no source
+  art exists for - a real, deliberate deviation from the doc's literal
+  "full color on light backgrounds" line, logged here rather than silently
+  worked around. Revisit with real vector/two-tone source art if the badge
+  treatment doesn't hold up.
+- **Tagline support added to `BrandMark`** (new optional `tagline` prop),
+  used on `AuthCard` (sign-in/sign-up/onboarding/accept-invite) - the
+  doc's "Stacked" lockup is documented for exactly this kind of
+  splash-like entry-point context. Not added to `AppShell`'s sidebar
+  (`docs/design/Pallet-IQ-Design-System.md` §1's "Horizontal" lockup is
+  icon+wordmark only, no tagline, and the sidebar has no room for it
+  anyway).
+- **Favicon/app-icon set replaces the two unrelated placeholder files**
+  `public/favicon.svg` (a purple abstract Vite-template leftover, wrong
+  colors entirely) and `public/icons.svg` (a `<symbol>` sprite of unrelated
+  social-media icons, e.g. Bluesky - never referenced anywhere in `src/`,
+  confirmed via grep before deleting) - the literal Check IV gap this
+  ticket's title names. New: `favicon.ico` (16/32/48 multi-res),
+  `favicon-16.png`, `favicon-32.png` (tighter-cropped than the app icons
+  below - full padding made the mark an illegible blur at 16px; a closer
+  crop is still soft but meaningfully more recognizable, a normal
+  real-world tradeoff for a detailed mark at extreme small sizes),
+  `apple-touch-icon.png` (180px), `icon-192.png`/`icon-512.png` (standard
+  PWA/Android sizes, shipped for future-proofing even though no
+  `manifest.json` exists yet to reference them - that's a separate,
+  not-yet-scoped concern). All square, icon centered on a Brand Blue
+  (`#2563EB`) fill - the canonical token, not the slightly-different blue
+  sampled from the source PNG (`#003CE3`), so nothing new and unapproved
+  enters the palette. `index.html`'s `<head>` links updated accordingly.
+
+_Out of scope, deferred:_ a true vector (SVG) version of the icon - no
+vector source was provided, and auto-tracing a raster mark risks
+introducing artifacts; all assets here are PNG/ICO raster, sized for their
+actual use rather than infinitely scalable. A navy+blue full-color variant
+for light backgrounds (see the Brand Blue badge workaround above) - revisit
+if/when real two-tone source art exists. A `manifest.json`/PWA
+installability pass to actually reference `icon-192`/`icon-512` -
+separate, unscoped concern; those two sizes are shipped now since they
+were cheap to generate alongside everything else, not because a manifest
+is planned imminently. A public marketing/landing page to host the
+"Marketing: horizontal white-on-blue logo lockup for headers, gradient CTA
+bars" use case the design doc names in §4 - no such page exists in the app
+today (the pre-`PALLETIQ-006` landing placeholder was deleted in
+`PALLETIQ-010`), so there's nowhere for that specific usage to go yet.
+
+_Firestore/RBAC impact:_ none - static assets and a presentational
+component change only.
+
+_UI pattern notes:_ extends `BrandMark.tsx` (existing component, gains a
+`tagline` prop and swaps its icon), used in its two existing call sites
+(`AppShell.tsx`, `AuthCard.tsx`) - no new component, no new pattern beyond
+the badge treatment described above.
+
+_ADR:_ not written - implementing brand assets the design doc has already
+fully specified (§1) isn't a new architectural decision, same reasoning
+`PALLETIQ-016` used for wiring already-decided design tokens. The
+light-background badge treatment is a real, visible deviation from the
+doc's literal wording, but it's a presentational fallback forced by what
+source art exists, not a decision with real architectural alternatives -
+recorded in this scope note instead.
