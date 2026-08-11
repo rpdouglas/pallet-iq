@@ -4,6 +4,7 @@ import { getStorage } from 'firebase-admin/storage'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
 import { normalizeRow } from './normalize'
 import { parseFile } from './parseFile'
+import { validateFile } from './validateFile'
 import type { ImportDoc, ImportErrorDoc, InventoryDoc, LineItemDoc, ManifestFormat } from './types'
 
 interface ProcessManifestImportPayload {
@@ -13,10 +14,17 @@ interface ProcessManifestImportPayload {
   format?: unknown
 }
 
-// Basic sane limit for this ticket - PALLETIQ-012 owns the deeper hardening
-// (magic-byte validation, malware scanning, rate limiting). 10 MB comfortably
-// covers a few thousand manifest rows without leaving the door wide open.
+// PALLETIQ-012 / ADR-0008. storage.rules now enforces this same cap at the
+// actual write boundary (a file can't land in Storage at all if it's over
+// this size) - this check stays too, as defense-in-depth in case the two
+// values ever drift, not as the primary enforcement point anymore.
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
+// PALLETIQ-012 / ADR-0008. No real manifest is anywhere near this size - a
+// cheap circuit breaker against a degenerate/adversarial file, independent
+// of raw byte size (a small file can still decompress/parse into an
+// enormous row count).
+export const MAX_ROW_COUNT = 50_000
 
 // Firestore batched writes cap at 500 ops - leave headroom for the
 // imports/{importId} status update sharing the same batch.
@@ -30,6 +38,12 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
   {
     retryConfig: { maxAttempts: 3, minBackoffSeconds: 10 },
     rateLimits: { maxConcurrentDispatches: 5 },
+    // PALLETIQ-012 / ADR-0008. Pinned explicitly rather than left on the
+    // platform default - an intentional, documented resource-sandbox
+    // boundary (a crash/OOM against a hostile file is contained to this
+    // one task invocation), not an accidental default nobody chose.
+    memory: '512MiB',
+    timeoutSeconds: 120,
   },
   async (request) => {
     const { tenantId, importId, storagePath, format } = request.data
@@ -65,7 +79,17 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
         throw new Error(`File exceeds the ${maxMb} MB size limit.`)
       }
 
+      const validation = await validateFile(buffer, manifestFormat)
+      if (!validation.valid) {
+        throw new Error(validation.error)
+      }
+
       const rawRows = await parseFile(buffer, manifestFormat)
+      if (rawRows.length > MAX_ROW_COUNT) {
+        throw new Error(
+          `File has ${rawRows.length.toString()} rows, over the ${MAX_ROW_COUNT.toString()}-row limit.`,
+        )
+      }
 
       const lineItemsRef = db.collection(`tenants/${tenantId}/manifests/${importId}/lineItems`)
       const errorsRef = db.collection(`tenants/${tenantId}/imports_errors`)

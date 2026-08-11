@@ -19,6 +19,12 @@ const importFormSchema = z.object({
 })
 type ImportFormValues = z.infer<typeof importFormSchema>
 
+// PALLETIQ-012 / ADR-0008. UX only, not the security boundary - matches
+// functions/src/manifests/processManifestImport.ts's MAX_FILE_SIZE_BYTES
+// and storage.rules' upload size rule, both of which enforce this for real
+// even if this client-side check is bypassed.
+const MAX_CLIENT_FILE_SIZE_BYTES = 10 * 1024 * 1024
+
 interface ImportFormProps {
   vendors: Vendor[]
   onSubmit: (values: { vendorId: string; file: File }) => Promise<void>
@@ -58,6 +64,11 @@ export function ImportForm({ vendors, onSubmit, onCancel }: ImportFormProps) {
       setFormError(
         `${vendor.name}'s manifests are ${vendor.manifestFormat.toUpperCase()} files - selected file is .${extension ?? '?'}.`,
       )
+      return
+    }
+    if (file.size > MAX_CLIENT_FILE_SIZE_BYTES) {
+      const maxMb = MAX_CLIENT_FILE_SIZE_BYTES / (1024 * 1024)
+      setFormError(`File is too large - the limit is ${maxMb.toString()} MB.`)
       return
     }
     try {

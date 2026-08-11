@@ -28,7 +28,11 @@ vi.mock('firebase-functions/v2', () => ({
 const mockParseFile = vi.fn()
 vi.mock('./parseFile', () => ({ parseFile: mockParseFile }))
 
-const { processManifestImport, MAX_FILE_SIZE_BYTES } = await import('./processManifestImport')
+const mockValidateFile = vi.fn(() => Promise.resolve({ valid: true }))
+vi.mock('./validateFile', () => ({ validateFile: mockValidateFile }))
+
+const { processManifestImport, MAX_FILE_SIZE_BYTES, MAX_ROW_COUNT } =
+  await import('./processManifestImport')
 
 function taskRequest(data: unknown) {
   return { data } as never
@@ -50,6 +54,8 @@ function resetMocks() {
   mockBatchCommit.mockClear()
   mockDownload.mockClear()
   mockParseFile.mockClear()
+  mockValidateFile.mockClear()
+  mockValidateFile.mockResolvedValue({ valid: true })
 }
 
 describe('processManifestImport', () => {
@@ -119,6 +125,45 @@ describe('processManifestImport', () => {
     const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
     expect(lastUpdate.status).toBe('failed')
     expect(lastUpdate.error).toMatch(/size limit/i)
+  })
+
+  it('rejects a file that fails byte-level validation without calling parseFile', async () => {
+    resetMocks()
+    mockDownload.mockResolvedValueOnce([Buffer.from('irrelevant')])
+    mockValidateFile.mockResolvedValueOnce({
+      valid: false,
+      error: 'Macro-enabled files are not supported.',
+    })
+
+    await expect(processManifestImport.run(taskRequest(validPayload))).rejects.toThrow(
+      /macro-enabled/i,
+    )
+
+    expect(mockParseFile).not.toHaveBeenCalled()
+    const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
+    expect(lastUpdate.status).toBe('failed')
+    expect(lastUpdate.error).toMatch(/macro-enabled/i)
+  })
+
+  it('rejects a file with more rows than the row-count limit', async () => {
+    resetMocks()
+    mockDownload.mockResolvedValueOnce([Buffer.from('irrelevant')])
+    mockParseFile.mockResolvedValueOnce(
+      Array.from({ length: MAX_ROW_COUNT + 1 }, () => ({
+        description: 'Widget',
+        quantity: 1,
+        unitCost: 1,
+      })),
+    )
+
+    await expect(processManifestImport.run(taskRequest(validPayload))).rejects.toThrow(
+      /row.*limit/i,
+    )
+
+    expect(mockBatchSet).not.toHaveBeenCalled()
+    const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
+    expect(lastUpdate.status).toBe('failed')
+    expect(lastUpdate.error).toMatch(/row.*limit/i)
   })
 
   it('marks the import failed if the import record has no vendorId', async () => {

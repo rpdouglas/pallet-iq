@@ -167,4 +167,24 @@ describe('ManifestsPage', () => {
     expect(uploadManifestFile).not.toHaveBeenCalled()
     expect(enqueueManifestImport).not.toHaveBeenCalled()
   })
+
+  it('rejects a file over the client-side size limit', async () => {
+    listVendors.mockResolvedValueOnce([VENDOR]) // csv vendor
+    listImports.mockResolvedValueOnce([])
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Import a manifest' }))
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'vendor-1' } })
+
+    const file = new File(['irrelevant'], 'manifest.csv', { type: 'text/csv' })
+    Object.defineProperty(file, 'size', { value: 10 * 1024 * 1024 + 1 })
+    const fileInput = screen.getByLabelText(/manifest file/i)
+    selectFile(fileInput, file)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import manifest' }))
+
+    expect(await screen.findByText(/too large/i)).toBeInTheDocument()
+    expect(uploadManifestFile).not.toHaveBeenCalled()
+    expect(enqueueManifestImport).not.toHaveBeenCalled()
+  })
 })

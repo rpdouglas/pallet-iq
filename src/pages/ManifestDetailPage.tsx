@@ -75,6 +75,9 @@ export function ManifestDetailPage() {
                 : ''}
             </p>
           ) : null}
+          {importQuery.data?.status === 'failed' && importQuery.data.error ? (
+            <p className="text-label text-danger">{importQuery.data.error}</p>
+          ) : null}
         </div>
 
         {canManageCosts && importQuery.data ? (

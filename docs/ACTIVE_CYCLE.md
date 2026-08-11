@@ -709,3 +709,81 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   the app, including the new `InventoryPage` table - the same pre-existing,
   repeatedly-flagged gap from `PALLETIQ-007`'s close onward, not
   reintroduced here.
+
+- **2026-08-11 — `PALLETIQ-012` closed. Closes Phase 1's QA criterion in
+  full.** Shipped per the `BACKLOG.md` scope note and `ADR-0008`:
+  `storage.rules`' manifests write rule gains real size-limit enforcement
+  (`request.resource.size < 10 MB`, split `create, update` from `delete`
+  since `request.resource` is null on delete) - previously the _only_
+  size check anywhere was `processManifestImport.ts`'s post-download
+  check, too late to stop an oversized file from ever landing in Storage.
+  New `functions/src/manifests/validateFile.ts`, called before `parseFile`:
+  XLSX gets a real magic-byte/structural check (`JSZip.loadAsync` -
+  central-directory-only, doesn't decompress entries) rejecting non-ZIP/
+  corrupt files, plus an `xl/vbaProject.bin` entry check rejecting
+  macro-enabled workbooks (catches a macro file renamed to `.xlsx`, which
+  extension-checking alone can't); CSV gets a cheap ZIP-signature/NUL-byte
+  sanity check. `processManifestImport` also gained a 50,000-row circuit
+  breaker and explicit `memory: '512MiB'`/`timeoutSeconds: 120` (pinned
+  intentionally rather than left on the platform default). `ImportForm.tsx`
+  got a matching client-side 10 MB check, explicitly documented as UX only.
+  `jszip` added as an explicit `functions/package.json` dependency (was
+  already present transitively via `exceljs`).
+  **Resolved with the owner at the Planning gate, not drift:** a prior code
+  comment (`processManifestImport.ts`'s old `MAX_FILE_SIZE_BYTES` comment)
+  had speculatively attributed "malware scanning" and "rate limiting" to
+  this ticket - neither is actually named in the ticket title or Phase 1's
+  QA criterion. Confirmed scope stays to what's named; real malware/AV
+  scanning explicitly deferred (`ADR-0008`'s Alternatives).
+  **This closes Phase 1's QA criterion in full** (`PROJ-PALLETIQ.md`): "A
+  real vendor manifest in each supported format imports cleanly end-to-end
+  with correct landed cost per unit" was met as of `PALLETIQ-008`/`009`;
+  "malformed/corrupt files are rejected safely (upload security checks per
+  review - size limits, sandboxed parsing, no macro execution)" - the half
+  `PALLETIQ-009`'s own close note left explicitly open - is what this
+  ticket verifies. `docs/ROADMAP.md`'s Phase 1 marker was already flipped
+  to 🟢 at `PALLETIQ-011`'s close (all six bullets shipped); this ticket
+  is what actually earns that QA criterion, not just the bullet list.
+  **Verified live against `mrt-pallet-iq`:** redeployed
+  `processManifestImport` and `storage.rules`, then: (1) confirmed a normal
+  CSV import still creates inventory exactly as before (no regression);
+  (2) a real macro-enabled XLSX (a genuine ZIP containing
+  `xl/vbaProject.bin`) uploaded and failed with exactly `"Macro-enabled
+files are not supported."`; (3) a plain-text file renamed `.xlsx` failed
+  with exactly `"Invalid XLSX file - the file is not a readable
+spreadsheet."`; (4) most importantly, a **direct Storage SDK call
+  bypassing the app's own client-side check entirely** (signed in as the
+  real test user, not the admin credential) confirmed the deployed
+  `storage.rules` itself rejects an 11 MB upload with `storage/unauthorized`,
+  while an under-the-limit upload to the same path still succeeds - proving
+  the real enforcement boundary works, not just the UI guard in front of
+  it. Exact rejection reasons were confirmed via a direct Firestore read
+  (the UI didn't show them at the time - see below), since
+  `ManifestsPage`/`ManifestDetailPage` never rendered `imports.error`
+  anywhere until this ticket fixed that. Test tenant/vendors/imports/
+  manifests/lineItems/inventory docs, Storage files, and the Auth user all
+  deleted afterward.
+  **Drift found during this ticket's own live verification, fixed in the
+  same PR:** `import.error` (populated on any import-level failure - size
+  limit, invalid file, macro-enabled, or any of `PALLETIQ-008`'s
+  pre-existing failure paths) was never rendered anywhere in the UI -
+  `ManifestsPage`'s table has no error column and `ManifestDetailPage`
+  only showed `status`/`successCount`/`errorCount`, never the message
+  itself. A real Buyer hitting any of this ticket's new rejections would
+  have seen only "failed" with no way to self-diagnose, which undercuts
+  the point of rejecting unsafe files "safely" rather than just silently.
+  Fixed by rendering `import.error` on `ManifestDetailPage` when
+  `status === 'failed'`, reusing the existing `text-label text-danger`
+  pattern already used for form errors elsewhere in the app - no new UI
+  pattern, so no separate `design-system-auditor` dispatch for this
+  follow-up commit (verified by inspection against the identical class
+  combination the earlier dispatch on this same ticket already confirmed
+  compliant).
+  **Known gaps, not fixed here:** full ZIP decompression-bomb protection
+  (per-entry decompression-ratio tracking) stays deferred - the row-count
+  circuit breaker plus the explicit memory/timeout bounds are judged
+  sufficient for now, per `ADR-0008`; real malware/AV scanning stays
+  deferred, same ADR. `ManifestsPage`'s list view still has no error
+  indicator (only `ManifestDetailPage` does) - a Buyer has to click into a
+  failed import to see why; worth a small follow-on if that turns out to
+  be a real friction point in practice.
