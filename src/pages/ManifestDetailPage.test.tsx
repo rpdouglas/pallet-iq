@@ -120,6 +120,31 @@ describe('ManifestDetailPage', () => {
     expect(screen.getByText('Missing description')).toBeInTheDocument()
   })
 
+  it('shows the import-level error message when the import failed', async () => {
+    // errorCount stays 0 here - a rejection this early (before any row is
+    // ever processed) never populates per-row imports_errors docs.
+    getImport.mockResolvedValueOnce({
+      ...IMPORT,
+      status: 'failed',
+      error: 'Macro-enabled files are not supported.',
+      errorCount: 0,
+    })
+    listLineItems.mockResolvedValueOnce([])
+    renderPage('owner')
+
+    expect(await screen.findByText('Macro-enabled files are not supported.')).toBeInTheDocument()
+  })
+
+  it('does not show an error message for a completed import', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('owner')
+
+    expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
+    expect(screen.queryByText(/not supported|invalid|exceeds/i)).not.toBeInTheDocument()
+  })
+
   it('does not fetch errors when the import has none', async () => {
     getImport.mockResolvedValueOnce({ ...IMPORT, errorCount: 0 })
     listLineItems.mockResolvedValueOnce([LINE_ITEM])
