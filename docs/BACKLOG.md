@@ -992,3 +992,46 @@ surface and swaps `AuthCard.tsx`'s branding element for a plain `<img>`.
 
 _ADR:_ not written - same reasoning as `PALLETIQ-017`: implementing
 already-supplied brand assets isn't a new architectural decision.
+
+_Scope note on `PALLETIQ-004` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ this ticket's original title
+("Secret Manager wiring for third-party credentials") predates `PALLETIQ-003`,
+which pulled the actual mechanism forward - `functions/src/billing/params.ts`
+already uses `firebase-functions/params`' `defineSecret` for
+`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (see `ADR-0005`), and the Secret
+Manager API is already enabled on `mrt-pallet-iq` (a side effect of that
+ticket's live deploy, per `ACTIVE_CYCLE.md`'s 2026-08-10 drift note). The two
+named future consumers - the Gemini API key (`PALLETIQ-005`'s scope note
+deferred it here; Phase 2, not started) and marketplace API keys/vendor
+logins (`PROJ-PALLETIQ.md`'s Phase 4 automation) - have no real code that
+needs a secret yet. Rather than provision a credential with no consumer,
+this ticket is narrowed to writing down the convention `ADR-0005` already
+established, so the next ticket that needs a real third-party secret follows
+it instead of re-deciding it.
+
+_In scope:_ a new "Third-party secrets" section in `CONTRIBUTING.md`
+(between "Before opening a PR" and "Branch protection") documenting: use
+`defineSecret`/`defineString` via `firebase-functions/params` for any new
+third-party credential, never plaintext `functions/.env*` or committed
+config; provision the real value only when a concrete consumer needs it
+(`firebase functions:secrets:set`), matching `PALLETIQ-003`'s
+just-in-time approach rather than provisioning speculatively; Secret
+Manager itself is already enabled on `mrt-pallet-iq`, so no fresh GCP
+setup is needed the next time this comes up. Points to
+`functions/src/billing/params.ts` and `ADR-0005` as the worked example.
+
+_Out of scope, deferred:_ provisioning any specific new secret - the Gemini
+API key (Phase 2) and marketplace API keys/vendor logins (Phase 4) both stay
+unprovisioned until a real ticket in those phases needs one, at which point
+that ticket pulls the work forward just-in-time, the same way `PALLETIQ-003`
+did for Stripe rather than waiting on this ticket.
+
+_Firestore/RBAC impact:_ none - documentation only, no collection, rule, or
+RBAC boundary touched.
+
+_UI impact:_ none - no UI reads or displays a secret.
+
+_ADR:_ not written - this documents a convention `ADR-0005` already decided
+(`defineSecret`, backed by Secret Manager, provisioned just-in-time per
+consumer), not a new architectural decision.
