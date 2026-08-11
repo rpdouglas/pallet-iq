@@ -71,7 +71,7 @@ export function AppShell() {
   return (
     <div className="md:flex md:min-h-svh">
       <aside className="from-navy to-ink-navy hidden w-64 shrink-0 flex-col gap-8 bg-gradient-to-b p-6 md:flex">
-        <BrandMark variant="dark" asHeading={false} />
+        <BrandMark />
         <NavLinks />
         <div className="mt-auto">
           <SignOutButton />
@@ -79,7 +79,7 @@ export function AppShell() {
       </aside>
 
       <header className="from-navy to-ink-navy flex items-center justify-between bg-gradient-to-b p-4 md:hidden">
-        <BrandMark variant="dark" asHeading={false} />
+        <BrandMark />
         <button
           type="button"
           aria-label={mobileOpen ? 'Close menu' : 'Open menu'}

@@ -24,7 +24,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image       | Owner/Admin | 1     | In Progress | P2       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | In Progress | P2       |
 
 ## Adding a ticket
 
@@ -934,8 +934,8 @@ _In scope:_
   remove the source's excess uniform-blue margin, then a 60px border
   restored in the source's own sampled background color
   (`srgb(0,60,227)`, not the canonical `#2563EB` token - matching how
-  `PALLETIQ-017` treated content *extracted from* the source versus
-  *newly painted* pixels like the favicon fills) so CSS corner-rounding
+  `PALLETIQ-017` treated content _extracted from_ the source versus
+  _newly painted_ pixels like the favicon fills) so CSS corner-rounding
   never clips the pallet or text, then resized to 900px wide (~178KB) -
   a deliberate deviation from `PALLETIQ-017`'s no-resize-the-icon
   precedent, justified here because this asset is a full-width banner
@@ -946,7 +946,7 @@ _In scope:_
   color. Pixel-level clearance at all four corners was verified at actual
   display size before committing to this approach.
 - **`AuthCard.tsx`** now renders the image directly (`w-full h-auto
-  rounded-xl`, real `alt` text matching what the removed heading/tagline
+rounded-xl`, real `alt` text matching what the removed heading/tagline
   literally said - not `alt=""`, since this image is the sole carrier of
   that text content) in place of `<BrandMark tagline />`.
 - **`BrandMark.tsx` simplified to zero props.** With `AuthCard` no longer

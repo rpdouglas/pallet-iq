@@ -66,7 +66,9 @@ describe('App routing', () => {
   it('sends an unauthenticated visitor at "/" to sign-in', () => {
     renderApp(baseAuthState)
 
-    expect(screen.getByRole('heading', { name: 'PalletIQ' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('img', { name: 'PalletIQ - Smarter Buys. Higher Profits.' }),
+    ).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument()
   })
 
