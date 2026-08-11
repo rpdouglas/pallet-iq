@@ -881,3 +881,25 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
   dark-or-brand-blue variant, which solid white already satisfies. Not
   fixed here (the wordmark rendering itself wasn't touched by this
   ticket), just corrected for the record.
+
+- **2026-08-11 — `PALLETIQ-004` closed.** Shipped exactly per the
+  `BACKLOG.md` scope note, no drift from the approved plan. Original title
+  ("Secret Manager wiring for third-party credentials") was scoped down
+  during the Planning-gate conversation once it became clear `PALLETIQ-003`
+  had already pulled the real mechanism forward (`defineSecret` via
+  `firebase-functions/params`, Secret Manager API already enabled on
+  `mrt-pallet-iq`) and neither of the two remaining named consumers - the
+  Gemini API key (Phase 2) or marketplace API keys/vendor logins (Phase 4)
+  - has any code that needs a secret yet. Shipped as a documentation-only
+    ticket: a new "Third-party secrets" section in `CONTRIBUTING.md` writing
+    down the `defineSecret`/just-in-time-provisioning convention `ADR-0005`
+    already established, pointing at `functions/src/billing/params.ts` as the
+    worked example, so the next ticket that needs a real secret follows it
+    instead of re-deciding it. **No Phase QA/Verification criterion applies
+    directly** - Phase 0's QA bullets (rules tests, Stripe subscription
+    round-trip, dummy async task) don't name Secret Manager documentation;
+    same "not phase-gated" reasoning `PALLETIQ-017`/`019` used for Check IV
+    asset tickets. Verified via `pre-pr-check`'s full command checklist
+    (format/lint/typecheck/121 tests, all passing) - no `test:rules` needed,
+    no Firestore/UI/AI-boundary checks applicable, since the diff touched only
+    `docs/BACKLOG.md` and `CONTRIBUTING.md`.

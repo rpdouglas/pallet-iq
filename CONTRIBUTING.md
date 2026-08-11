@@ -46,6 +46,21 @@ npm run test:storage-rules   # if storage.rules or any tenant-scoped storage pat
 All of the above run in CI (`.github/workflows/ci.yml`) and must pass
 before merge.
 
+## Third-party secrets
+
+Any new third-party credential (API key, webhook signing secret, etc.) goes
+through `firebase-functions/params`' `defineSecret` (or `defineString` for
+non-secret config), backed by Secret Manager — never a plaintext
+`functions/.env*` file or committed config. `functions/src/billing/params.ts`
+is the worked example (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`); see
+[`ADR-0005`](./docs/adr/0005-stripe-billing-mechanism.md) for the reasoning.
+
+Provision the real value only once a concrete consumer needs it
+(`firebase functions:secrets:set SECRET_NAME`) — don't provision a secret
+speculatively ahead of the code that reads it. The Secret Manager API is
+already enabled on `mrt-pallet-iq`, so there's no fresh GCP setup required
+the next time this comes up.
+
 ## Branch protection (repo settings — apply manually)
 
 Not yet configured on this repo. This needs a GitHub admin token with
