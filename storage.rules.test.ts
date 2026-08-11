@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing'
-import { getBytes, ref, uploadBytes } from 'firebase/storage'
+import { deleteObject, getBytes, ref, uploadBytes } from 'firebase/storage'
 
 // Cloud Storage security rules — Phase 0 scaffold.
 //
@@ -171,6 +171,42 @@ describe('manifests/{importId}/{fileName} (role-restricted, not the general blan
 
     await assertFails(
       getBytes(ref(buyerOfA.storage(), `tenants/${TENANT_B}/manifests/import-1/original.csv`)),
+    )
+  })
+
+  it('allows an owner to delete a manifest file even though it is over the size limit', async () => {
+    // Deletes must stay allowed regardless of the uploaded object's size -
+    // request.resource is null on delete, so this proves the split between
+    // `allow create, update` (size-checked) and `allow delete` (not) in
+    // storage.rules actually works, not just that it compiles.
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), PATH), new Uint8Array(11 * 1024 * 1024))
+    })
+    const ownerOfA = testEnv.authenticatedContext('owner-a', { tenantId: TENANT_A, role: 'owner' })
+
+    await assertSucceeds(deleteObject(ref(ownerOfA.storage(), PATH)))
+  })
+})
+
+// PALLETIQ-012 / ADR-0008. The real size-limit enforcement point - see
+// storage.rules' comment on the manifests write rule and
+// docs/adr/0008-manifest-upload-security-hardening.md.
+describe('manifests/{importId}/{fileName} size limit (PALLETIQ-012)', () => {
+  const PATH = `tenants/${TENANT_A}/manifests/import-2/original.csv`
+
+  it('allows an upload right at the 10 MB limit', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', { tenantId: TENANT_A, role: 'owner' })
+
+    await assertSucceeds(
+      uploadBytes(ref(ownerOfA.storage(), PATH), new Uint8Array(10 * 1024 * 1024 - 1)),
+    )
+  })
+
+  it('denies an upload over the 10 MB limit', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', { tenantId: TENANT_A, role: 'owner' })
+
+    await assertFails(
+      uploadBytes(ref(ownerOfA.storage(), PATH), new Uint8Array(10 * 1024 * 1024 + 1)),
     )
   })
 })

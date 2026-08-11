@@ -12,10 +12,9 @@ rules_version = '2';
 // documents) as each upload flow (manifest files, PALLETIQ-008; images) is
 // actually implemented and its real RBAC needs are known.
 //
-// Known gap: unlike firestore.rules.test.ts (governance Check I), there is no
-// automated rules-test suite for storage.rules yet. Add one (Storage emulator +
-// @firebase/rules-unit-testing) alongside PALLETIQ-008/012, or formalize a
-// storage-rules parity check if this becomes a recurring source of drift.
+// storage.rules.test.ts (Storage emulator + @firebase/rules-unit-testing)
+// covers this file, mirroring firestore.rules.test.ts's governance Check I
+// tenant-isolation pattern - added PALLETIQ-001, expanded PALLETIQ-008/012.
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -43,7 +42,16 @@ service firebase.storage {
     // otherwise.
     match /tenants/{tenantId}/manifests/{importId}/{fileName} {
       allow read: if isTenantMember(tenantId) && tokenRole() in ['owner', 'manager', 'buyer'];
-      allow write: if isTenantMember(tenantId) && tokenRole() in ['owner', 'buyer'];
+      // PALLETIQ-012 / ADR-0008. The real size-limit enforcement point -
+      // matches functions/src/manifests/processManifestImport.ts's
+      // MAX_FILE_SIZE_BYTES, kept in sync via this comment on both sides.
+      // Split from `delete` (below) because request.resource is null on a
+      // delete, so a single `allow write` referencing request.resource.size
+      // would make deletes impossible.
+      allow create, update: if isTenantMember(tenantId) &&
+        tokenRole() in ['owner', 'buyer'] &&
+        request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isTenantMember(tenantId) && tokenRole() in ['owner', 'buyer'];
     }
 
     // Excludes manifests/ (handled above with a tighter policy) - see that
