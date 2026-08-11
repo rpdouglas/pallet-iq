@@ -24,6 +24,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
 
 ## Adding a ticket
 
@@ -902,3 +903,92 @@ light-background badge treatment is a real, visible deviation from the
 doc's literal wording, but it's a presentational fallback forced by what
 source art exists, not a decision with real architectural alternatives -
 recorded in this scope note instead.
+
+_Scope note on `PALLETIQ-019` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ the owner supplied the full
+flattened lockup image again (`public/logo_name_tagline.png`, confirmed
+byte-identical via md5 to the already-archived
+`docs/design/assets/palletiq-logo-lockup-source.png` from `PALLETIQ-017` -
+deleted without committing rather than re-archived) and asked for it to
+replace `AuthCard`'s current 3-element brand composition (icon badge +
+"PalletIQ" heading + tagline line, built in `PALLETIQ-017`) with the
+single image, sized and centered on the card. Confirmed via
+`AskUserQuestion`: applies to all 4 pages sharing `AuthCard` (sign-in,
+sign-up, onboarding, accept-invite), not sign-in alone; and the image's
+own opaque Brand Blue background stays as a rounded-rectangle banner
+rather than being chroma-keyed to transparency, since `PALLETIQ-017`
+already established the icon's internal negative-space detail (the
+magnifying-glass lens interior, pallet face dividers) only reads
+correctly against a colored backdrop.
+
+Scoped as a new ticket rather than reopening `PALLETIQ-017`: that ticket
+is `Done`, merged (`PR #39`), with its own close-out diff already
+recorded in `docs/ACTIVE_CYCLE.md` - amending it to fold in new, unshipped
+work would misrepresent what it actually shipped.
+
+_In scope:_
+
+- **New production asset**, `src/assets/palletiq-logo-lockup.png`,
+  generated from the archived source via ImageMagick: `-fuzz 5% -trim` to
+  remove the source's excess uniform-blue margin, then a 60px border
+  restored in the source's own sampled background color
+  (`srgb(0,60,227)`, not the canonical `#2563EB` token - matching how
+  `PALLETIQ-017` treated content _extracted from_ the source versus
+  _newly painted_ pixels like the favicon fills) so CSS corner-rounding
+  never clips the pallet or text, then resized to 900px wide (~178KB) -
+  a deliberate deviation from `PALLETIQ-017`'s no-resize-the-icon
+  precedent, justified here because this asset is a full-width banner
+  loaded on 4 page views, not a 40px sidebar icon. Corner-rounding stays
+  CSS-only (`rounded-xl` on the `<img>`, matching the card's own existing
+  radius) rather than baked into the PNG, consistent with the card's own
+  precedent and avoiding coupling the asset to one exact background
+  color. Pixel-level clearance at all four corners was verified at actual
+  display size before committing to this approach.
+- **`AuthCard.tsx`** now renders the image directly (`w-full h-auto
+rounded-xl`, real `alt` text matching what the removed heading/tagline
+  literally said - not `alt=""`, since this image is the sole carrier of
+  that text content) in place of `<BrandMark tagline />`.
+- **`BrandMark.tsx` simplified to zero props.** With `AuthCard` no longer
+  calling it, `AppShell.tsx` (2 call sites, both identically
+  `<BrandMark variant="dark" asHeading={false} />`) is the only remaining
+  caller, making `variant="light"` and `tagline` 100% dead code and
+  `asHeading` a prop that's passed but never varies. Dropped all three;
+  the component now hardcodes exactly what `AppShell` needs (dark icon +
+  span, no heading/tagline path). Same dead-code-removal instinct
+  `PALLETIQ-017` used deleting `favicon.svg`/`icons.svg` after confirming
+  zero references, applied to a prop surface instead of whole files.
+
+_Doc-literalism notes, logged so `design-system-auditor` doesn't flag them
+as new/unexplained (both are repeats of judgment calls `PALLETIQ-017`
+already made once, now visible in a second spot):_ the source lockup is a
+horizontal icon+wordmark layout with a tagline appended beneath, matching
+neither of `Pallet-IQ-Design-System.md` §1's two named lockups
+("Horizontal," no tagline; "Stacked," icon-above-wordmark) literally - it's
+the same hybrid asset `PALLETIQ-017` already used for `AuthCard`'s
+composed version, now shipped as one flattened image instead of composed
+from parts. The banner's background is the source's own sampled blue
+(`srgb(0,60,227)`/`#003CE3`), not the canonical `#2563EB` token, because
+it's extracted/bordered content rather than newly painted pixels - same
+distinction `PALLETIQ-017`'s scope note draws for the icon asset versus
+the favicon fills.
+
+_Out of scope, deferred:_ everything `PALLETIQ-017`'s own "Out of scope"
+section already deferred (vector/SVG source, a navy+blue full-color
+light-background variant, `manifest.json`/PWA wiring, a marketing/landing
+page) - none of that changes here. The wordmark's split-color styling gap
+`design-system-auditor` found during `PALLETIQ-017` (`BrandMark`'s
+"PalletIQ" text rendering as one solid color instead of the doc's
+"'Pallet' in navy, 'IQ' in brand blue" split) is moot for `AuthCard`'s
+copy specifically now that it's a flattened image, not live text - it
+still applies to `BrandMark`'s remaining `AppShell` usage, unchanged by
+this ticket.
+
+_Firestore/RBAC impact:_ none - static asset and two presentational
+component changes only.
+
+_UI pattern notes:_ no new component; simplifies `BrandMark.tsx`'s prop
+surface and swaps `AuthCard.tsx`'s branding element for a plain `<img>`.
+
+_ADR:_ not written - same reasoning as `PALLETIQ-017`: implementing
+already-supplied brand assets isn't a new architectural decision.
