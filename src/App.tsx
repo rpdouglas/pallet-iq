@@ -1,9 +1,10 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { AppShell } from './components/AppShell'
 import { RequireGuest } from './lib/auth/RequireGuest'
 import { RequireNoTenant } from './lib/auth/RequireNoTenant'
 import { RequireRole } from './lib/auth/RequireRole'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
-import { LandingPage } from './pages/LandingPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { ManifestDetailPage } from './pages/ManifestDetailPage'
 import { ManifestsPage } from './pages/ManifestsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
@@ -14,14 +15,6 @@ import { VendorsPage } from './pages/VendorsPage'
 function App() {
   return (
     <Routes>
-      <Route
-        path="/"
-        element={
-          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
-            <LandingPage />
-          </RequireRole>
-        }
-      />
       <Route
         path="/signin"
         element={
@@ -47,30 +40,20 @@ function App() {
         }
       />
       <Route path="/accept-invite" element={<AcceptInvitePage />} />
+
       <Route
-        path="/vendors"
         element={
           <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
-            <VendorsPage />
+            <AppShell />
           </RequireRole>
         }
-      />
-      <Route
-        path="/manifests"
-        element={
-          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
-            <ManifestsPage />
-          </RequireRole>
-        }
-      />
-      <Route
-        path="/manifests/:importId"
-        element={
-          <RequireRole redirectTo="/signin" noTenantRedirectTo="/onboarding">
-            <ManifestDetailPage />
-          </RequireRole>
-        }
-      />
+      >
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/vendors" element={<VendorsPage />} />
+        <Route path="/manifests" element={<ManifestsPage />} />
+        <Route path="/manifests/:importId" element={<ManifestDetailPage />} />
+      </Route>
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

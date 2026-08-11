@@ -69,17 +69,7 @@ export function ManifestsPage() {
     <main className="bg-cloud-gray min-h-svh p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex gap-3">
-              <Link to="/" className="text-label text-brand-blue">
-                ← Back
-              </Link>
-              <Link to="/vendors" className="text-label text-brand-blue">
-                Vendors →
-              </Link>
-            </div>
-            <h1 className="text-h1 text-ink-navy font-bold">Manifests</h1>
-          </div>
+          <h1 className="text-h1 text-ink-navy font-bold">Manifests</h1>
           {canImport && !showForm && imports.length > 0 ? (
             <Button
               onClick={() => {

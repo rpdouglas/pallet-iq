@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Building2, Pencil, Plus, Trash2 } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
@@ -67,17 +66,7 @@ export function VendorsPage() {
     <main className="bg-cloud-gray min-h-svh p-6">
       <div className="mx-auto flex max-w-3xl flex-col gap-4">
         <div className="flex items-center justify-between">
-          <div>
-            <div className="flex gap-3">
-              <Link to="/" className="text-label text-brand-blue">
-                ← Back
-              </Link>
-              <Link to="/manifests" className="text-label text-brand-blue">
-                Manifests →
-              </Link>
-            </div>
-            <h1 className="text-h1 text-ink-navy font-bold">Vendors</h1>
-          </div>
+          <h1 className="text-h1 text-ink-navy font-bold">Vendors</h1>
           {isOwner && mode.kind === 'list' && vendors.length > 0 ? (
             <Button
               onClick={() => {
