@@ -113,6 +113,57 @@ describe('processManifestImport', () => {
     )
   })
 
+  it('allocates a flat unit cost from totalPurchasePrice when rows have no direct cost (PALLETIQ-020 / ADR-0009)', async () => {
+    resetMocks()
+    mockImportGet.mockResolvedValueOnce({
+      data: () => ({ vendorId: 'vendor-1', totalPurchasePrice: 100 }),
+    })
+    mockDownload.mockResolvedValueOnce([Buffer.from('irrelevant, parseFile is mocked')])
+    mockParseFile.mockResolvedValueOnce([
+      { description: 'Scooter', quantity: 1 },
+      { description: 'Mower', quantity: 3 },
+    ])
+
+    await processManifestImport.run(taskRequest(validPayload))
+
+    // $100 lot / 4 total units = $25/unit, applied to every row regardless
+    // of its own quantity - matches the owner's own worked example.
+    expect(mockBatchSet).toHaveBeenCalledTimes(4)
+    const [scooterLineItem, scooterInventory, mowerLineItem, mowerInventory] =
+      mockBatchSet.mock.calls
+    expect(scooterLineItem[1]).toEqual(
+      expect.objectContaining({ description: 'Scooter', unitCost: 25 }),
+    )
+    expect(scooterInventory[1]).toEqual(expect.objectContaining({ unitCost: 25 }))
+    expect(mowerLineItem[1]).toEqual(
+      expect.objectContaining({ description: 'Mower', unitCost: 25 }),
+    )
+    expect(mowerInventory[1]).toEqual(expect.objectContaining({ unitCost: 25 }))
+    expect(mockImportUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ status: 'completed', successCount: 2, errorCount: 0 }),
+    )
+  })
+
+  it('lets a real manifest-stated cost win over the flat totalPurchasePrice rate', async () => {
+    resetMocks()
+    mockImportGet.mockResolvedValueOnce({
+      data: () => ({ vendorId: 'vendor-1', totalPurchasePrice: 100 }),
+    })
+    mockDownload.mockResolvedValueOnce([Buffer.from('irrelevant, parseFile is mocked')])
+    mockParseFile.mockResolvedValueOnce([
+      { description: 'Has real cost', quantity: 1, unitCost: 9.99 },
+      { description: 'No cost given', quantity: 1 },
+    ])
+
+    await processManifestImport.run(taskRequest(validPayload))
+
+    const [realCostLineItem, , noCostLineItem] = mockBatchSet.mock.calls
+    expect(realCostLineItem[1]).toEqual(expect.objectContaining({ unitCost: 9.99 }))
+    // 2 total units -> $50/unit flat rate for the row with no cost of its own.
+    expect(noCostLineItem[1]).toEqual(expect.objectContaining({ unitCost: 50 }))
+  })
+
   it('rejects a file over the size limit without calling parseFile', async () => {
     resetMocks()
     mockDownload.mockResolvedValueOnce([Buffer.alloc(MAX_FILE_SIZE_BYTES + 1)])

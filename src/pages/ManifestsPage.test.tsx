@@ -22,6 +22,7 @@ const enqueueManifestImport =
       importId: string
       storagePath: string
       fileName: string
+      totalPurchasePrice?: number
     }) => Promise<{ importId: string }>
   >()
 vi.mock('../lib/manifests/manifestActions', () => ({
@@ -62,6 +63,7 @@ const IMPORT: ImportSummary = {
   error: null,
   freightCost: 0,
   otherFees: 0,
+  totalPurchasePrice: null,
 }
 
 function renderPage(role: Role) {
@@ -147,6 +149,51 @@ describe('ManifestsPage', () => {
       })
     })
     expect(uploadManifestFile).toHaveBeenCalledWith('tenant-a', 'import-1', file)
+  })
+
+  // PALLETIQ-020 / ADR-0009.
+  it('parses an optional total purchase price and passes it through as a number', async () => {
+    listVendors.mockResolvedValueOnce([VENDOR])
+    listImports.mockResolvedValueOnce([])
+    newImportId.mockReturnValueOnce('import-1')
+    uploadManifestFile.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/manifests/import-1/original.csv',
+    })
+    enqueueManifestImport.mockResolvedValueOnce({ importId: 'import-1' })
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Import a manifest' }))
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'vendor-1' } })
+
+    const file = new File(['description,quantity'], 'manifest.csv', { type: 'text/csv' })
+    selectFile(screen.getByLabelText(/manifest file/i), file)
+    fireEvent.change(screen.getByLabelText(/total purchase price/i), { target: { value: '100' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import manifest' }))
+
+    await waitFor(() => {
+      expect(enqueueManifestImport).toHaveBeenCalledWith(
+        expect.objectContaining({ totalPurchasePrice: 100 }),
+      )
+    })
+  })
+
+  it('rejects a negative total purchase price without calling enqueueManifestImport', async () => {
+    listVendors.mockResolvedValueOnce([VENDOR])
+    listImports.mockResolvedValueOnce([])
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Import a manifest' }))
+    fireEvent.change(screen.getByLabelText('Vendor'), { target: { value: 'vendor-1' } })
+
+    const file = new File(['description,quantity'], 'manifest.csv', { type: 'text/csv' })
+    selectFile(screen.getByLabelText(/manifest file/i), file)
+    fireEvent.change(screen.getByLabelText(/total purchase price/i), { target: { value: '-5' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Import manifest' }))
+
+    expect(await screen.findByText(/non-negative number/i)).toBeInTheDocument()
+    expect(enqueueManifestImport).not.toHaveBeenCalled()
   })
 
   it('rejects a file whose extension does not match the selected vendor format', async () => {

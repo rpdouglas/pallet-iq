@@ -21,6 +21,11 @@ export interface ImportDoc {
   // src/lib/manifests/landedCost.ts and the PALLETIQ-009 scope note.
   freightCost: number
   otherFees: number
+  // PALLETIQ-020 / ADR-0009 - optional, set at import time only (not
+  // editable after, unlike freightCost/otherFees above). Used to derive a
+  // flat per-unit-quantity unitCost for rows whose manifest provides no
+  // direct cost column - see normalizeRow's flatUnitCost parameter.
+  totalPurchasePrice: number | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

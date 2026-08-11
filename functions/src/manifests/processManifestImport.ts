@@ -2,7 +2,7 @@ import { logger } from 'firebase-functions/v2'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
-import { normalizeRow } from './normalize'
+import { extractRowQuantity, normalizeRow } from './normalize'
 import { parseFile } from './parseFile'
 import { validateFile } from './validateFile'
 import type { ImportDoc, ImportErrorDoc, InventoryDoc, LineItemDoc, ManifestFormat } from './types'
@@ -63,10 +63,12 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
 
     try {
       const importSnap = await importRef.get()
-      const vendorId = (importSnap.data() as ImportDoc | undefined)?.vendorId
+      const importData = importSnap.data() as ImportDoc | undefined
+      const vendorId = importData?.vendorId
       if (typeof vendorId !== 'string') {
         throw new Error('Import record is missing vendorId.')
       }
+      const totalPurchasePrice = importData?.totalPurchasePrice ?? null
 
       await importRef.update({
         status: 'processing',
@@ -91,6 +93,23 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
         )
       }
 
+      // PALLETIQ-020 / ADR-0009. Some vendors sell an entire lot for one
+      // lump sum and list no per-item cost at all - a pre-pass sums
+      // quantity across every row that would otherwise succeed (regardless
+      // of whether it has its own cost), so a flat totalPurchasePrice /
+      // totalQuantity rate can fill the gap for rows that need it.
+      let totalQuantity = 0
+      for (const rawRow of rawRows) {
+        const quantity = extractRowQuantity(rawRow)
+        if (quantity !== null) {
+          totalQuantity += quantity
+        }
+      }
+      const flatUnitCost =
+        totalPurchasePrice !== null && totalPurchasePrice > 0 && totalQuantity > 0
+          ? totalPurchasePrice / totalQuantity
+          : null
+
       const lineItemsRef = db.collection(`tenants/${tenantId}/manifests/${importId}/lineItems`)
       const errorsRef = db.collection(`tenants/${tenantId}/imports_errors`)
       const inventoryRef = db.collection(`tenants/${tenantId}/inventory`)
@@ -110,7 +129,7 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
 
       for (const [index, rawRow] of rawRows.entries()) {
         const rowNumber = index + 2 // +1 for 0-index, +1 for the header row
-        const result = normalizeRow(rawRow)
+        const result = normalizeRow(rawRow, flatUnitCost)
 
         if ('lineItem' in result) {
           const lineItemRef = lineItemsRef.doc()

@@ -84,6 +84,20 @@ describe('enqueueManifestImport', () => {
     )
   })
 
+  it('rejects a negative totalPurchasePrice', async () => {
+    await expect(
+      enqueueManifestImport.run(request({ ...validData, totalPurchasePrice: -5 }, auth('buyer'))),
+    ).rejects.toThrow(/totalPurchasePrice/i)
+  })
+
+  it('rejects a non-numeric totalPurchasePrice', async () => {
+    await expect(
+      enqueueManifestImport.run(
+        request({ ...validData, totalPurchasePrice: 'a lot' }, auth('buyer')),
+      ),
+    ).rejects.toThrow(/totalPurchasePrice/i)
+  })
+
   it('rejects a vendor with no manifest format configured', async () => {
     mockGet.mockResolvedValueOnce({ exists: true, data: () => ({}) })
 
@@ -124,5 +138,29 @@ describe('enqueueManifestImport', () => {
       format: 'xlsx',
     })
     expect(result).toEqual({ importId: 'import-1' })
+  })
+
+  it('writes a null totalPurchasePrice when none is given, and a real value when it is', async () => {
+    mockGet.mockResolvedValueOnce({ exists: true, data: () => ({ manifestFormat: 'csv' }) })
+    mockSet.mockClear()
+
+    await enqueueManifestImport.run(request(validData, auth('buyer')))
+
+    expect(mockSet).toHaveBeenCalledWith(
+      'tenants/tenant-a/imports/import-1',
+      expect.objectContaining({ totalPurchasePrice: null }),
+    )
+
+    mockGet.mockResolvedValueOnce({ exists: true, data: () => ({ manifestFormat: 'csv' }) })
+    mockSet.mockClear()
+
+    await enqueueManifestImport.run(
+      request({ ...validData, totalPurchasePrice: 100 }, auth('buyer')),
+    )
+
+    expect(mockSet).toHaveBeenCalledWith(
+      'tenants/tenant-a/imports/import-1',
+      expect.objectContaining({ totalPurchasePrice: 100 }),
+    )
   })
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizeRow } from './normalize'
+import { extractRowQuantity, normalizeRow } from './normalize'
 
 describe('normalizeRow', () => {
   it('normalizes a well-formed row using exact header names', () => {
@@ -102,6 +102,113 @@ describe('normalizeRow', () => {
         condition: null,
         category: null,
       },
+    })
+  })
+
+  // PALLETIQ-020 / ADR-0009 - a real Restock.ca manifest's actual headers.
+  // MSRP is retail reference value, not a cost alias - this row still
+  // needs a flatUnitCost fallback (see below) to succeed at all.
+  it('matches a Restock.ca-style manifest\'s "Title" and "Merchant SKU" headers', () => {
+    const withoutFallback = normalizeRow({
+      UPC: '841821054502',
+      'Merchant SKU': '0084182105450',
+      Quantity: '5',
+      Title: 'Greenworks 9A 14" 2In1 Lawnmower Green/Black',
+      MSRP: '$168.00',
+    })
+    expect(withoutFallback).toEqual({ error: 'Missing or invalid unit cost' })
+
+    const withFallback = normalizeRow(
+      {
+        UPC: '841821054502',
+        'Merchant SKU': '0084182105450',
+        Quantity: '5',
+        Title: 'Greenworks 9A 14" 2In1 Lawnmower Green/Black',
+        MSRP: '$168.00',
+      },
+      25,
+    )
+    expect(withFallback).toEqual({
+      lineItem: {
+        sku: '0084182105450',
+        upc: '841821054502',
+        description: 'Greenworks 9A 14" 2In1 Lawnmower Green/Black',
+        quantity: 5,
+        unitCost: 25,
+        condition: null,
+        category: null,
+      },
+    })
+  })
+
+  describe('flatUnitCost fallback (PALLETIQ-020 / ADR-0009)', () => {
+    it('uses flatUnitCost when the row has no direct cost column', () => {
+      const result = normalizeRow({ description: 'Scooter', quantity: 1 }, 25)
+
+      expect(result).toEqual({
+        lineItem: {
+          sku: null,
+          upc: null,
+          description: 'Scooter',
+          quantity: 1,
+          unitCost: 25,
+          condition: null,
+          category: null,
+        },
+      })
+    })
+
+    it('prefers a real manifest-stated cost over flatUnitCost', () => {
+      const result = normalizeRow({ description: 'Mower', quantity: 1, cost: 40 }, 25)
+
+      expect(result).toEqual({
+        lineItem: {
+          sku: null,
+          upc: null,
+          description: 'Mower',
+          quantity: 1,
+          unitCost: 40,
+          condition: null,
+          category: null,
+        },
+      })
+    })
+
+    it('still errors when both direct cost and flatUnitCost are unavailable', () => {
+      expect(normalizeRow({ description: 'Widget', quantity: 1 }, null)).toEqual({
+        error: 'Missing or invalid unit cost',
+      })
+    })
+
+    it('treats a negative direct cost as absent, falling back to flatUnitCost', () => {
+      const result = normalizeRow({ description: 'Widget', quantity: 1, cost: -5 }, 10)
+
+      expect(result).toEqual({
+        lineItem: {
+          sku: null,
+          upc: null,
+          description: 'Widget',
+          quantity: 1,
+          unitCost: 10,
+          condition: null,
+          category: null,
+        },
+      })
+    })
+  })
+
+  describe('extractRowQuantity', () => {
+    it('returns the quantity for a row with a valid description and quantity', () => {
+      expect(extractRowQuantity({ description: 'Widget', quantity: '3' })).toBe(3)
+    })
+
+    it('returns null when description is missing, regardless of cost', () => {
+      expect(extractRowQuantity({ quantity: 3, cost: 10 })).toBeNull()
+    })
+
+    it('returns null when quantity is missing or zero', () => {
+      expect(extractRowQuantity({ description: 'Widget' })).toBeNull()
+      expect(extractRowQuantity({ description: 'Widget', quantity: 0 })).toBeNull()
     })
   })
 })

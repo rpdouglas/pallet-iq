@@ -42,6 +42,7 @@ const IMPORT: ImportSummary = {
   // line item) -> 1.3333x multiplier -> landed cost $6.00 exactly.
   freightCost: 10,
   otherFees: 5,
+  totalPurchasePrice: null,
 }
 
 const LINE_ITEM: LineItem = {
