@@ -25,6 +25,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
+| PALLETIQ-020 | Allocate lot purchase price across line items with no per-item cost            | Buyer       | 1     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1035,3 +1036,74 @@ _UI impact:_ none - no UI reads or displays a secret.
 _ADR:_ not written - this documents a convention `ADR-0005` already decided
 (`defineSecret`, backed by Secret Manager, provisioned just-in-time per
 consumer), not a new architectural decision.
+
+_Scope note on `PALLETIQ-020` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ importing a real Restock.ca
+manifest (`UPC, Merchant SKU, Quantity, Title, MSRP, Extended` headers)
+produced 0 successful rows / 13 errors out of 13. Two causes, both real:
+(1) `functions/src/manifests/normalize.ts`'s header-alias list doesn't
+recognize `Title` (description) or `Merchant SKU` (sku) - a straightforward
+alias-list gap; (2) the manifest has no per-item purchase cost column at
+all - `MSRP` is retail reference value, not what the buyer paid, and
+`unitCost` is currently a hard-required field that rejects any row lacking
+it outright. Full design and alternatives considered are in
+[`ADR-0009`](../adr/0009-lot-purchase-price-allocation.md).
+
+_In scope:_
+
+- `normalize.ts`'s `FIELD_ALIASES`: add `title` to `description`, add
+  `merchant sku` to `sku`.
+- New optional `totalPurchasePrice` field, collected on `ImportForm.tsx` at
+  import time (not editable after, per `ADR-0009`'s reasoning), threaded
+  through `enqueueManifestImport`'s request payload onto the new
+  `ImportDoc.totalPurchasePrice: number | null` field.
+- `processManifestImport.ts` gains a pre-pass summing quantity across
+  rows with a valid description+quantity (before the existing per-row
+  normalization pass), computing a flat `totalPurchasePrice ÷ totalQuantity`
+  rate. A row missing a direct cost value uses that flat rate as its
+  `unitCost`; a row with a real manifest-stated cost keeps it regardless.
+  `unitCost` stays a required, always-populated `number` - no nullability
+  introduced to `LineItemDoc` or `InventoryDoc`.
+- Test coverage using this exact Restock.ca file's shape (header names,
+  the no-cost-column scenario) as inline fixtures in `normalize.test.ts`/
+  `processManifestImport.test.ts`, matching this repo's existing
+  inline-object test convention - the raw CSV itself isn't committed to the
+  repo (matches the "don't ship a stray raw file" instinct `PALLETIQ-019`'s
+  scope note already used for its own source upload).
+
+_Out of scope, deferred:_ MSRP-weighted allocation (rejected in `ADR-0009` -
+flat per-unit split is what the owner actually described); tracking
+whether a given line item's `unitCost` is real vendor-stated data or a
+computed lot-price average (no provenance flag - `ADR-0009`'s Consequences
+section names this as a real, deliberate gap for a future ticket to close
+if it turns out to matter, e.g. for Phase 2 scoring); editing
+`totalPurchasePrice` after an import has already run (would need a
+Cloud-Function-driven rewrite of every affected `lineItems`/`inventory`
+doc - `ADR-0009` explicitly rejected this complexity, same reasoning
+`PALLETIQ-009` used to reject persisting landed cost); a "retry/reprocess an
+existing import" mechanism (doesn't exist today at all, not just for this
+ticket's scenario - out of scope here, the recovery path is a fresh import
+with `totalPurchasePrice` filled in this time).
+
+_Firestore/RBAC impact:_ `imports/{importId}` gains a new
+`totalPurchasePrice` field, written by the existing Owner/Buyer-gated
+`enqueueManifestImport` callable - no `firestore.rules` change expected
+(the doc's existing `isOwnerOrBuyer` write / `isTenantMember` read already
+covers it, same as `PALLETIQ-009`'s `freightCost`/`otherFees`), confirmed
+via `firestore-rules-auditor` at close rather than assumed.
+
+_UI pattern notes:_ `ImportForm.tsx` gains one new optional numeric field
+(`docs/design/components.md`'s Form inputs pattern, same numeric-input
+convention `PALLETIQ-009` established for `freightCost`/`otherFees` - plain
+number input, `$`-prefixed only at display time). No new component.
+
+_ADR:_ written - see
+[`docs/adr/0009-lot-purchase-price-allocation.md`](../adr/0009-lot-purchase-price-allocation.md).
+Decision: collect `totalPurchasePrice` once at import time and burn a flat
+per-unit-quantity rate directly into `unitCost` server-side, rather than
+the compute-on-read/nullable-`unitCost` approach that would otherwise
+mirror `PALLETIQ-009`'s landed-cost pattern - rejected because
+`inventory.unitCost` is a persisted snapshot, not a read-time computation,
+so an editable-after-import price would need real rewrite machinery
+`PALLETIQ-009` already chose not to build for a lower-stakes field.
