@@ -657,3 +657,72 @@ specified in `Pallet-IQ-Design-System.md` §4 and `mobile-responsive.md` -
 implementing an already-decided design spec via standard React Router
 layout routes isn't a new architectural decision, same reasoning
 `PALLETIQ-016` used for wiring already-decided design tokens.
+
+_Scope note on `PALLETIQ-011` (2026-08-11) — Planning gate only, not started:_
+
+_Correcting a mistaken assumption in `PALLETIQ-010`'s own scope note above:_
+that note deferred Warehouse's mobile-first bottom-tab-bar nav to "this
+ticket's job... once there are real mobile scanning screens." Re-reading
+`docs/projects/PROJ-PALLETIQ.md`'s Phase 1 vs. Phase 3 sections closely
+shows that's wrong - barcode scanning and the mobile receiving flow are
+explicitly **Phase 3** bullets, not Phase 1's "basic inventory lifecycle
+tracking." This ticket is Phase 1 scope, so it does **not** build that nav;
+it stays inside the existing desktop `AppShell` (`PALLETIQ-010`). The
+bottom-tab-bar nav is deferred again, correctly this time, to whichever
+future ticket actually builds Phase 3's mobile receiving/scanning screens.
+
+_In scope:_
+
+- **Auto-created `inventory` docs.** `processManifestImport`
+  (`functions/src/manifests/processManifestImport.ts`, `PALLETIQ-008`)
+  writes one `inventory` doc per successful line item in the same batch as
+  the `lineItems` write, `status: 'purchased'`, referencing `lineItemId`/
+  `manifestId`/`vendorId`/`unitCost` (no landed cost persisted - see
+  `docs/adr/0007-inventory-lifecycle-and-auto-creation.md`). No manual
+  "convert to inventory" UI action.
+- **Status transitions**: Purchased → Received → Listed → Sold, one-way,
+  via a simple "advance" action in the UI - no reconciliation, no
+  quantity-partial receiving, no Returned status (that's Phase 3's "full
+  inventory workflow").
+- **New `InventoryPage`** at `/inventory`, inside the existing `AppShell`
+  nav (joins Dashboard/Vendors/Manifests), desktop table pattern matching
+  `VendorsPage`/`ManifestsPage` - not a new mobile-first surface (see
+  correction above).
+- `firestore.rules`' `inventory` block moves off the Phase-0 placeholder
+  (`isOwnerOrManager` write) onto a real policy: read `isTenantMember`,
+  write a new `isOwnerOrManagerOrWarehouse` helper. Buyer stays read-only,
+  matching `docs/personas/buyer.md`.
+- Cost-field hiding from Warehouse on the inventory table (`unitCost`
+  column omitted from the DOM, not CSS-hidden), reusing the `canSeeCost`
+  pattern from `PALLETIQ-008`/`009` - the one piece of Check III relevant
+  here that's cheap and already established, unlike full per-transition
+  RBAC (see below).
+
+_Out of scope, deferred:_ per-transition-per-role RBAC (e.g. only Warehouse
+can do Purchased→Received) - `docs/projects/PROJ-PALLETIQ.md`'s own Phase 3
+QA criterion is where "RBAC enforcement in UI" is scoped; all three writer
+roles (Owner/Manager/Warehouse) get the same "advance" action for now, see
+ADR-0007. Also deferred: `pallets` collection (Phase 2 scoring engine, this
+ticket doesn't touch it); bin/multi-location support; barcode scanning;
+mobile receiving flow; manifest-vs-received reconciliation; Warehouse's
+mobile-first bottom-tab-bar nav (all Phase 3, per the correction above);
+wiring the dashboard's still-missing "inventory totals" card
+(`PALLETIQ-010`'s deferred item) - a natural follow-on once this ticket's
+`inventory` collection exists, but not this ticket's own literal scope.
+
+_Firestore/RBAC impact:_ new `isOwnerOrManagerOrWarehouse` helper in
+`firestore.rules`; `inventory` collection's write policy tightens from the
+Phase-0 placeholder to that helper (read stays `isTenantMember`). Needs its
+own dedicated block in `firestore.rules.test.ts` (pulled out of the shared
+placeholder-policy `describe.each`), proving owner/manager/warehouse write
+succeeds and buyer write is denied, per Check I.
+
+_UI pattern notes:_ `docs/design/components.md`'s Data table pattern
+(same as `VendorsPage`/`ManifestsPage`); Check III cost-field-omission
+pattern (`canSeeCost`, already used in `ManifestDetailPage`). No new
+pattern introduced.
+
+_ADR:_ `docs/adr/0007-inventory-lifecycle-and-auto-creation.md` - covers
+auto-creation vs. manual conversion, the collection-level vs.
+per-transition RBAC tradeoff, and why landed cost isn't duplicated onto
+inventory docs.
