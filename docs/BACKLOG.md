@@ -856,7 +856,10 @@ _In scope:_
   not-yet-scoped concern). All square, icon centered on a Brand Blue
   (`#2563EB`) fill - the canonical token, not the slightly-different blue
   sampled from the source PNG (`#003CE3`), so nothing new and unapproved
-  enters the palette. `index.html`'s `<head>` links updated accordingly.
+  enters the palette. `index.html`'s `<head>` links updated accordingly,
+  plus a `theme-color` meta tag (`#2563EB`) added alongside them, per
+  `design-system-auditor`'s observation that the new Brand Blue icon set
+  now implies a Brand Blue mobile-chrome context.
 
 _Out of scope, deferred:_ a true vector (SVG) version of the icon - no
 vector source was provided, and auto-tracing a raster mark risks
@@ -872,6 +875,17 @@ is planned imminently. A public marketing/landing page to host the
 bars" use case the design doc names in §4 - no such page exists in the app
 today (the pre-`PALLETIQ-006` landing placeholder was deleted in
 `PALLETIQ-010`), so there's nowhere for that specific usage to go yet.
+
+_Found by `design-system-auditor`, acknowledged rather than fixed here:_
+`BrandMark.tsx`'s wordmark renders as one solid color (`text-ink-navy`
+light / `text-white` dark) - `Pallet-IQ-Design-System.md` §1 describes the
+light variant as "'Pallet' in dark navy, 'IQ' in brand blue," split-colored.
+This predates `PALLETIQ-017` (this ticket only touched the icon element
+and added `tagline`, not `wordmarkClassName`) and the auditor confirmed
+it's not a new regression, but flagged that it wasn't mentioned anywhere
+despite this ticket's own scope note extensively discussing §1 compliance
+for the icon - logged here so it reads as a known gap, not a silent one.
+Small enough to fix whenever `BrandMark.tsx` is next touched.
 
 _Firestore/RBAC impact:_ none - static assets and a presentational
 component change only.
