@@ -26,14 +26,14 @@ Two real questions needed answers before implementation could start:
    already holds normalized, successfully-imported purchase records. Does
    something need to explicitly "convert" a line item into inventory, or
    does a completed purchase (a line item that imported successfully) just
-   *become* trackable inventory automatically?
+   _become_ trackable inventory automatically?
 2. **Who can advance an item through the lifecycle?** The persona docs
    give three different roles a write need on `inventory` -
    `docs/personas/warehouse.md` ("Write: inventory status transitions
    (Received, receiving reconciliation)..."), `docs/personas/
 store-manager.md` ("Write: inventory (listing/pricing/status
    transitions)..."), `docs/personas/owner-admin.md` ("Read/Write:
-   everything") - each implying a *specific* transition (Warehouse →
+   everything") - each implying a _specific_ transition (Warehouse →
    Received; Manager → Listed/Sold). Should the UI/rules enforce which
    role can perform which specific transition, or is a simpler "these
    three roles can all write, Buyer can't" boundary the right scope for
@@ -47,8 +47,8 @@ successful line item, in the same batch as the `lineItems` write, with
 `status: 'purchased'`. A successfully-imported line item already
 represents money spent on a real physical item - there's no meaningful
 intermediate state where it's "purchased but not yet inventory." This
-also means no new UI is needed just to get an item *into* the lifecycle;
-`PALLETIQ-011`'s UI only handles moving items *through* it.
+also means no new UI is needed just to get an item _into_ the lifecycle;
+`PALLETIQ-011`'s UI only handles moving items _through_ it.
 `inventory` docs reference their source (`lineItemId`, `manifestId`,
 `vendorId`) rather than duplicating landed-cost calculation - landed cost
 stays computed on read from the parent import's `freightCost`/`otherFees`

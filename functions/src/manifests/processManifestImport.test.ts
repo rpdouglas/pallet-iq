@@ -125,9 +125,7 @@ describe('processManifestImport', () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({ data: () => ({}) })
 
-    await expect(processManifestImport.run(taskRequest(validPayload))).rejects.toThrow(
-      /vendorId/i,
-    )
+    await expect(processManifestImport.run(taskRequest(validPayload))).rejects.toThrow(/vendorId/i)
 
     const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
     expect(lastUpdate.status).toBe('failed')

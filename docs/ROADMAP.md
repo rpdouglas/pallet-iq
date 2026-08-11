@@ -13,7 +13,7 @@ Multi-tenant Firestore schema + rules, auth custom claims + RBAC
 scaffolding, Stripe billing (Free/Pro), Secret Manager wiring, async AI
 task pipeline scaffolding.
 
-## ⚪ Phase 1 — Core Sourcing Loop (6–8 weeks)
+## 🟢 Phase 1 — Core Sourcing Loop (6–8 weeks)
 
 Auth + tenant onboarding, vendor management (2–3 vendors, 1–2 manifest
 formats), manifest import → normalization, landed cost calculator, basic
