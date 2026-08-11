@@ -726,3 +726,70 @@ _ADR:_ `docs/adr/0007-inventory-lifecycle-and-auto-creation.md` - covers
 auto-creation vs. manual conversion, the collection-level vs.
 per-transition RBAC tradeoff, and why landed cost isn't duplicated onto
 inventory docs.
+
+_Scope note on `PALLETIQ-012` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ the ticket title ("size limits,
+sandboxed parsing, no macros") and Phase 1's QA criterion
+(`PROJ-PALLETIQ.md`: "malformed/corrupt files are rejected safely... size
+limits, sandboxed parsing, no macro execution") don't name malware/AV
+scanning - a prior code comment (`processManifestImport.ts`'s
+`MAX_FILE_SIZE_BYTES` comment) speculatively attributed "malware scanning"
+to this ticket, but that was never actually in the canonical scope docs.
+Confirmed: stays scoped to what's named, no real AV/malware-scanning
+integration this ticket (new paid vendor dependency, real latency cost -
+revisit as its own ticket if a real threat model needs it later).
+
+_In scope:_
+
+- **`storage.rules` gains a real size limit** on the manifests write rule
+  (`request.resource.size < 10 * 1024 * 1024`, matching
+  `MAX_FILE_SIZE_BYTES`) - today there is _zero_ size enforcement before a
+  file lands in Storage; the only existing check
+  (`processManifestImport.ts`'s `buffer.length` check) fires only _after_
+  download, too late to stop the upload/storage cost. Kept as a second
+  defense-in-depth layer, not removed.
+- **New `functions/src/manifests/validateFile.ts`**, called right after
+  download and before `parseFile`: XLSX gets a real magic-byte/structural
+  check (`JSZip.loadAsync` - cheap, central-directory-only, doesn't
+  decompress entries) rejecting non-ZIP files outright, plus a
+  `xl/vbaProject.bin` entry check rejecting macro-enabled files (`.xlsm`,
+  or a macro-enabled workbook renamed to `.xlsx` - extension alone can't
+  catch this). CSV gets a cheap sanity check (reject a ZIP-signature
+  buffer or one containing a NUL byte in the first 8 KB - real CSVs never
+  do).
+- **Explicit `memory`/`timeoutSeconds` on `processManifestImport`'s task
+  options** (`512MiB`/`120s`) - pins the resource sandbox boundary
+  intentionally instead of leaving it on an unstated platform default.
+- **A row-count circuit breaker** (reject if a parsed file has >50,000
+  rows) - cheap protection against a degenerate/adversarial file without
+  needing byte-level decompression-ratio tracking.
+- **`ImportForm.tsx` gets a matching client-side 10 MB check** - UX only
+  (fail fast before upload starts), explicitly not the security boundary;
+  the boundary is `storage.rules` + server-side `validateFile.ts`, both of
+  which hold even if this is bypassed.
+- `jszip` added as an explicit `functions/package.json` dependency
+  (already present transitively via `exceljs`, now imported directly).
+
+_Out of scope, deferred:_ real malware/AV scanning (see above - a
+separate future ticket if ever needed); full ZIP decompression-bomb
+protection tracking per-entry decompression ratios (the row-count +
+explicit memory/timeout bounds are judged sufficient for now - a crashed/
+OOM'd single task invocation is contained, not a shared-resource or
+cross-tenant impact); content-type allowlisting in `storage.rules`
+(rejected in `ADR-0008` - browsers are inconsistent about CSV MIME types,
+and client-declared content-type is spoofable anyway, so it wouldn't add
+real security over the byte-level check).
+
+_Firestore/RBAC impact:_ none - no new collection, no role change.
+`imports/{importId}.error` gains new possible free-text values (already
+an unstructured string field, not an enum).
+
+_UI pattern notes:_ `ImportForm.tsx`'s client-side size check reuses the
+same form-error display already used for its existing extension-mismatch
+check - no new UI pattern.
+
+_ADR:_ `docs/adr/0008-manifest-upload-security-hardening.md` - covers the
+size-limit/magic-byte/macro-rejection/resource-bound decisions and why
+malware scanning and content-type allowlisting were both rejected for
+this ticket.
