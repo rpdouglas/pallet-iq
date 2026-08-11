@@ -841,3 +841,43 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
     a separate, unscoped PWA-installability concern); no public marketing/
     landing page exists yet to host the doc's §4 "horizontal white-on-blue
     logo lockup for headers" use case.
+
+- **2026-08-11 — `PALLETIQ-019` closed.** Shipped exactly per the
+  `BACKLOG.md` scope note, no drift from the approved plan. `AuthCard`
+  (sign-in/sign-up/onboarding/accept-invite - all 4 pages that share it)
+  now renders a single flattened logo lockup image
+  (`src/assets/palletiq-logo-lockup.png`, generated from `PALLETIQ-017`'s
+  archived source via ImageMagick trim/border/resize) in place of the
+  composed icon-badge + heading + tagline `BrandMark` built in
+  `PALLETIQ-017`. `BrandMark.tsx` simplified from 3 props to zero, now
+  hardcoding exactly what its one remaining caller (`AppShell`'s dark
+  sidebar/header, 2 call sites) needs - the `variant`/`tagline` paths it
+  dropped were 100% dead once `AuthCard` stopped calling it.
+  **No Phase QA/Verification criterion applies directly** - same reasoning
+  as `PALLETIQ-017`: a Check IV asset-compliance ticket, not a
+  phase-scoped criterion in `PROJ-PALLETIQ.md`. Verified via full test
+  suite (121 passing, including new `AuthCard.test.tsx` and rewritten
+  `BrandMark.test.tsx`), `design-system-auditor` (no new violations - both
+  already-logged deviations below reconfirmed acceptable), and a live
+  Playwright visual check of `/signin` and `/signup` confirming the banner
+  renders full-width, centered, cleanly rounded, with no clipped content
+  at either corner.
+  **Repeated, already-logged deviations** (both first logged in
+  `PALLETIQ-017`, reconfirmed here since the same asset class appears a
+  second time): the banner's background is the source image's own sampled
+  blue (`srgb(0,60,227)`/`#003CE3`), not the canonical `#2563EB` token,
+  since it's extracted/bordered content rather than newly painted pixels;
+  the lockup's layout (horizontal icon+wordmark with a tagline appended
+  beneath) doesn't literally match either of `Pallet-IQ-Design-System.md`
+  §1's two named lockups ("Horizontal" has no tagline, "Stacked" is
+  icon-above-wordmark) - it's the same hybrid `PALLETIQ-017`'s composed
+  `AuthCard` version already used, now shipped as one flattened image.
+  `design-system-auditor` also noted the `BACKLOG.md` scope note's claim
+  that the pre-existing unsplit-wordmark gap ("PalletIQ" rendering as one
+  solid color instead of the doc's navy/blue split) "still applies to
+  `BrandMark`'s remaining `AppShell` usage" overstates it - the doc's
+  split-color requirement is for the light-background variant, and
+  `AppShell`'s dark sidebar falls under the doc's separate all-white-on-
+  dark-or-brand-blue variant, which solid white already satisfies. Not
+  fixed here (the wordmark rendering itself wasn't touched by this
+  ticket), just corrected for the record.
