@@ -55,6 +55,17 @@ service cloud.firestore {
       return hasRole(tenantId, ['owner', 'buyer']);
     }
 
+    // PALLETIQ-011 / ADR-0007. Inventory lifecycle transitions
+    // (Purchased -> Received -> Listed -> Sold) are Warehouse's and
+    // Manager's core write need (docs/personas/warehouse.md,
+    // docs/personas/store-manager.md) - unlike vendors/manifests, Buyer
+    // stays read-only here. This is a collection-level boundary, not
+    // per-transition RBAC - see ADR-0007's Alternatives section for why
+    // finer-grained enforcement is deferred to Phase 3.
+    function isOwnerOrManagerOrWarehouse(tenantId) {
+      return hasRole(tenantId, ['owner', 'manager', 'warehouse']);
+    }
+
     // ---- Tenant-scoped collections ---------------------------------------
     // Default posture: any authenticated member of the tenant may read;
     // writes are restricted to Owner/Manager until each collection's
@@ -108,9 +119,14 @@ service cloud.firestore {
         allow write: if isOwnerOrManager(tenantId);
       }
 
+      // PALLETIQ-011: tightened from the placeholder isOwnerOrManager to
+      // isOwnerOrManagerOrWarehouse - see docs/adr/0007-inventory-
+      // lifecycle-and-auto-creation.md. unitCost is a UI field-level
+      // omission for Warehouse (same pattern as manifests' lineItems in
+      // PALLETIQ-008), not a rules-level restriction.
       match /inventory/{docId} {
         allow read: if isTenantMember(tenantId);
-        allow write: if isOwnerOrManager(tenantId);
+        allow write: if isOwnerOrManagerOrWarehouse(tenantId);
       }
 
       match /sales/{docId} {

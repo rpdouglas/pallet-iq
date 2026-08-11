@@ -5,6 +5,7 @@ import { RequireNoTenant } from './lib/auth/RequireNoTenant'
 import { RequireRole } from './lib/auth/RequireRole'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InventoryPage } from './pages/InventoryPage'
 import { ManifestDetailPage } from './pages/ManifestDetailPage'
 import { ManifestsPage } from './pages/ManifestsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
@@ -52,6 +53,7 @@ function App() {
         <Route path="/vendors" element={<VendorsPage />} />
         <Route path="/manifests" element={<ManifestsPage />} />
         <Route path="/manifests/:importId" element={<ManifestDetailPage />} />
+        <Route path="/inventory" element={<InventoryPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

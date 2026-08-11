@@ -215,7 +215,7 @@ describe('product_intelligence (cross-tenant)', () => {
 // gets its own named pair of tests (governance Check I) without the
 // duplication drifting out of sync as collections are added.
 
-describe.each(['pallets', 'inventory', 'sales', 'locations', 'bids', 'claims'])(
+describe.each(['pallets', 'sales', 'locations', 'bids', 'claims'])(
   '%s (tenant member read, owner/manager write)',
   (collection) => {
     it('allows a tenant member to read a doc in their own tenant', async () => {
@@ -333,6 +333,70 @@ describe.each(['imports', 'manifests'])(
     })
   },
 )
+
+describe('inventory (tenant member read, owner/manager/warehouse write - PALLETIQ-011)', () => {
+  it('allows a tenant member to read a doc in their own tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(memberOfA.firestore().doc(`tenants/${TENANT_A}/inventory/doc-1`).get())
+  })
+
+  it("denies reading another tenant's doc", async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(memberOfA.firestore().doc(`tenants/${TENANT_B}/inventory/doc-1`).get())
+  })
+
+  it('allows an owner to write a doc in their own tenant', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertSucceeds(
+      ownerOfA.firestore().doc(`tenants/${TENANT_A}/inventory/doc-1`).set({ seeded: true }),
+    )
+  })
+
+  it('allows a manager to write a doc in their own tenant', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertSucceeds(
+      managerOfA.firestore().doc(`tenants/${TENANT_A}/inventory/doc-1`).set({ seeded: true }),
+    )
+  })
+
+  it('allows a warehouse-role user to write a doc in their own tenant (new in PALLETIQ-011, denied under the old placeholder policy)', async () => {
+    const warehouseOfA = testEnv.authenticatedContext('warehouse-a', {
+      tenantId: TENANT_A,
+      role: 'warehouse',
+    })
+
+    await assertSucceeds(
+      warehouseOfA.firestore().doc(`tenants/${TENANT_A}/inventory/doc-1`).set({ seeded: true }),
+    )
+  })
+
+  it('denies a buyer writing a doc in their own tenant', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+
+    await assertFails(
+      buyerOfA.firestore().doc(`tenants/${TENANT_A}/inventory/doc-1`).set({ seeded: true }),
+    )
+  })
+})
 
 describe('imports_errors (member read, Cloud-Functions-only write - PALLETIQ-008)', () => {
   it('allows a tenant member to read an import error in their own tenant', async () => {

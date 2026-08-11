@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, FileSpreadsheet, LayoutDashboard, Menu, X } from 'lucide-react'
+import { Boxes, Building2, FileSpreadsheet, LayoutDashboard, Menu, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from './BrandMark'
@@ -12,12 +12,13 @@ interface NavItem {
   end?: boolean
 }
 
-// Only pages that actually exist - no dead links to Pallets/Inventory/
-// Analytics/Settings, which aren't built yet.
+// Only pages that actually exist - no dead links to Pallets/Analytics/
+// Settings, which aren't built yet.
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
   { to: '/vendors', label: 'Vendors', icon: Building2 },
   { to: '/manifests', label: 'Manifests', icon: FileSpreadsheet },
+  { to: '/inventory', label: 'Inventory', icon: Boxes },
 ]
 
 function navLinkClassName({ isActive }: { isActive: boolean }): string {
@@ -60,8 +61,10 @@ function SignOutButton() {
 // docs/design/mobile-responsive.md: sidebar nav from md up, collapses to a
 // top app bar with a hamburger/drawer below md - a fallback for narrow
 // windows, not Warehouse's real mobile-first nav (that's a bottom tab bar,
-// deferred to PALLETIQ-011 since there are no mobile scanning screens yet
-// for it to attach to; every role uses this shell for now).
+// deferred to whichever ticket builds Phase 3's barcode/mobile-receiving
+// screens - PALLETIQ-011's own scope note corrects an earlier assumption
+// that this was its job; "basic" Phase 1 inventory tracking stays in this
+// shell like every other page. Every role uses this shell for now).
 export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
 

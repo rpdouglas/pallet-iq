@@ -15,6 +15,7 @@ function renderShell(initialEntry = '/') {
           <Route path="/" element={<div>Dashboard content</div>} />
           <Route path="/vendors" element={<div>Vendors content</div>} />
           <Route path="/manifests" element={<div>Manifests content</div>} />
+          <Route path="/inventory" element={<div>Inventory content</div>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -28,6 +29,7 @@ describe('AppShell', () => {
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Vendors' })).toHaveAttribute('href', '/vendors')
     expect(screen.getByRole('link', { name: 'Manifests' })).toHaveAttribute('href', '/manifests')
+    expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute('href', '/inventory')
   })
 
   it('marks the current route as active via aria-current', () => {

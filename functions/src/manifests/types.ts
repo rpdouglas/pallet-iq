@@ -55,3 +55,28 @@ export interface ImportErrorDoc {
   reason: string
   createdAt: Timestamp | FieldValue
 }
+
+export type InventoryStatus = 'purchased' | 'received' | 'listed' | 'sold'
+
+// tenants/{tenantId}/inventory/{inventoryId} - one per successfully
+// normalized line item, auto-created in the same batch as the lineItems
+// write. PALLETIQ-011 / ADR-0007 - see
+// docs/adr/0007-inventory-lifecycle-and-auto-creation.md for why this is
+// auto-created rather than a manual conversion step, and why landed cost
+// isn't duplicated here (unitCost only - landed cost stays computed on
+// read, same as src/lib/manifests/landedCost.ts).
+export interface InventoryDoc {
+  lineItemId: string
+  manifestId: string
+  vendorId: string
+  sku: string | null
+  upc: string | null
+  description: string
+  quantity: number
+  unitCost: number
+  condition: string | null
+  category: string | null
+  status: InventoryStatus
+  createdAt: Timestamp | FieldValue
+  updatedAt: Timestamp | FieldValue
+}

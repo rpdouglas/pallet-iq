@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 const mockImportUpdate = vi.fn()
-const mockDoc = vi.fn(() => ({ update: mockImportUpdate }))
+const mockImportGet = vi.fn(() => Promise.resolve({ data: () => ({ vendorId: 'vendor-1' }) }))
+const mockDoc = vi.fn(() => ({ update: mockImportUpdate, get: mockImportGet }))
 const mockBatchSet = vi.fn()
 const mockBatchCommit = vi.fn()
 const mockBatch = vi.fn(() => ({ set: mockBatchSet, commit: mockBatchCommit }))
@@ -42,6 +43,7 @@ const validPayload = {
 
 function resetMocks() {
   mockImportUpdate.mockClear()
+  mockImportGet.mockClear()
   mockDoc.mockClear()
   mockCollection.mockClear()
   mockBatchSet.mockClear()
@@ -75,10 +77,20 @@ describe('processManifestImport', () => {
       expect.objectContaining({ status: 'processing' }),
     )
 
-    expect(mockBatchSet).toHaveBeenCalledTimes(2)
-    const [lineItemArgs, errorArgs] = mockBatchSet.mock.calls
+    expect(mockBatchSet).toHaveBeenCalledTimes(3)
+    const [lineItemArgs, inventoryArgs, errorArgs] = mockBatchSet.mock.calls
     expect(lineItemArgs[1]).toEqual(
       expect.objectContaining({ description: 'Widget', quantity: 10, unitCost: 4.5 }),
+    )
+    expect(inventoryArgs[1]).toEqual(
+      expect.objectContaining({
+        description: 'Widget',
+        quantity: 10,
+        unitCost: 4.5,
+        vendorId: 'vendor-1',
+        manifestId: 'import-1',
+        status: 'purchased',
+      }),
     )
     expect(errorArgs[1]).toEqual(
       expect.objectContaining({
@@ -107,6 +119,18 @@ describe('processManifestImport', () => {
     const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
     expect(lastUpdate.status).toBe('failed')
     expect(lastUpdate.error).toMatch(/size limit/i)
+  })
+
+  it('marks the import failed if the import record has no vendorId', async () => {
+    resetMocks()
+    mockImportGet.mockResolvedValueOnce({ data: () => ({}) })
+
+    await expect(processManifestImport.run(taskRequest(validPayload))).rejects.toThrow(/vendorId/i)
+
+    const lastUpdate = mockImportUpdate.mock.calls.at(-1)?.[0] as { status: string; error: string }
+    expect(lastUpdate.status).toBe('failed')
+    expect(lastUpdate.error).toMatch(/vendorId/i)
+    expect(mockParseFile).not.toHaveBeenCalled()
   })
 
   it('marks the import failed and rethrows if parsing throws', async () => {

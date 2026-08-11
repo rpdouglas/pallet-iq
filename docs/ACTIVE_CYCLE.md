@@ -640,3 +640,72 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   is still not built - every role uses this desktop-pattern shell for now,
   as scoped; that's `PALLETIQ-011`'s job once real mobile scanning screens
   exist to justify it.
+
+- **2026-08-11 — `PALLETIQ-011` closed. Phase 1 now fully shipped.** Shipped
+  per the `BACKLOG.md` scope note and `ADR-0007`: `processManifestImport`
+  auto-creates one `tenants/{tenantId}/inventory/{id}` doc per successful
+  line item (`status: 'purchased'`, referencing `lineItemId`/`manifestId`/
+  `vendorId`/`unitCost` - no landed cost duplicated, computed on read
+  elsewhere same as `PALLETIQ-009`); a simple one-way Purchased → Received →
+  Listed → Sold "advance" action on a new `InventoryPage` inside the
+  existing `AppShell`; `firestore.rules`' `inventory` write tightened from
+  the placeholder `isOwnerOrManager` to a new `isOwnerOrManagerOrWarehouse`
+  helper (Buyer stays read-only), with a dedicated 6-test rules block
+  (pulled out of the shared placeholder `describe.each`) - 94/94 rules
+  tests passing against the real emulator.
+  **Correcting a real planning-error found before implementation started
+  (not drift during implementation):** `PALLETIQ-010`'s own scope note
+  above claimed Warehouse's mobile-first bottom-tab-bar nav was "`PALLETIQ-
+011`'s job once real mobile scanning screens exist." Re-reading
+  `docs/projects/PROJ-PALLETIQ.md`'s Phase 1 vs. Phase 3 sections at this
+  ticket's Planning gate showed that's wrong - barcode scanning and the
+  mobile receiving flow are explicitly Phase 3 bullets, not Phase 1's
+  "basic" inventory tracking. `PALLETIQ-011` stayed inside the existing
+  desktop `AppShell`, as corrected in its own scope note; the bottom-tab-bar
+  nav remains unbuilt, now correctly attributed to whichever future ticket
+  builds Phase 3's scanning/mobile-receiving screens.
+  **Phase 1 QA/Verification** (`PROJ-PALLETIQ.md`): "A real vendor manifest
+  in each supported format imports cleanly end-to-end with correct landed
+  cost per unit; malformed/corrupt files are rejected safely" - already
+  met as of `PALLETIQ-008`/`009`'s closes, unchanged by this ticket. What
+  this ticket completes is Phase 1's own bullet list in full: all six
+  bullets (auth/onboarding `PALLETIQ-006`, vendor management `007`,
+  manifest import/normalization `008`, landed cost `009`, dashboard `010`,
+  inventory lifecycle `011`) are now shipped - `docs/ROADMAP.md`'s Phase 1
+  marker flipped `⚪` → `🟢` accordingly.
+  **Verified live against `mrt-pallet-iq`:** redeployed
+  `processManifestImport` and `firestore.rules`, then drove all three
+  relevant roles through the real app via Playwright - Owner: added a
+  vendor, imported a real 2-row CSV, confirmed both rows appeared as
+  `Purchased` inventory with unit cost visible, advanced one to `Received`;
+  Warehouse (role swapped via a direct custom-claims update, then a real
+  re-sign-in for a fresh ID token - same test user reused, not a second
+  account): confirmed the Unit cost column and header are omitted from the
+  DOM entirely (not CSS-hidden), and confirmed the new write access by
+  advancing the second item to `Received` too; Buyer: confirmed cost stays
+  visible but no advance action renders (read-only, matching the tightened
+  rule). Test tenant/vendor/import/manifest/lineItems/inventory docs,
+  Storage file, and the Auth user all deleted afterward via the same
+  firebase-tools refresh-token-to-access-token trick used since
+  `PALLETIQ-005`'s close.
+  **Drift beyond planned scope:** `design-system-auditor` caught one real,
+  new-instance Check IV bug before merge - the "Listed" status label used
+  `text-cyan-accent`, the first use of that token as body/label text
+  anywhere in `src/`, which both falls outside Cyan Accent's documented
+  scope (gradients/icons/decorative surfaces only, per
+  `Pallet-IQ-Design-System.md` §2) and fails WCAG contrast (~2.43:1 against
+  white/Cloud Gray). Fixed by switching to `text-ink-navy`.
+  `firestore-rules-auditor` ran clean - no parity gaps, new `inventory`
+  policy and test coverage both correct.
+  **Known gaps, not fixed here:** per-transition-per-role RBAC (e.g. only
+  Warehouse can do Purchased→Received) stays deferred to Phase 3's own
+  "RBAC enforcement in UI" QA criterion, per `ADR-0007`'s Alternatives
+  section - every Owner/Manager/Warehouse write gets the same "advance"
+  action for now. The dashboard's "inventory totals" card
+  (`PALLETIQ-010`'s deferred item) now has a real data source to wire up
+  for the first time, but wiring it wasn't in this ticket's own scope -
+  worth a small follow-on whenever the dashboard is next touched. Sticky
+  table headers / row-hover states remain missing on every data table in
+  the app, including the new `InventoryPage` table - the same pre-existing,
+  repeatedly-flagged gap from `PALLETIQ-007`'s close onward, not
+  reintroduced here.
