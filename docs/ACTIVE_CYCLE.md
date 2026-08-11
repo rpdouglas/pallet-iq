@@ -787,3 +787,57 @@ spreadsheet."`; (4) most importantly, a **direct Storage SDK call
   indicator (only `ManifestDetailPage` does) - a Buyer has to click into a
   failed import to see why; worth a small follow-on if that turns out to
   be a real friction point in practice.
+
+- **2026-08-11 — `PALLETIQ-017` closed.** Shipped exactly per the
+  `BACKLOG.md` scope note: the owner supplied a real logo lockup PNG
+  (kept as source-of-truth at `docs/design/assets/
+palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
+  out (`src/assets/palletiq-icon.png`, transparent background) and used to
+  replace the two placeholder files this ticket's title names as the Check
+  IV gap - `public/favicon.svg` (an unrelated purple Vite-template
+  leftover) and `public/icons.svg` (an unused Bluesky/social-icon sprite,
+  confirmed unreferenced anywhere in `src/` before deleting). New
+  `favicon.ico`/`favicon-16.png`/`favicon-32.png`/`apple-touch-icon.png`/
+  `icon-192.png`/`icon-512.png`, all icon-on-Brand-Blue (`#2563EB`, the
+  canonical token, not the slightly different blue sampled from the
+  source PNG), wired into `index.html`. `BrandMark.tsx` now renders the
+  real icon (dark variant direct; light variant in a Brand Blue badge,
+  since the icon's internal negative-space detail only reads correctly
+  against a colored backdrop, never white) instead of `lucide-react`'s
+  generic `PackageSearch` placeholder every prior ticket's comments
+  flagged as temporary. New optional `tagline` prop, wired on `AuthCard`
+  only (the doc's "Stacked" splash-lockup context), not `AppShell`'s
+  sidebar.
+  **No Phase QA/Verification criterion applies directly** - this is a
+  Check IV asset-compliance ticket (`docs/GOVERNANCE.md`'s standing check,
+  not a phase-scoped criterion in `PROJ-PALLETIQ.md`), verified via
+  `design-system-auditor` rather than a phase QA bullet.
+  **Real, logged deviation from the design doc's literal wording:**
+  `Pallet-IQ-Design-System.md` §1 describes a "full color on light
+  backgrounds (navy + blue wordmark)" variant, but only the all-white-on-
+  blue lockup was supplied - no two-tone source art exists to do that
+  treatment on the icon. `design-system-auditor` reviewed the Brand Blue
+  badge workaround independently and concluded it's a defensible
+  application of the doc's own second documented variant ("all-white on
+  dark **or brand-blue** backgrounds") rather than a violation - recorded
+  in the scope note as a deviation anyway since it wasn't literally what
+  the doc's light-background line describes.
+  **Drift, found by `design-system-auditor`, fixed in the same PR:** a
+  `theme-color` meta tag (`#2563EB`) was missing from `index.html` despite
+  the new Brand Blue icon set implying a Brand Blue mobile-chrome context
+  - added.
+    **Known gap, found by the same audit, acknowledged not fixed:**
+    `BrandMark.tsx`'s wordmark has always rendered as one solid color, not
+    the doc's specified navy/blue split per word - predates this ticket (only
+    the icon element and the new `tagline` prop were touched), but wasn't
+    mentioned anywhere despite this ticket's scope note extensively
+    discussing §1 compliance for the icon specifically. Logged in the
+    `BACKLOG.md` scope note so it reads as a known gap, not silently
+    accepted - small enough to fix whenever `BrandMark.tsx` is next touched.
+    **Known gaps, not fixed here (already disclosed in the scope note, not
+    new):** no vector (SVG) source exists, so all assets are PNG/ICO raster;
+    no real navy+blue two-tone light-background icon variant; `icon-192`/
+    `icon-512` are shipped but unreferenced (no `manifest.json` exists yet -
+    a separate, unscoped PWA-installability concern); no public marketing/
+    landing page exists yet to host the doc's §4 "horizontal white-on-blue
+    logo lockup for headers" use case.

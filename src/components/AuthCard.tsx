@@ -10,7 +10,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <main className="bg-cloud-gray flex min-h-svh items-center justify-center p-4">
       <div className="flex w-full max-w-sm flex-col gap-6 rounded-xl bg-white p-8 shadow-sm">
-        <BrandMark />
+        <BrandMark tagline />
         {children}
       </div>
     </main>
