@@ -4,7 +4,7 @@ import { getStorage } from 'firebase-admin/storage'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
 import { normalizeRow } from './normalize'
 import { parseFile } from './parseFile'
-import type { ImportDoc, ImportErrorDoc, LineItemDoc, ManifestFormat } from './types'
+import type { ImportDoc, ImportErrorDoc, InventoryDoc, LineItemDoc, ManifestFormat } from './types'
 
 interface ProcessManifestImportPayload {
   tenantId?: unknown
@@ -48,6 +48,12 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
     const importRef = db.doc(`tenants/${tenantId}/imports/${importId}`)
 
     try {
+      const importSnap = await importRef.get()
+      const vendorId = (importSnap.data() as ImportDoc | undefined)?.vendorId
+      if (typeof vendorId !== 'string') {
+        throw new Error('Import record is missing vendorId.')
+      }
+
       await importRef.update({
         status: 'processing',
         updatedAt: FieldValue.serverTimestamp(),
@@ -63,6 +69,7 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
 
       const lineItemsRef = db.collection(`tenants/${tenantId}/manifests/${importId}/lineItems`)
       const errorsRef = db.collection(`tenants/${tenantId}/imports_errors`)
+      const inventoryRef = db.collection(`tenants/${tenantId}/inventory`)
 
       let successCount = 0
       let errorCount = 0
@@ -82,7 +89,27 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
         const result = normalizeRow(rawRow)
 
         if ('lineItem' in result) {
-          batch.set(lineItemsRef.doc(), result.lineItem satisfies LineItemDoc)
+          const lineItemRef = lineItemsRef.doc()
+          batch.set(lineItemRef, result.lineItem satisfies LineItemDoc)
+          // PALLETIQ-011 / ADR-0007 - a successful line item already
+          // represents a completed purchase, so inventory is created here
+          // rather than via a separate manual conversion step.
+          batch.set(inventoryRef.doc(), {
+            lineItemId: lineItemRef.id,
+            manifestId: importId,
+            vendorId,
+            sku: result.lineItem.sku,
+            upc: result.lineItem.upc,
+            description: result.lineItem.description,
+            quantity: result.lineItem.quantity,
+            unitCost: result.lineItem.unitCost,
+            condition: result.lineItem.condition,
+            category: result.lineItem.category,
+            status: 'purchased',
+            createdAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          } satisfies InventoryDoc)
+          opsInBatch += 2
           successCount += 1
         } else {
           batch.set(errorsRef.doc(), {
@@ -92,9 +119,9 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
             reason: result.error,
             createdAt: FieldValue.serverTimestamp(),
           } satisfies ImportErrorDoc)
+          opsInBatch += 1
           errorCount += 1
         }
-        opsInBatch += 1
         await flushIfNeeded()
       }
 
