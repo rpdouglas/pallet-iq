@@ -76,9 +76,11 @@ describe('App routing', () => {
     expect(screen.getByLabelText('Workspace name')).toBeInTheDocument()
   })
 
-  it('renders the landing page for a fully authenticated tenant member', () => {
+  it('renders the dashboard, inside the AppShell, for a fully authenticated tenant member', () => {
     renderApp({ ...baseAuthState, user: {} as User, tenantId: 'tenant-a', role: 'owner' })
 
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Vendors' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument()
   })
 

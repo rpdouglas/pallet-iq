@@ -527,7 +527,7 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   Storage files, and the Auth user all deleted afterward.
   **Drift beyond planned scope:** `design-system-auditor` caught two real,
   new-instance Check IV findings before merge, both fixed in this PR: an
-  `&lt;h2&gt;` using `font-bold` instead of the H2 spec's Semibold
+  `<h2>` using `font-bold` instead of the H2 spec's Semibold
   (`ManifestDetailPage.tsx`'s error-rows heading - the first real H2
   instance in the app besides the wordmark's unrelated `font-display`
   case), and numeric columns (Rows/Errors/Qty/Unit cost) not right-aligned
@@ -581,8 +581,62 @@ functions:secrets:set STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`, and a
   `flex-1`, per the auditor's minor observation). One real TypeScript
   friction point worth remembering for future numeric-input forms: Zod's
   `z.coerce.number()` has a wider input type (`unknown`, since raw
-  `&lt;input&gt;` values arrive as strings) than its output type (`number`),
-  which breaks a plain `useForm&lt;T&gt;()` call - fixed by using RHF's
-  three-generic `useForm&lt;InputType, unknown, OutputType&gt;()` form
-  (`z.input&lt;typeof schema&gt;` / `z.output&lt;typeof schema&gt;`), the first
+  `<input>` values arrive as strings) than its output type (`number`),
+  which breaks a plain `useForm<T>()` call - fixed by using RHF's
+  three-generic `useForm<InputType, unknown, OutputType>()` form
+  (`z.input<typeof schema>` / `z.output<typeof schema>`), the first
   numeric form in the app to hit this.
+
+- **2026-08-11 — `PALLETIQ-010` closed.** Shipped per the `BACKLOG.md` scope
+  note, resolved with the owner during scoping: "today's opportunities"
+  (Phase 2 scoring) and "inventory totals" (`PALLETIQ-011`) omitted
+  entirely - no fake or stubbed cards. Built `AppShell` (the sidebar nav
+  pattern `docs/design/mobile-responsive.md` and the base design doc have
+  specified since `PALLETIQ-006`, finally implemented): Deep Navy → Ink
+  Navy gradient sidebar from `md` up, Brand Blue pill active state,
+  collapsing to a top app bar + hamburger/drawer below `md`, wired as a
+  react-router layout route around `/`, `/vendors`, `/manifests`,
+  `/manifests/:importId`. New `DashboardPage` replaces the `LandingPage`
+  placeholder `PALLETIQ-006` shipped (deleted, along with its test) - four
+  real stat cards (vendor/import/line-item/error counts, no extra
+  subcollection reads) plus a "Recent imports" list. `VendorsPage.tsx`,
+  `ManifestsPage.tsx`, and `ManifestDetailPage.tsx` all had their now-
+  redundant ad-hoc "← Back"/cross-nav-link chrome removed, since the
+  sidebar replaces it. `BrandMark.tsx` gained `variant`/`asHeading` props
+  (the doc's own "all-white on dark backgrounds" logo variant, and a way
+  to render the wordmark without a second `<h1>` colliding with each
+  page's own heading) rather than a second component.
+  **Verified live:** full flow through the real app (sidebar nav, dashboard
+  stats populating from a real import, mobile hamburger/drawer, active-
+  state highlighting), zero console errors, screenshots confirmed correct
+  rendering at both desktop and mobile widths. No functions/rules changes,
+  so no redeploy needed this time.
+  **Drift beyond planned scope:** `design-system-auditor` caught one real,
+  blocking Check IV bug before merge: the shared `Button` component's
+  `ghost` variant carries `hover:bg-cloud-gray`, meant for light surfaces -
+  reused directly for the sidebar's "Sign out" control, it would have shown
+  a light box on hover against the dark gradient background, and the
+  partial `className` override attempting to fix it doesn't reliably win
+  against Tailwind's own utility-generation order anyway. Fixed by _not_
+  routing dark-sidebar "Sign out" through `Button`/`buttonVariants` at all -
+  a small dedicated `SignOutButton` styled to match the nav links' own
+  light-gray/white-at-reduced-opacity treatment instead. Also fixed on the
+  same audit pass: the dashboard's "no imports yet" state now reuses the
+  shared `EmptyState` component instead of a hand-rolled paragraph, for
+  consistency with `VendorsPage.tsx`/`ManifestsPage.tsx`.
+  **Also fixed, unrelated to this ticket's scope:** `PALLETIQ-008`/`009`'s
+  drift notes above had literal `&lt;`/`&gt;` HTML entities instead of real
+  angle brackets (five occurrences) - a copy-paste artifact from writing
+  this file, not a rendering issue with anything user-facing. Fixed as a
+  drive-by since it was noticed while editing this same file for this
+  ticket's own close, not because it was in scope.
+  **Known gaps, not fixed here (both minor, flagged non-blocking by the
+  audit):** no `hover:bg-cloud-gray` row-hover state on any data table in
+  the app yet (`components.md` calls for it; `PALLETIQ-007`'s pre-existing
+  gap, not reintroduced here); the mobile top app bar's `bg-navy` solid
+  fill was made consistent with the sidebar/drawer's gradient during this
+  ticket's own audit-driven fixes, so that one's already closed, not open.
+  Warehouse's real mobile-first bottom-tab-bar nav (`mobile-responsive.md`)
+  is still not built - every role uses this desktop-pattern shell for now,
+  as scoped; that's `PALLETIQ-011`'s job once real mobile scanning screens
+  exist to justify it.

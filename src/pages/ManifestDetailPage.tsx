@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth/useAuth'
 import {
@@ -64,9 +64,6 @@ export function ManifestDetailPage() {
     <main className="bg-cloud-gray min-h-svh p-6">
       <div className="mx-auto flex max-w-4xl flex-col gap-4">
         <div>
-          <Link to="/manifests" className="text-label text-brand-blue">
-            ← Back to manifests
-          </Link>
           <h1 className="text-h1 text-ink-navy font-bold">
             {importQuery.data ? importQuery.data.fileName : 'Manifest'}
           </h1>
