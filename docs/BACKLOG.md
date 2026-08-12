@@ -26,6 +26,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
 | PALLETIQ-020 | Allocate lot purchase price across line items with no per-item cost            | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-021 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-022 | Fix negative manifest unit cost silently replaced by flat lot-price rate       | Buyer       | 1     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1107,3 +1109,68 @@ mirror `PALLETIQ-009`'s landed-cost pattern - rejected because
 `inventory.unitCost` is a persisted snapshot, not a read-time computation,
 so an editable-after-import price would need real rewrite machinery
 `PALLETIQ-009` already chose not to build for a lower-stakes field.
+
+_Scope note on `PALLETIQ-021` (2026-08-12) — Planning gate only, not started:_
+
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-020` diff:_
+`processManifestImport.ts`'s pre-pass only computes `flatUnitCost` when
+`totalPurchasePrice > 0`, so an explicit `totalPurchasePrice: 0` (a
+correctly-entered free lot, allowed by `enqueueManifestImport.ts`'s `< 0`
+check) is treated identically to no price given at all - every row
+lacking a direct cost then fails normalization with "Missing or invalid
+unit cost" instead of getting `unitCost: 0`. This contradicts
+`normalize.ts`'s own existing "allows a zero unit cost" test, and
+`ImportForm.tsx`'s comment explaining the field is a string specifically
+to distinguish "not provided" from "really did pay $0" - the server
+throws that distinction away. Logged as drift per `docs/GOVERNANCE.md`
+rather than folded into `PALLETIQ-020`'s in-flight scope.
+
+_In scope:_ change `processManifestImport.ts`'s pre-pass condition from
+`totalPurchasePrice > 0` to a null/undefined check (e.g.
+`totalPurchasePrice != null`) so `0` computes a `flatUnitCost` of `0`
+same as any other value; a test covering the free-lot (`totalPurchasePrice:
+0`) import path in `processManifestImport.test.ts`.
+
+_Out of scope:_ any change to `enqueueManifestImport.ts`'s existing `< 0`
+validation (already correct); the `PALLETIQ-022` negative-cost bug
+(separate ticket, separate root cause).
+
+_Firestore/RBAC impact:_ none - no schema or rules change, fixes existing
+field-handling logic only.
+
+_UI pattern notes:_ none - no UI change.
+
+_ADR:_ not needed - bug fix within `ADR-0009`'s existing design, not a new
+architectural decision.
+
+_Scope note on `PALLETIQ-022` (2026-08-12) — Planning gate only, not started:_
+
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-020` diff:_
+`normalize.ts`'s `directUnitCost >= 0 ? directUnitCost : flatUnitCost`
+treats a negative manifest-stated unit cost (e.g. a vendor typo like
+`-4.50`) identically to a missing cost column, silently substituting the
+computed flat lot-price rate instead of surfacing the row as a data error
+in `imports_errors` for buyer review. Before `PALLETIQ-020`, any negative
+coerced cost failed normalization outright. This contradicts `ADR-0009`'s
+own text that "a row with a real, manifest-stated cost always keeps that
+value." Logged as drift per `docs/GOVERNANCE.md` rather than folded into
+`PALLETIQ-020`'s in-flight scope.
+
+_In scope:_ `normalize.ts` distinguishes "cost column absent/unparseable"
+from "cost column present but negative" - only the former falls back to
+`flatUnitCost`; the latter fails normalization and reports to
+`imports_errors` as before `PALLETIQ-020`. A test covering a negative
+manifest-stated cost alongside a `totalPurchasePrice` in
+`normalize.test.ts`.
+
+_Out of scope:_ the `PALLETIQ-021` zero-price bug (separate ticket,
+separate root cause); any change to how a genuinely missing cost column
+is detected (already correct).
+
+_Firestore/RBAC impact:_ none - no schema or rules change, fixes existing
+field-handling logic only.
+
+_UI pattern notes:_ none - no UI change.
+
+_ADR:_ not needed - bug fix within `ADR-0009`'s existing design, not a new
+architectural decision.
