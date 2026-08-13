@@ -25,6 +25,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)            | Buyer       | 4     | Planned     | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)           | Buyer       | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -1035,3 +1037,147 @@ _UI impact:_ none - no UI reads or displays a secret.
 _ADR:_ not written - this documents a convention `ADR-0005` already decided
 (`defineSecret`, backed by Secret Manager, provisioned just-in-time per
 consumer), not a new architectural decision.
+
+_Scope note on `PALLETIQ-020` (2026-08-13) — Planning gate only, not started:_
+
+_Origin:_ an external spec, `SPEC-SOURCING-INTEL-002` (Ryan, RPD Consulting),
+proposed extending vendor coverage beyond the manifest-upload flow to
+automated lot _discovery_ — scraping restock.ca's public listings so Ryan
+can evaluate lots before buying, not after. Reviewed against
+`docs/ROADMAP.md`/`docs/BACKLOG.md`/`docs/ACTIVE_CYCLE.md` and merged in via
+the Planning gate; see `ADR-0009` for the full architectural reasoning,
+including why the spec's other two proposed sources (B-Stock, Direct
+Liquidation) are **not** part of this ticket — both explicitly prohibit
+scraping in their own Terms of Use, split off as `PALLETIQ-021`'s
+manual-entry-only Track B instead.
+
+_Pulled forward from Phase 4, resolved with the owner:_ `docs/projects/
+PROJ-PALLETIQ.md`'s Phase 4 already names "Automated vendor ingestion
+(API/email/watch folders)" — this ticket is a narrow, single-vendor slice
+of that bullet arriving early, the same pull-forward pattern `PALLETIQ-004`/
+`003` already used moving Secret Manager mechanics from Phase 4 into Phase 0.
+Runs as a **parallel track**, not gated on or gating Phase 2 (Intelligence,
+not started) — no scoring/AI dependency either direction, it only produces
+and stores discovered lots.
+
+_Pre-flight compliance check, resolved before this ticket was opened:_ the
+original spec (`SPEC-RESTOCK-SCRAPER-001`, folded into Track A unchanged)
+flagged restock.ca's own Terms of Use/robots.txt as still needing
+verification before any scraper code is written. That check has since been
+completed (owner-confirmed) and came back clean — scraping restock.ca's
+public, fixed-price category pages is permitted. Implementation still needs
+to record this in-repo (a short README note or comment near the scraper
+entry point) so a future contributor can see it was actually checked, not
+assumed.
+
+_In scope:_ a new `functions/src/restock-scraper/` Cloud Functions folder
+(`scrapeRestockLots.ts` as the `onSchedule` entry point — first
+`onSchedule`/Cloud Scheduler trigger in the codebase — plus `types.ts` and
+colocated tests, matching the existing `functions/src/<feature>/`
+convention). Runs hourly, parses restock.ca's public category pages into
+`LotRecord`s via `cheerio` (see `ADR-0009` for why cheerio over a headless
+browser), diffs against the global `restock_lots` collection (new lot →
+create, changed lot → update, disappeared lot → mark closed/removed).
+Fetches manifest links for new lots where publicly exposed on the listing
+page. New `firestore.rules` block for `restock_lots` — global/cross-tenant
+per `ADR-0009` (`read: isSignedIn()`, `write: if false`, Cloud Functions
+only) — plus `firestore.rules.test.ts` coverage proving any authenticated
+user across tenants can read and no client write path exists (Check I; this
+collection needs a distinct test shape from the shared tenant-isolation
+`describe.each` block, since it isn't tenant-scoped).
+
+_Out of scope, deferred:_ any UI surfacing `restock_lots` to a Buyer (no
+"browse discovered lots" page exists yet — a natural follow-on ticket once
+this ticket's data exists, same relationship `PALLETIQ-011` had to
+`PALLETIQ-010`); any scoring/recommendation logic on top of scraped lots
+(Phase 2's Intelligence engine, not started); converting a `restock_lots`
+entry into a real `vendors`/`imports` purchase flow (a plausible future
+bridge between discovery and the existing buy pipeline, not this ticket's
+literal scope); B-Stock/Direct Liquidation coverage (`PALLETIQ-021`,
+manual-entry only, see `ADR-0009` for why no scraper is built for either).
+
+_Firestore/RBAC impact:_ new collection `restock_lots`, global/cross-tenant
+(not `tenants/{tenantId}/...`-scoped) — the second collection after
+`product_intelligence` to use this shape. `read: isSignedIn()` (any
+authenticated PalletIQ user, any tenant); `write: if false` (Cloud
+Functions/Admin SDK only — the scheduled scraper is the only writer).
+
+_UI pattern notes:_ none — this ticket ships no UI, data-ingestion only.
+
+_ADR:_ written — see
+[`docs/adr/0009-sourcing-intelligence-scraper-and-watchlist.md`](../adr/0009-sourcing-intelligence-scraper-and-watchlist.md)
+(2026-08-13). Covers the Track A/B compliance split, the global-vs-tenant-scoped
+collection decision, scraping library choice, and the `onSchedule` trigger
+decision.
+
+_Scope note on `PALLETIQ-021` (2026-08-13) — Planning gate only, not started:_
+
+_Origin:_ same source as `PALLETIQ-020` above — `SPEC-SOURCING-INTEL-002`'s
+Track B. B-Stock's Terms of Use (Section 3) and Direct Liquidation's Terms
+of Service each independently prohibit "any robot, spider, scraper... or
+other automated means" (B-Stock) / "any robot, spider, data miner...
+or any automatic or manual device or process to copy or monitor" (Direct
+Liquidation) — both quoted in full in `ADR-0009`. No scraper is built for
+either source; this ticket is a compliant, manual-entry watchlist instead,
+matching the discipline the original restock.ca spec already established
+("if [a prohibition] exists, stop and surface it").
+
+_Pulled forward from Phase 4, same rationale as `PALLETIQ-020`:_ a narrow
+slice of `PROJ-PALLETIQ.md`'s Phase 4 "Automated vendor ingestion" bullet
+(the compliant substitute for the two channels where automation isn't
+legally available), running as a parallel track alongside Phase 2, not
+gated by it.
+
+_Combining the spec's Phase 1 (schema/storage) and Phase 2 (quick-add UI)
+into one ticket:_ both are small and cohesive enough to ship together,
+matching this repo's own precedent for a single-feature CRUD+UI ticket
+(`PALLETIQ-007`'s vendor management, `PALLETIQ-011`'s inventory lifecycle)
+rather than splitting a schema-only ticket with no UI to exercise it.
+
+_In scope:_ a `WatchlistLot` type (`title`, `source: 'bstock' |
+'direct_liquidation'`, `category`, `units`, `price`/`currentBid`,
+`closesAt`, `productUrl`, `notes`, `addedAt`) and a new
+`tenants/{tenantId}/watchlist_lots` collection — tenant-scoped, unlike
+`PALLETIQ-020`'s global `restock_lots`, since each tenant's manually-tracked
+lots are genuinely their own data (see `ADR-0009`). New `firestore.rules`
+block (`read: isTenantMember`, `write: isOwnerOrBuyer` — reusing `ADR-0006`'s
+existing helper, matching Buyer's core sourcing role) plus
+`firestore.rules.test.ts` coverage (Check I). A minimal quick-add form
+(paste URL + the handful of fields visible on a listing page) reusing
+`docs/design/components.md`'s Form inputs pattern (`TextField`/`SelectField`,
+React Hook Form + Zod, same stack as every existing form in the app). A
+"closes soon" sorted view reusing the Data table pattern. A new `/watchlist`
+route inside the existing `AppShell` nav, alongside Dashboard/Vendors/
+Manifests/Inventory. A README (or PR-description section, implementation
+decides placement) documenting _why_ this is manual-entry rather than
+scraped, quoting the ToS clauses from `ADR-0009` — this is the spec's own
+Definition-of-Done requirement for Track B, so a future contributor doesn't
+"fix" this by adding a scraper.
+
+_Out of scope, explicitly deferred — do not open follow-on tickets for
+these without the named trigger condition:_ the spec's Phase 3 bookmarklet/
+browser-extension (a personal, manually-triggered click-to-prefill tool) —
+the spec itself says "only build if Phase 2 alone proves too slow in
+practice... validate with a week of real use first"; logged as a
+conditional follow-up in `docs/ACTIVE_CYCLE.md`, not a ticket, until that
+validation happens. The spec's Phase 4 B-Stock outreach (contacting B-Stock
+buyer support/sales about an API or saved-search feed) is explicitly Ryan's
+own action item, not engineering work — logged as a tracked follow-up in
+`docs/ACTIVE_CYCLE.md` instead of a ticket, since there's no code to write;
+if it produces a sanctioned feed, that becomes a new Track-A-style ticket
+built against the real endpoint, not scraped.
+
+_Firestore/RBAC impact:_ new collection `tenants/{tenantId}/watchlist_lots`.
+`read: isTenantMember(tenantId)`; `write: isOwnerOrBuyer(tenantId)` (existing
+helper from `ADR-0006`, no new rules helper needed).
+
+_UI pattern notes:_ `docs/design/components.md`'s Form inputs pattern (quick-add
+form) and Data table pattern (closes-soon view) — both already-established
+patterns, no new pattern introduced. First real client-side time-based sort
+in the app (closes-soon ordering) — flag during implementation if it needs
+anything beyond a plain sort-by-`closesAt`.
+
+_ADR:_ written — see
+[`docs/adr/0009-sourcing-intelligence-scraper-and-watchlist.md`](../adr/0009-sourcing-intelligence-scraper-and-watchlist.md),
+shared with `PALLETIQ-020` (one architectural decision covering both tracks
+of the same spec).

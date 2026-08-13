@@ -903,3 +903,41 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
     (format/lint/typecheck/121 tests, all passing) - no `test:rules` needed,
     no Firestore/UI/AI-boundary checks applicable, since the diff touched only
     `docs/BACKLOG.md` and `CONTRIBUTING.md`.
+
+- **2026-08-13 — `SPEC-SOURCING-INTEL-002` merged into the roadmap/backlog.**
+  Ryan (RPD Consulting) supplied an external spec proposing automated lot
+  discovery across restock.ca, B-Stock (Canadian storefronts), and Direct
+  Liquidation. Before merging, checked it against a fresh read of
+  `docs/GOVERNANCE.md`, `docs/ROADMAP.md`, `docs/BACKLOG.md`, and
+  `docs/projects/PROJ-PALLETIQ.md`. The spec's own pre-flight ToS review found
+  B-Stock's and Direct Liquidation's Terms of Use/Service each independently
+  prohibit automated scraping - confirmed and carried into the merge, not
+  re-litigated. Landed through the Planning gate as two tickets:
+  `PALLETIQ-020` (Track A - restock.ca scheduled scraper, ToS pre-flight
+  already checked clean per the owner) and `PALLETIQ-021` (Track B - compliant
+  manual-entry watchlist for the two prohibited sources, no scraper). Full
+  architectural reasoning - including the global-vs-tenant-scoped collection
+  split and why `watchlist_lots` stays separate from the existing generic
+  `watchlists` collection - is in `ADR-0009`. Both tickets pulled forward from
+  Phase 4's "automated vendor ingestion" bullet
+  (`docs/projects/PROJ-PALLETIQ.md`/`docs/ROADMAP.md` both updated with a
+  cross-reference), run as a parallel track alongside Phase 2, not sequenced
+  after Phase 3 and not blocking or blocked by it - resolved with the owner
+  during this merge, not assumed. Neither ticket is in flight yet (see
+  "Tickets in flight" above) - opening them is a Planning-gate action, not a
+  decision to start work this cycle.
+
+  **Tracked follow-ups, deliberately not opened as tickets:**
+  - **Watchlist bookmarklet/browser extension** (the spec's own Track B
+    Phase 3) - the spec explicitly says only build this if `PALLETIQ-021`'s
+    quick-add form alone proves too slow in practice, validated with a week
+    of real use first. Revisit once that real-use signal exists; don't open
+    a ticket speculatively before then.
+  - **B-Stock outreach** (the spec's own Track B Phase 4) - contacting
+    B-Stock's buyer support/sales to ask about an API, data feed, or
+    saved-search alert product for verified business buyers. This is Ryan's
+    own action item, not engineering work - no ticket exists for it. If it
+    produces a sanctioned feed or API key, that becomes a new Track-A-style
+    spec (scheduled ingestion against a real endpoint), not a reason to build
+    an undocumented-endpoint scraper. Document the response here (or open a
+    proper ticket) once Ryan has an answer, whichever way it goes.

@@ -38,6 +38,15 @@ Automated vendor ingestion, pricing intelligence engine, cross-tenant
 benchmarking, negotiation assistant, listing copy generation, marketplace
 integrations, multi-tenant SaaS polish.
 
+**Pull-forward in progress (Planned):** `PALLETIQ-020`/`021` (restock.ca
+scheduled scraper + compliant manual watchlist for B-Stock/Direct
+Liquidation) are a narrow slice of "automated vendor ingestion" pulled
+forward from this phase, tracked in `docs/BACKLOG.md`. They run as a
+parallel track alongside Phase 2 — not blocking or blocked by it — so
+don't read this phase's ⚪ status as meaning no work has started; see
+`ADR-0009` and `docs/projects/PROJ-PALLETIQ.md`'s Phase 4 section for the
+full rationale.
+
 ## Deferred (unplanned phase)
 
 Image analysis / pallet fill-level estimation, white-labeling + Enterprise
