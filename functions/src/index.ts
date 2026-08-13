@@ -19,3 +19,10 @@ export { stripeWebhook } from './billing/stripeWebhook'
 // PALLETIQ-008 / ADR-0006.
 export { enqueueManifestImport } from './manifests/enqueueManifestImport'
 export { processManifestImport } from './manifests/processManifestImport'
+
+// PALLETIQ-020 / ADR-0009. restock.ca's Terms of Use/robots.txt were
+// checked and confirmed to permit this before scrapeRestockLots was
+// written - see ADR-0009's Context section. restock.ca only: B-Stock and
+// Direct Liquidation are never scraped anywhere in this codebase, both
+// explicitly prohibit it - see PALLETIQ-021's manual watchlist instead.
+export { scrapeRestockLots } from './restock-scraper/scrapeRestockLots'
