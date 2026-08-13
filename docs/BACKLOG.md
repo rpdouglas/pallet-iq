@@ -25,9 +25,11 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
 | PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
-| PALLETIQ-020 | Allocate lot purchase price across line items with no per-item cost            | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-021 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-022 | Fix negative manifest unit cost silently replaced by flat lot-price rate       | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)            | Buyer       | 4     | Planned     | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)           | Buyer       | 4     | Planned     | P2       |
+| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost            | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate       | Buyer       | 1     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1039,7 +1041,151 @@ _ADR:_ not written - this documents a convention `ADR-0005` already decided
 (`defineSecret`, backed by Secret Manager, provisioned just-in-time per
 consumer), not a new architectural decision.
 
-_Scope note on `PALLETIQ-020` (2026-08-11) — Planning gate only, not started:_
+_Scope note on `PALLETIQ-020` (2026-08-13) — Planning gate only, not started:_
+
+_Origin:_ an external spec, `SPEC-SOURCING-INTEL-002` (Ryan, RPD Consulting),
+proposed extending vendor coverage beyond the manifest-upload flow to
+automated lot _discovery_ — scraping restock.ca's public listings so Ryan
+can evaluate lots before buying, not after. Reviewed against
+`docs/ROADMAP.md`/`docs/BACKLOG.md`/`docs/ACTIVE_CYCLE.md` and merged in via
+the Planning gate; see `ADR-0009` for the full architectural reasoning,
+including why the spec's other two proposed sources (B-Stock, Direct
+Liquidation) are **not** part of this ticket — both explicitly prohibit
+scraping in their own Terms of Use, split off as `PALLETIQ-021`'s
+manual-entry-only Track B instead.
+
+_Pulled forward from Phase 4, resolved with the owner:_ `docs/projects/
+PROJ-PALLETIQ.md`'s Phase 4 already names "Automated vendor ingestion
+(API/email/watch folders)" — this ticket is a narrow, single-vendor slice
+of that bullet arriving early, the same pull-forward pattern `PALLETIQ-004`/
+`003` already used moving Secret Manager mechanics from Phase 4 into Phase 0.
+Runs as a **parallel track**, not gated on or gating Phase 2 (Intelligence,
+not started) — no scoring/AI dependency either direction, it only produces
+and stores discovered lots.
+
+_Pre-flight compliance check, resolved before this ticket was opened:_ the
+original spec (`SPEC-RESTOCK-SCRAPER-001`, folded into Track A unchanged)
+flagged restock.ca's own Terms of Use/robots.txt as still needing
+verification before any scraper code is written. That check has since been
+completed (owner-confirmed) and came back clean — scraping restock.ca's
+public, fixed-price category pages is permitted. Implementation still needs
+to record this in-repo (a short README note or comment near the scraper
+entry point) so a future contributor can see it was actually checked, not
+assumed.
+
+_In scope:_ a new `functions/src/restock-scraper/` Cloud Functions folder
+(`scrapeRestockLots.ts` as the `onSchedule` entry point — first
+`onSchedule`/Cloud Scheduler trigger in the codebase — plus `types.ts` and
+colocated tests, matching the existing `functions/src/<feature>/`
+convention). Runs hourly, parses restock.ca's public category pages into
+`LotRecord`s via `cheerio` (see `ADR-0009` for why cheerio over a headless
+browser), diffs against the global `restock_lots` collection (new lot →
+create, changed lot → update, disappeared lot → mark closed/removed).
+Fetches manifest links for new lots where publicly exposed on the listing
+page. New `firestore.rules` block for `restock_lots` — global/cross-tenant
+per `ADR-0009` (`read: isSignedIn()`, `write: if false`, Cloud Functions
+only) — plus `firestore.rules.test.ts` coverage proving any authenticated
+user across tenants can read and no client write path exists (Check I; this
+collection needs a distinct test shape from the shared tenant-isolation
+`describe.each` block, since it isn't tenant-scoped).
+
+_Out of scope, deferred:_ any UI surfacing `restock_lots` to a Buyer (no
+"browse discovered lots" page exists yet — a natural follow-on ticket once
+this ticket's data exists, same relationship `PALLETIQ-011` had to
+`PALLETIQ-010`); any scoring/recommendation logic on top of scraped lots
+(Phase 2's Intelligence engine, not started); converting a `restock_lots`
+entry into a real `vendors`/`imports` purchase flow (a plausible future
+bridge between discovery and the existing buy pipeline, not this ticket's
+literal scope); B-Stock/Direct Liquidation coverage (`PALLETIQ-021`,
+manual-entry only, see `ADR-0009` for why no scraper is built for either).
+
+_Firestore/RBAC impact:_ new collection `restock_lots`, global/cross-tenant
+(not `tenants/{tenantId}/...`-scoped) — the second collection after
+`product_intelligence` to use this shape. `read: isSignedIn()` (any
+authenticated PalletIQ user, any tenant); `write: if false` (Cloud
+Functions/Admin SDK only — the scheduled scraper is the only writer).
+
+_UI pattern notes:_ none — this ticket ships no UI, data-ingestion only.
+
+_ADR:_ written — see
+[`docs/adr/0009-sourcing-intelligence-scraper-and-watchlist.md`](../adr/0009-sourcing-intelligence-scraper-and-watchlist.md)
+(2026-08-13). Covers the Track A/B compliance split, the global-vs-tenant-scoped
+collection decision, scraping library choice, and the `onSchedule` trigger
+decision.
+
+_Scope note on `PALLETIQ-021` (2026-08-13) — Planning gate only, not started:_
+
+_Origin:_ same source as `PALLETIQ-020` above — `SPEC-SOURCING-INTEL-002`'s
+Track B. B-Stock's Terms of Use (Section 3) and Direct Liquidation's Terms
+of Service each independently prohibit "any robot, spider, scraper... or
+other automated means" (B-Stock) / "any robot, spider, data miner...
+or any automatic or manual device or process to copy or monitor" (Direct
+Liquidation) — both quoted in full in `ADR-0009`. No scraper is built for
+either source; this ticket is a compliant, manual-entry watchlist instead,
+matching the discipline the original restock.ca spec already established
+("if [a prohibition] exists, stop and surface it").
+
+_Pulled forward from Phase 4, same rationale as `PALLETIQ-020`:_ a narrow
+slice of `PROJ-PALLETIQ.md`'s Phase 4 "Automated vendor ingestion" bullet
+(the compliant substitute for the two channels where automation isn't
+legally available), running as a parallel track alongside Phase 2, not
+gated by it.
+
+_Combining the spec's Phase 1 (schema/storage) and Phase 2 (quick-add UI)
+into one ticket:_ both are small and cohesive enough to ship together,
+matching this repo's own precedent for a single-feature CRUD+UI ticket
+(`PALLETIQ-007`'s vendor management, `PALLETIQ-011`'s inventory lifecycle)
+rather than splitting a schema-only ticket with no UI to exercise it.
+
+_In scope:_ a `WatchlistLot` type (`title`, `source: 'bstock' |
+'direct_liquidation'`, `category`, `units`, `price`/`currentBid`,
+`closesAt`, `productUrl`, `notes`, `addedAt`) and a new
+`tenants/{tenantId}/watchlist_lots` collection — tenant-scoped, unlike
+`PALLETIQ-020`'s global `restock_lots`, since each tenant's manually-tracked
+lots are genuinely their own data (see `ADR-0009`). New `firestore.rules`
+block (`read: isTenantMember`, `write: isOwnerOrBuyer` — reusing `ADR-0006`'s
+existing helper, matching Buyer's core sourcing role) plus
+`firestore.rules.test.ts` coverage (Check I). A minimal quick-add form
+(paste URL + the handful of fields visible on a listing page) reusing
+`docs/design/components.md`'s Form inputs pattern (`TextField`/`SelectField`,
+React Hook Form + Zod, same stack as every existing form in the app). A
+"closes soon" sorted view reusing the Data table pattern. A new `/watchlist`
+route inside the existing `AppShell` nav, alongside Dashboard/Vendors/
+Manifests/Inventory. A README (or PR-description section, implementation
+decides placement) documenting _why_ this is manual-entry rather than
+scraped, quoting the ToS clauses from `ADR-0009` — this is the spec's own
+Definition-of-Done requirement for Track B, so a future contributor doesn't
+"fix" this by adding a scraper.
+
+_Out of scope, explicitly deferred — do not open follow-on tickets for
+these without the named trigger condition:_ the spec's Phase 3 bookmarklet/
+browser-extension (a personal, manually-triggered click-to-prefill tool) —
+the spec itself says "only build if Phase 2 alone proves too slow in
+practice... validate with a week of real use first"; logged as a
+conditional follow-up in `docs/ACTIVE_CYCLE.md`, not a ticket, until that
+validation happens. The spec's Phase 4 B-Stock outreach (contacting B-Stock
+buyer support/sales about an API or saved-search feed) is explicitly Ryan's
+own action item, not engineering work — logged as a tracked follow-up in
+`docs/ACTIVE_CYCLE.md` instead of a ticket, since there's no code to write;
+if it produces a sanctioned feed, that becomes a new Track-A-style ticket
+built against the real endpoint, not scraped.
+
+_Firestore/RBAC impact:_ new collection `tenants/{tenantId}/watchlist_lots`.
+`read: isTenantMember(tenantId)`; `write: isOwnerOrBuyer(tenantId)` (existing
+helper from `ADR-0006`, no new rules helper needed).
+
+_UI pattern notes:_ `docs/design/components.md`'s Form inputs pattern (quick-add
+form) and Data table pattern (closes-soon view) — both already-established
+patterns, no new pattern introduced. First real client-side time-based sort
+in the app (closes-soon ordering) — flag during implementation if it needs
+anything beyond a plain sort-by-`closesAt`.
+
+_ADR:_ written — see
+[`docs/adr/0009-sourcing-intelligence-scraper-and-watchlist.md`](../adr/0009-sourcing-intelligence-scraper-and-watchlist.md),
+shared with `PALLETIQ-020` (one architectural decision covering both tracks
+of the same spec).
+
+_Scope note on `PALLETIQ-022` (2026-08-11) — Planning gate only, not started:_
 
 _Resolved with the owner during scoping:_ importing a real Restock.ca
 manifest (`UPC, Merchant SKU, Quantity, Title, MSRP, Extended` headers)
@@ -1050,14 +1196,14 @@ alias-list gap; (2) the manifest has no per-item purchase cost column at
 all - `MSRP` is retail reference value, not what the buyer paid, and
 `unitCost` is currently a hard-required field that rejects any row lacking
 it outright. Full design and alternatives considered are in
-[`ADR-0009`](../adr/0009-lot-purchase-price-allocation.md).
+[`ADR-0010`](../adr/0010-lot-purchase-price-allocation.md).
 
 _In scope:_
 
 - `normalize.ts`'s `FIELD_ALIASES`: add `title` to `description`, add
   `merchant sku` to `sku`.
 - New optional `totalPurchasePrice` field, collected on `ImportForm.tsx` at
-  import time (not editable after, per `ADR-0009`'s reasoning), threaded
+  import time (not editable after, per `ADR-0010`'s reasoning), threaded
   through `enqueueManifestImport`'s request payload onto the new
   `ImportDoc.totalPurchasePrice: number | null` field.
 - `processManifestImport.ts` gains a pre-pass summing quantity across
@@ -1074,15 +1220,15 @@ _In scope:_
   repo (matches the "don't ship a stray raw file" instinct `PALLETIQ-019`'s
   scope note already used for its own source upload).
 
-_Out of scope, deferred:_ MSRP-weighted allocation (rejected in `ADR-0009` -
+_Out of scope, deferred:_ MSRP-weighted allocation (rejected in `ADR-0010` -
 flat per-unit split is what the owner actually described); tracking
 whether a given line item's `unitCost` is real vendor-stated data or a
-computed lot-price average (no provenance flag - `ADR-0009`'s Consequences
+computed lot-price average (no provenance flag - `ADR-0010`'s Consequences
 section names this as a real, deliberate gap for a future ticket to close
 if it turns out to matter, e.g. for Phase 2 scoring); editing
 `totalPurchasePrice` after an import has already run (would need a
 Cloud-Function-driven rewrite of every affected `lineItems`/`inventory`
-doc - `ADR-0009` explicitly rejected this complexity, same reasoning
+doc - `ADR-0010` explicitly rejected this complexity, same reasoning
 `PALLETIQ-009` used to reject persisting landed cost); a "retry/reprocess an
 existing import" mechanism (doesn't exist today at all, not just for this
 ticket's scenario - out of scope here, the recovery path is a fresh import
@@ -1101,7 +1247,7 @@ convention `PALLETIQ-009` established for `freightCost`/`otherFees` - plain
 number input, `$`-prefixed only at display time). No new component.
 
 _ADR:_ written - see
-[`docs/adr/0009-lot-purchase-price-allocation.md`](../adr/0009-lot-purchase-price-allocation.md).
+[`docs/adr/0010-lot-purchase-price-allocation.md`](../adr/0010-lot-purchase-price-allocation.md).
 Decision: collect `totalPurchasePrice` once at import time and burn a flat
 per-unit-quantity rate directly into `unitCost` server-side, rather than
 the compute-on-read/nullable-`unitCost` approach that would otherwise
@@ -1110,9 +1256,9 @@ mirror `PALLETIQ-009`'s landed-cost pattern - rejected because
 so an editable-after-import price would need real rewrite machinery
 `PALLETIQ-009` already chose not to build for a lower-stakes field.
 
-_Scope note on `PALLETIQ-021` (2026-08-12) — Planning gate only, not started:_
+_Scope note on `PALLETIQ-023` (2026-08-12) — Planning gate only, not started:_
 
-_Found via `/code-review` on the (not yet merged) `PALLETIQ-020` diff:_
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-022` diff:_
 `processManifestImport.ts`'s pre-pass only computes `flatUnitCost` when
 `totalPurchasePrice > 0`, so an explicit `totalPurchasePrice: 0` (a
 correctly-entered free lot, allowed by `enqueueManifestImport.ts`'s `< 0`
@@ -1123,7 +1269,7 @@ unit cost" instead of getting `unitCost: 0`. This contradicts
 `ImportForm.tsx`'s comment explaining the field is a string specifically
 to distinguish "not provided" from "really did pay $0" - the server
 throws that distinction away. Logged as drift per `docs/GOVERNANCE.md`
-rather than folded into `PALLETIQ-020`'s in-flight scope.
+rather than folded into `PALLETIQ-022`'s in-flight scope.
 
 _In scope:_ change `processManifestImport.ts`'s pre-pass condition from
 `totalPurchasePrice > 0` to a null/undefined check (e.g.
@@ -1132,7 +1278,7 @@ same as any other value; a test covering the free-lot (`totalPurchasePrice:
 0`) import path in `processManifestImport.test.ts`.
 
 _Out of scope:_ any change to `enqueueManifestImport.ts`'s existing `< 0`
-validation (already correct); the `PALLETIQ-022` negative-cost bug
+validation (already correct); the `PALLETIQ-024` negative-cost bug
 (separate ticket, separate root cause).
 
 _Firestore/RBAC impact:_ none - no schema or rules change, fixes existing
@@ -1140,30 +1286,30 @@ field-handling logic only.
 
 _UI pattern notes:_ none - no UI change.
 
-_ADR:_ not needed - bug fix within `ADR-0009`'s existing design, not a new
+_ADR:_ not needed - bug fix within `ADR-0010`'s existing design, not a new
 architectural decision.
 
-_Scope note on `PALLETIQ-022` (2026-08-12) — Planning gate only, not started:_
+_Scope note on `PALLETIQ-024` (2026-08-12) — Planning gate only, not started:_
 
-_Found via `/code-review` on the (not yet merged) `PALLETIQ-020` diff:_
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-022` diff:_
 `normalize.ts`'s `directUnitCost >= 0 ? directUnitCost : flatUnitCost`
 treats a negative manifest-stated unit cost (e.g. a vendor typo like
 `-4.50`) identically to a missing cost column, silently substituting the
 computed flat lot-price rate instead of surfacing the row as a data error
-in `imports_errors` for buyer review. Before `PALLETIQ-020`, any negative
-coerced cost failed normalization outright. This contradicts `ADR-0009`'s
+in `imports_errors` for buyer review. Before `PALLETIQ-022`, any negative
+coerced cost failed normalization outright. This contradicts `ADR-0010`'s
 own text that "a row with a real, manifest-stated cost always keeps that
 value." Logged as drift per `docs/GOVERNANCE.md` rather than folded into
-`PALLETIQ-020`'s in-flight scope.
+`PALLETIQ-022`'s in-flight scope.
 
 _In scope:_ `normalize.ts` distinguishes "cost column absent/unparseable"
 from "cost column present but negative" - only the former falls back to
 `flatUnitCost`; the latter fails normalization and reports to
-`imports_errors` as before `PALLETIQ-020`. A test covering a negative
+`imports_errors` as before `PALLETIQ-022`. A test covering a negative
 manifest-stated cost alongside a `totalPurchasePrice` in
 `normalize.test.ts`.
 
-_Out of scope:_ the `PALLETIQ-021` zero-price bug (separate ticket,
+_Out of scope:_ the `PALLETIQ-023` zero-price bug (separate ticket,
 separate root cause); any change to how a genuinely missing cost column
 is detected (already correct).
 
@@ -1172,5 +1318,5 @@ field-handling logic only.
 
 _UI pattern notes:_ none - no UI change.
 
-_ADR:_ not needed - bug fix within `ADR-0009`'s existing design, not a new
+_ADR:_ not needed - bug fix within `ADR-0010`'s existing design, not a new
 architectural decision.

@@ -78,8 +78,18 @@ All tenant-owned collections scoped under `tenants/{tenantId}/...` or carry an i
 - `api_keys` — scoped, rotatable keys for Enterprise tier
 - `imports_errors` — failed/partial row tracking for manifest parsing
 
+**New — added by `SPEC-SOURCING-INTEL-002` merge (`PALLETIQ-020`/`021`,
+see `ADR-0009`):**
+- `watchlist_lots` (tenant-scoped) — manually-tracked auction lots from
+  sources that prohibit automated scraping (B-Stock, Direct Liquidation).
+
 **Global / cross-tenant (anonymized, separate security domain):**
 - `product_intelligence` — pooled, anonymized outcome data (UPC/ASIN → historical resale price, sell-through time) across all tenants. This is the platform's core long-term moat and must be modeled from Phase 1 even if population starts small.
+- `restock_lots` — scraped restock.ca lot listings, shared across every tenant
+  (the same public data regardless of who's looking, so one scrape serves
+  everyone rather than duplicating writes per tenant). Cloud-Functions-write-
+  only. Added by the `SPEC-SOURCING-INTEL-002` merge (`PALLETIQ-020`, see
+  `ADR-0009`).
 
 **Users:**
 `users` — includes `tenantId` and `role` (Owner, Manager, Warehouse, Buyer) as custom claims mirrored into the doc for query convenience.
@@ -147,7 +157,14 @@ Original plan aimed at broad vendor/format coverage; narrowed here to validate t
 
 ## Phase 4 — Automation & Growth (8–12 weeks)
 
-- Automated vendor ingestion (API/email/watch folders)
+- Automated vendor ingestion (API/email/watch folders) — *a narrow,
+  single-vendor slice of this is pulled forward and already tracked as
+  `PALLETIQ-020` (restock.ca scheduled scraper) and `PALLETIQ-021` (compliant
+  manual watchlist for B-Stock/Direct Liquidation, where automation is
+  prohibited by their own Terms of Use). Runs as a parallel track alongside
+  Phase 2, not gated on it — see `ADR-0009`. The rest of this bullet
+  (broader API/email/watch-folder ingestion across more vendors) is still
+  unstarted Phase 4 scope.*
 - Pricing intelligence engine (marketplace price checks, cached/rate-limited, not live-per-request)
 - Cross-tenant benchmarking features ("your ROI vs. similar sellers") using `product_intelligence`
 - Negotiation assistant (counter-offer suggestions from vendor discount history) — *added per review*
