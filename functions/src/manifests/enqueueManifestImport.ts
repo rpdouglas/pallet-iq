@@ -8,6 +8,7 @@ interface EnqueueManifestImportRequest {
   importId?: unknown
   storagePath?: unknown
   fileName?: unknown
+  totalPurchasePrice?: unknown
 }
 
 interface VendorDoc {
@@ -36,7 +37,7 @@ export const enqueueManifestImport = onCall<
     throw new HttpsError('permission-denied', 'Only an Owner or Buyer can import manifests.')
   }
 
-  const { vendorId, importId, storagePath, fileName } = request.data
+  const { vendorId, importId, storagePath, fileName, totalPurchasePrice } = request.data
   if (
     typeof vendorId !== 'string' ||
     typeof importId !== 'string' ||
@@ -51,6 +52,16 @@ export const enqueueManifestImport = onCall<
       'invalid-argument',
       'vendorId, importId, storagePath, and fileName are required.',
     )
+  }
+  // PALLETIQ-022 / ADR-0010 - optional; a flat per-unit-quantity fallback
+  // cost for manifests with no per-item cost column of their own.
+  if (
+    totalPurchasePrice !== undefined &&
+    (typeof totalPurchasePrice !== 'number' ||
+      !Number.isFinite(totalPurchasePrice) ||
+      totalPurchasePrice < 0)
+  ) {
+    throw new HttpsError('invalid-argument', 'totalPurchasePrice must be a non-negative number.')
   }
 
   const expectedPathPrefix = `tenants/${tenantId}/manifests/${importId}/`
@@ -90,6 +101,7 @@ export const enqueueManifestImport = onCall<
     error: null,
     freightCost: 0,
     otherFees: 0,
+    totalPurchasePrice: typeof totalPurchasePrice === 'number' ? totalPurchasePrice : null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }

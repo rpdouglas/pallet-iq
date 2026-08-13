@@ -4,29 +4,32 @@ Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused. Status
 follows the 3-phase gate model in [`docs/GOVERNANCE.md`](./GOVERNANCE.md):
 Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
-| ID           | Title                                                                          | Persona     | Phase | Status      | Priority |
-| ------------ | ------------------------------------------------------------------------------ | ----------- | ----- | ----------- | -------- |
-| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)    | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                     | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)              | Owner/Admin | 0     | In Progress | P2       |
-| PALLETIQ-004 | Secret Manager wiring for third-party credentials                              | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                       | Buyer       | 0     | Done        | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                 | Owner/Admin | 1     | Done        | P0       |
-| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)           | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                   | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                         | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)      | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)      | Warehouse   | 1     | Done        | P1       |
-| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros) | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config             | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)           | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                    | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library            | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)            | Owner/Admin | 0     | Done        | P2       |
-| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config           | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image        | Owner/Admin | 1     | Done        | P2       |
-| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)            | Buyer       | 4     | Planned     | P1       |
-| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)           | Buyer       | 4     | Planned     | P2       |
+| ID           | Title                                                                               | Persona     | Phase | Status      | Priority |
+| ------------ | ----------------------------------------------------------------------------------- | ----------- | ----- | ----------- | -------- |
+| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin | 0     | In Progress | P2       |
+| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer       | 0     | Done        | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin | 1     | Done        | P0       |
+| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer       | 1     | Done        | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer       | 1     | Done        | P0       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer       | 1     | Done        | P1       |
+| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer       | 1     | Done        | P1       |
+| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse   | 1     | Done        | P1       |
+| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer       | 1     | Done        | P0       |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin | 0     | Done        | P0       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin | 0     | Done        | P2       |
+| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin | 0     | Done        | P1       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin | 1     | Done        | P2       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer       | 4     | Planned     | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer       | 4     | Planned     | P2       |
+| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer       | 1     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1181,3 +1184,139 @@ _ADR:_ written — see
 [`docs/adr/0009-sourcing-intelligence-scraper-and-watchlist.md`](../adr/0009-sourcing-intelligence-scraper-and-watchlist.md),
 shared with `PALLETIQ-020` (one architectural decision covering both tracks
 of the same spec).
+
+_Scope note on `PALLETIQ-022` (2026-08-11) — Planning gate only, not started:_
+
+_Resolved with the owner during scoping:_ importing a real Restock.ca
+manifest (`UPC, Merchant SKU, Quantity, Title, MSRP, Extended` headers)
+produced 0 successful rows / 13 errors out of 13. Two causes, both real:
+(1) `functions/src/manifests/normalize.ts`'s header-alias list doesn't
+recognize `Title` (description) or `Merchant SKU` (sku) - a straightforward
+alias-list gap; (2) the manifest has no per-item purchase cost column at
+all - `MSRP` is retail reference value, not what the buyer paid, and
+`unitCost` is currently a hard-required field that rejects any row lacking
+it outright. Full design and alternatives considered are in
+[`ADR-0010`](../adr/0010-lot-purchase-price-allocation.md).
+
+_In scope:_
+
+- `normalize.ts`'s `FIELD_ALIASES`: add `title` to `description`, add
+  `merchant sku` to `sku`.
+- New optional `totalPurchasePrice` field, collected on `ImportForm.tsx` at
+  import time (not editable after, per `ADR-0010`'s reasoning), threaded
+  through `enqueueManifestImport`'s request payload onto the new
+  `ImportDoc.totalPurchasePrice: number | null` field.
+- `processManifestImport.ts` gains a pre-pass summing quantity across
+  rows with a valid description+quantity (before the existing per-row
+  normalization pass), computing a flat `totalPurchasePrice ÷ totalQuantity`
+  rate. A row missing a direct cost value uses that flat rate as its
+  `unitCost`; a row with a real manifest-stated cost keeps it regardless.
+  `unitCost` stays a required, always-populated `number` - no nullability
+  introduced to `LineItemDoc` or `InventoryDoc`.
+- Test coverage using this exact Restock.ca file's shape (header names,
+  the no-cost-column scenario) as inline fixtures in `normalize.test.ts`/
+  `processManifestImport.test.ts`, matching this repo's existing
+  inline-object test convention - the raw CSV itself isn't committed to the
+  repo (matches the "don't ship a stray raw file" instinct `PALLETIQ-019`'s
+  scope note already used for its own source upload).
+
+_Out of scope, deferred:_ MSRP-weighted allocation (rejected in `ADR-0010` -
+flat per-unit split is what the owner actually described); tracking
+whether a given line item's `unitCost` is real vendor-stated data or a
+computed lot-price average (no provenance flag - `ADR-0010`'s Consequences
+section names this as a real, deliberate gap for a future ticket to close
+if it turns out to matter, e.g. for Phase 2 scoring); editing
+`totalPurchasePrice` after an import has already run (would need a
+Cloud-Function-driven rewrite of every affected `lineItems`/`inventory`
+doc - `ADR-0010` explicitly rejected this complexity, same reasoning
+`PALLETIQ-009` used to reject persisting landed cost); a "retry/reprocess an
+existing import" mechanism (doesn't exist today at all, not just for this
+ticket's scenario - out of scope here, the recovery path is a fresh import
+with `totalPurchasePrice` filled in this time).
+
+_Firestore/RBAC impact:_ `imports/{importId}` gains a new
+`totalPurchasePrice` field, written by the existing Owner/Buyer-gated
+`enqueueManifestImport` callable - no `firestore.rules` change expected
+(the doc's existing `isOwnerOrBuyer` write / `isTenantMember` read already
+covers it, same as `PALLETIQ-009`'s `freightCost`/`otherFees`), confirmed
+via `firestore-rules-auditor` at close rather than assumed.
+
+_UI pattern notes:_ `ImportForm.tsx` gains one new optional numeric field
+(`docs/design/components.md`'s Form inputs pattern, same numeric-input
+convention `PALLETIQ-009` established for `freightCost`/`otherFees` - plain
+number input, `$`-prefixed only at display time). No new component.
+
+_ADR:_ written - see
+[`docs/adr/0010-lot-purchase-price-allocation.md`](../adr/0010-lot-purchase-price-allocation.md).
+Decision: collect `totalPurchasePrice` once at import time and burn a flat
+per-unit-quantity rate directly into `unitCost` server-side, rather than
+the compute-on-read/nullable-`unitCost` approach that would otherwise
+mirror `PALLETIQ-009`'s landed-cost pattern - rejected because
+`inventory.unitCost` is a persisted snapshot, not a read-time computation,
+so an editable-after-import price would need real rewrite machinery
+`PALLETIQ-009` already chose not to build for a lower-stakes field.
+
+_Scope note on `PALLETIQ-023` (2026-08-12) — Planning gate only, not started:_
+
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-022` diff:_
+`processManifestImport.ts`'s pre-pass only computes `flatUnitCost` when
+`totalPurchasePrice > 0`, so an explicit `totalPurchasePrice: 0` (a
+correctly-entered free lot, allowed by `enqueueManifestImport.ts`'s `< 0`
+check) is treated identically to no price given at all - every row
+lacking a direct cost then fails normalization with "Missing or invalid
+unit cost" instead of getting `unitCost: 0`. This contradicts
+`normalize.ts`'s own existing "allows a zero unit cost" test, and
+`ImportForm.tsx`'s comment explaining the field is a string specifically
+to distinguish "not provided" from "really did pay $0" - the server
+throws that distinction away. Logged as drift per `docs/GOVERNANCE.md`
+rather than folded into `PALLETIQ-022`'s in-flight scope.
+
+_In scope:_ change `processManifestImport.ts`'s pre-pass condition from
+`totalPurchasePrice > 0` to a null/undefined check (e.g.
+`totalPurchasePrice != null`) so `0` computes a `flatUnitCost` of `0`
+same as any other value; a test covering the free-lot (`totalPurchasePrice:
+0`) import path in `processManifestImport.test.ts`.
+
+_Out of scope:_ any change to `enqueueManifestImport.ts`'s existing `< 0`
+validation (already correct); the `PALLETIQ-024` negative-cost bug
+(separate ticket, separate root cause).
+
+_Firestore/RBAC impact:_ none - no schema or rules change, fixes existing
+field-handling logic only.
+
+_UI pattern notes:_ none - no UI change.
+
+_ADR:_ not needed - bug fix within `ADR-0010`'s existing design, not a new
+architectural decision.
+
+_Scope note on `PALLETIQ-024` (2026-08-12) — Planning gate only, not started:_
+
+_Found via `/code-review` on the (not yet merged) `PALLETIQ-022` diff:_
+`normalize.ts`'s `directUnitCost >= 0 ? directUnitCost : flatUnitCost`
+treats a negative manifest-stated unit cost (e.g. a vendor typo like
+`-4.50`) identically to a missing cost column, silently substituting the
+computed flat lot-price rate instead of surfacing the row as a data error
+in `imports_errors` for buyer review. Before `PALLETIQ-022`, any negative
+coerced cost failed normalization outright. This contradicts `ADR-0010`'s
+own text that "a row with a real, manifest-stated cost always keeps that
+value." Logged as drift per `docs/GOVERNANCE.md` rather than folded into
+`PALLETIQ-022`'s in-flight scope.
+
+_In scope:_ `normalize.ts` distinguishes "cost column absent/unparseable"
+from "cost column present but negative" - only the former falls back to
+`flatUnitCost`; the latter fails normalization and reports to
+`imports_errors` as before `PALLETIQ-022`. A test covering a negative
+manifest-stated cost alongside a `totalPurchasePrice` in
+`normalize.test.ts`.
+
+_Out of scope:_ the `PALLETIQ-023` zero-price bug (separate ticket,
+separate root cause); any change to how a genuinely missing cost column
+is detected (already correct).
+
+_Firestore/RBAC impact:_ none - no schema or rules change, fixes existing
+field-handling logic only.
+
+_UI pattern notes:_ none - no UI change.
+
+_ADR:_ not needed - bug fix within `ADR-0010`'s existing design, not a new
+architectural decision.

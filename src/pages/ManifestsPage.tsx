@@ -47,13 +47,27 @@ export function ManifestsPage() {
   })
 
   const importMutation = useMutation({
-    mutationFn: async ({ vendorId, file }: { vendorId: string; file: File }) => {
+    mutationFn: async ({
+      vendorId,
+      file,
+      totalPurchasePrice,
+    }: {
+      vendorId: string
+      file: File
+      totalPurchasePrice?: number
+    }) => {
       if (!tenantId) {
         throw new Error('No tenant.')
       }
       const importId = newImportId(tenantId)
       const { storagePath } = await uploadManifestFile(tenantId, importId, file)
-      await enqueueManifestImport({ vendorId, importId, storagePath, fileName: file.name })
+      await enqueueManifestImport({
+        vendorId,
+        importId,
+        storagePath,
+        fileName: file.name,
+        totalPurchasePrice,
+      })
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['imports', tenantId] })

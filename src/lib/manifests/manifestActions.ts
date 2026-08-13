@@ -38,6 +38,7 @@ export async function enqueueManifestImport(params: {
   importId: string
   storagePath: string
   fileName: string
+  totalPurchasePrice?: number
 }): Promise<{ importId: string }> {
   const call = httpsCallable<typeof params, { importId: string }>(
     functions,

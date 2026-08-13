@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { Button } from './Button'
 import { SelectField } from './form/SelectField'
+import { TextField } from './form/TextField'
 import type { Vendor } from '../types/vendor'
 
 // Duck-typed rather than z.instanceof(FileList) - jsdom (used by this
@@ -16,6 +17,12 @@ const importFormSchema = z.object({
       message: 'Select a file',
     })
     .refine((files) => files.length === 1, 'Select a file'),
+  // PALLETIQ-022 / ADR-0010. Plain string, not z.coerce.number() - the
+  // field is optional (most vendors provide real per-item cost data) and
+  // z.coerce.number() on an empty string coerces to 0, indistinguishable
+  // from "the owner really did pay $0 for this lot." Parsed in submit only
+  // when non-empty.
+  totalPurchasePrice: z.string().optional(),
 })
 type ImportFormValues = z.infer<typeof importFormSchema>
 
@@ -27,7 +34,7 @@ const MAX_CLIENT_FILE_SIZE_BYTES = 10 * 1024 * 1024
 
 interface ImportFormProps {
   vendors: Vendor[]
-  onSubmit: (values: { vendorId: string; file: File }) => Promise<void>
+  onSubmit: (values: { vendorId: string; file: File; totalPurchasePrice?: number }) => Promise<void>
   onCancel: () => void
 }
 
@@ -71,8 +78,17 @@ export function ImportForm({ vendors, onSubmit, onCancel }: ImportFormProps) {
       setFormError(`File is too large - the limit is ${maxMb.toString()} MB.`)
       return
     }
+    let totalPurchasePrice: number | undefined
+    if (values.totalPurchasePrice) {
+      const parsed = Number(values.totalPurchasePrice)
+      if (!Number.isFinite(parsed) || parsed < 0) {
+        setFormError('Total purchase price must be a non-negative number.')
+        return
+      }
+      totalPurchasePrice = parsed
+    }
     try {
-      await onSubmit({ vendorId: values.vendorId, file })
+      await onSubmit({ vendorId: values.vendorId, file, totalPurchasePrice })
     } catch (error) {
       setFormError(
         error instanceof Error && error.message
@@ -113,6 +129,14 @@ export function ImportForm({ vendors, onSubmit, onCancel }: ImportFormProps) {
         />
         {errors.file ? <p className="text-label text-danger">{errors.file.message}</p> : null}
       </div>
+      <TextField
+        label="Total purchase price (optional)"
+        type="number"
+        step="0.01"
+        min="0"
+        placeholder="Only needed if this manifest has no per-item cost"
+        {...register('totalPurchasePrice')}
+      />
       {formError ? <p className="text-label text-danger">{formError}</p> : null}
       <div className="flex gap-2">
         <Button type="submit" disabled={isSubmitting}>

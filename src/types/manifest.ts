@@ -15,6 +15,9 @@ export interface ImportSummary {
   // read (src/lib/manifests/landedCost.ts), never persisted.
   freightCost: number
   otherFees: number
+  // PALLETIQ-022 - set at import time only, not editable after. Fills the
+  // gap for line items whose manifest has no per-item cost column.
+  totalPurchasePrice: number | null
 }
 
 export interface LineItem {

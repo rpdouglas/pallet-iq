@@ -37,6 +37,7 @@ function makeImport(overrides: Partial<ImportSummary> = {}): ImportSummary {
     error: null,
     freightCost: 0,
     otherFees: 0,
+    totalPurchasePrice: null,
     ...overrides,
   }
 }
