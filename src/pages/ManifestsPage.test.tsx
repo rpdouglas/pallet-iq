@@ -151,7 +151,7 @@ describe('ManifestsPage', () => {
     expect(uploadManifestFile).toHaveBeenCalledWith('tenant-a', 'import-1', file)
   })
 
-  // PALLETIQ-020 / ADR-0009.
+  // PALLETIQ-022 / ADR-0010.
   it('parses an optional total purchase price and passes it through as a number', async () => {
     listVendors.mockResolvedValueOnce([VENDOR])
     listImports.mockResolvedValueOnce([])

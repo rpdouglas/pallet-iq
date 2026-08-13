@@ -1,4 +1,4 @@
-# ADR-0009: Lot purchase price allocation for manifests with no per-item cost
+# ADR-0010: Lot purchase price allocation for manifests with no per-item cost
 
 **Status:** Proposed
 **Date:** 2026-08-11

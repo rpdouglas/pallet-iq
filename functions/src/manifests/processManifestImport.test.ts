@@ -113,7 +113,7 @@ describe('processManifestImport', () => {
     )
   })
 
-  it('allocates a flat unit cost from totalPurchasePrice when rows have no direct cost (PALLETIQ-020 / ADR-0009)', async () => {
+  it('allocates a flat unit cost from totalPurchasePrice when rows have no direct cost (PALLETIQ-022 / ADR-0010)', async () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({
       data: () => ({ vendorId: 'vendor-1', totalPurchasePrice: 100 }),

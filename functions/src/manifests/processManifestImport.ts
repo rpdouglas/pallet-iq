@@ -93,7 +93,7 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
         )
       }
 
-      // PALLETIQ-020 / ADR-0009. Some vendors sell an entire lot for one
+      // PALLETIQ-022 / ADR-0010. Some vendors sell an entire lot for one
       // lump sum and list no per-item cost at all - a pre-pass sums
       // quantity across every row that would otherwise succeed (regardless
       // of whether it has its own cost), so a flat totalPurchasePrice /

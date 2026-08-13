@@ -105,7 +105,7 @@ describe('normalizeRow', () => {
     })
   })
 
-  // PALLETIQ-020 / ADR-0009 - a real Restock.ca manifest's actual headers.
+  // PALLETIQ-022 / ADR-0010 - a real Restock.ca manifest's actual headers.
   // MSRP is retail reference value, not a cost alias - this row still
   // needs a flatUnitCost fallback (see below) to succeed at all.
   it('matches a Restock.ca-style manifest\'s "Title" and "Merchant SKU" headers', () => {
@@ -141,7 +141,7 @@ describe('normalizeRow', () => {
     })
   })
 
-  describe('flatUnitCost fallback (PALLETIQ-020 / ADR-0009)', () => {
+  describe('flatUnitCost fallback (PALLETIQ-022 / ADR-0010)', () => {
     it('uses flatUnitCost when the row has no direct cost column', () => {
       const result = normalizeRow({ description: 'Scooter', quantity: 1 }, 25)
 

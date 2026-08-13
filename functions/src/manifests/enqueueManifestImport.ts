@@ -53,7 +53,7 @@ export const enqueueManifestImport = onCall<
       'vendorId, importId, storagePath, and fileName are required.',
     )
   }
-  // PALLETIQ-020 / ADR-0009 - optional; a flat per-unit-quantity fallback
+  // PALLETIQ-022 / ADR-0010 - optional; a flat per-unit-quantity fallback
   // cost for manifests with no per-item cost column of their own.
   if (
     totalPurchasePrice !== undefined &&

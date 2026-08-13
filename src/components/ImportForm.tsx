@@ -17,7 +17,7 @@ const importFormSchema = z.object({
       message: 'Select a file',
     })
     .refine((files) => files.length === 1, 'Select a file'),
-  // PALLETIQ-020 / ADR-0009. Plain string, not z.coerce.number() - the
+  // PALLETIQ-022 / ADR-0010. Plain string, not z.coerce.number() - the
   // field is optional (most vendors provide real per-item cost data) and
   // z.coerce.number() on an empty string coerces to 0, indistinguishable
   // from "the owner really did pay $0 for this lot." Parsed in submit only

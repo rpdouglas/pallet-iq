@@ -61,7 +61,7 @@ function optionalString(value: unknown): string | null {
 
 export type NormalizeResult = { lineItem: LineItemDoc } | { error: string }
 
-// PALLETIQ-020 / ADR-0009. Quantity extracted independently of cost, so a
+// PALLETIQ-022 / ADR-0010. Quantity extracted independently of cost, so a
 // pre-pass across the whole file (processManifestImport.ts) can sum "how
 // many units are actually in this lot" before any row's cost is resolved -
 // needed to derive a flat per-unit rate from an import-level total
@@ -84,7 +84,7 @@ export function extractRowQuantity(rawRow: Record<string, unknown>): number | nu
 // imports_errors doc instead of a lineItems doc - partial success, not
 // all-or-nothing failure. See ADR-0006.
 //
-// flatUnitCost (PALLETIQ-020 / ADR-0009): a per-unit rate derived from an
+// flatUnitCost (PALLETIQ-022 / ADR-0010): a per-unit rate derived from an
 // import-level total purchase price, used only when the row itself has no
 // direct cost column - a manifest-stated cost always wins over it.
 export function normalizeRow(
