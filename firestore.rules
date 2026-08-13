@@ -245,6 +245,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- Cross-tenant: restock_lots ------------------------------------
+    // PALLETIQ-020 / ADR-0009. Same security domain shape as
+    // product_intelligence above: scraped restock.ca lot listings are the
+    // same public data regardless of which tenant is looking, so this is
+    // one global collection, not tenants/{tenantId}/restock_lots. Readable
+    // by any authenticated user, any tenant; never client-writable —
+    // populated exclusively by the scrapeRestockLots scheduled Cloud
+    // Function via the Admin SDK, which bypasses these rules.
+
+    match /restock_lots/{lotId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Deny-by-default for anything not explicitly matched above.
     match /{document=**} {
       allow read, write: if false;
