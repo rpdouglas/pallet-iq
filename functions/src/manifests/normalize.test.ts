@@ -180,19 +180,13 @@ describe('normalizeRow', () => {
       })
     })
 
-    it('treats a negative direct cost as absent, falling back to flatUnitCost', () => {
-      const result = normalizeRow({ description: 'Widget', quantity: 1, cost: -5 }, 10)
-
-      expect(result).toEqual({
-        lineItem: {
-          sku: null,
-          upc: null,
-          description: 'Widget',
-          quantity: 1,
-          unitCost: 10,
-          condition: null,
-          category: null,
-        },
+    // PALLETIQ-024. A manifest-stated cost that parses but is negative (a
+    // vendor typo, e.g. "-4.50") is a real data error to surface, not a
+    // missing value - it must not silently fall back to flatUnitCost, even
+    // when one is available.
+    it('errors on a negative direct cost rather than falling back to flatUnitCost', () => {
+      expect(normalizeRow({ description: 'Widget', quantity: 1, cost: -5 }, 10)).toEqual({
+        error: 'Missing or invalid unit cost',
       })
     })
   })

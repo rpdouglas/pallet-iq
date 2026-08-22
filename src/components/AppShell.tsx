@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Boxes, Building2, FileSpreadsheet, LayoutDashboard, Menu, X } from 'lucide-react'
+import { Boxes, Building2, FileSpreadsheet, Gavel, LayoutDashboard, Menu, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { BrandMark } from './BrandMark'
@@ -19,6 +19,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/vendors', label: 'Vendors', icon: Building2 },
   { to: '/manifests', label: 'Manifests', icon: FileSpreadsheet },
   { to: '/inventory', label: 'Inventory', icon: Boxes },
+  { to: '/watchlist', label: 'Watchlist', icon: Gavel },
 ]
 
 function navLinkClassName({ isActive }: { isActive: boolean }): string {

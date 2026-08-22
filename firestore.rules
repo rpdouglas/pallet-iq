@@ -147,6 +147,18 @@ service cloud.firestore {
         allow read, write: if isTenantMember(tenantId);
       }
 
+      // PALLETIQ-021 / ADR-0009. Manually-tracked auction lots from
+      // sources whose own terms prohibit automated scraping (B-Stock,
+      // Direct Liquidation) - see src/lib/watchlist/README.md. Tenant-
+      // scoped, unlike restock_lots' global shape, since each tenant's
+      // manually-tracked lots are genuinely their own data. Same
+      // isOwnerOrBuyer write policy as imports/manifests (ADR-0006) -
+      // sourcing is Buyer's core daily job, not an admin-only task.
+      match /watchlist_lots/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrBuyer(tenantId);
+      }
+
       match /notes/{docId} {
         allow read, write: if isTenantMember(tenantId);
       }
