@@ -106,9 +106,7 @@ export const processManifestImport = onTaskDispatched<ProcessManifestImportPaylo
         }
       }
       const flatUnitCost =
-        totalPurchasePrice !== null && totalPurchasePrice > 0 && totalQuantity > 0
-          ? totalPurchasePrice / totalQuantity
-          : null
+        totalPurchasePrice !== null && totalQuantity > 0 ? totalPurchasePrice / totalQuantity : null
 
       const lineItemsRef = db.collection(`tenants/${tenantId}/manifests/${importId}/lineItems`)
       const errorsRef = db.collection(`tenants/${tenantId}/imports_errors`)
