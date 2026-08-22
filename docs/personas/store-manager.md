@@ -20,7 +20,9 @@ the lifecycle (Listed → Sold) and the pricing/aging signals that drive it.
 Custom claim: `role: "manager"`
 
 - **Read:** inventory, sales, pallets, manifests, vendors (incl.
-  scorecards), analytics rollups, `product_intelligence`
+  scorecards), analytics rollups, `product_intelligence`, `item_scans`
+  (a Buyer's item-identification record, consumed for listing-copy
+  generation — see `ADR-0011`, `PALLETIQ-030`)
 - **Write:** inventory (listing/pricing/status transitions), sales,
   favorites, watchlists, notes, tasks
 - **No access to:** `subscriptions` (billing), `api_keys`, tenant-level
