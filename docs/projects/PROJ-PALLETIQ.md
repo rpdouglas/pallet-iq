@@ -56,9 +56,23 @@ PalletIQ ingests manifests from multiple liquidation vendors, normalizes them in
 - **Stripe** — subscription billing and usage metering — *added per SaaS review*
 
 **AI**
-- Gemini API (async, batched, cached by UPC/ASIN)
+- Gemini API (async, batched, cached by UPC/ASIN) — vision + Google Search
+  grounding + structured output, per `ADR-0011`
 - Vertex AI (future)
 - Embeddings for semantic product matching and duplicate detection
+
+**Pricing data sources** *(added by the "Treasure Hunter" plan merge, see
+`ADR-0011`; each accessed only via its own official API/terms, never
+scraped — see `docs/projects/treasure-hunter-plan.md`'s section 3 for the
+per-vendor compliance research)*
+- eBay Browse API (active listings + calibrated asking-to-sold discount ratio)
+- Keepa (Amazon ASIN price history, sales rank, buy-box price)
+- PriceCharting (games, cards, comics, Funko, LEGO)
+- Discogs (vinyl, CDs, music media)
+- Google Books (ISBN metadata)
+- eBay Marketplace Insights API and a compliant paid comps vendor for
+  fashion/sneakers — both gated behind a pre-flight access/ToS check
+  (`PALLETIQ-028`/`029`), not assumed available
 
 ---
 
@@ -83,6 +97,14 @@ see `ADR-0009`):**
 - `watchlist_lots` (tenant-scoped) — manually-tracked auction lots from
   sources that prohibit automated scraping (B-Stock, Direct Liquidation).
 
+**New — added by the "Treasure Hunter" plan merge (`PALLETIQ-025`–`030`,
+see `ADR-0011`):**
+- `item_scans` (tenant-scoped) — a Buyer's photo-in/price-out item scans:
+  the full Gemini identification record, pricing-waterfall result, and
+  saleability score for a single field-scanned item, plus (from
+  `PALLETIQ-028`) self-reported outcome data (listed/sold price,
+  days-to-sell).
+
 **Global / cross-tenant (anonymized, separate security domain):**
 - `product_intelligence` — pooled, anonymized outcome data (UPC/ASIN → historical resale price, sell-through time) across all tenants. This is the platform's core long-term moat and must be modeled from Phase 1 even if population starts small.
 - `restock_lots` — scraped restock.ca lot listings, shared across every tenant
@@ -90,6 +112,11 @@ see `ADR-0009`):**
   everyone rather than duplicating writes per tenant). Cloud-Functions-write-
   only. Added by the `SPEC-SOURCING-INTEL-002` merge (`PALLETIQ-020`, see
   `ADR-0009`).
+- `product_price_cache` — the item-identification pricing waterfall's
+  step-0 cache, keyed by UPC/ASIN/identification fingerprint. Same shape as
+  `restock_lots`: a cached price isn't tenant-specific, so one cache serves
+  every tenant. Cloud-Functions-write-only. Added by the "Treasure Hunter"
+  plan merge (`PALLETIQ-026`, see `ADR-0011`).
 
 **Users:**
 `users` — includes `tenantId` and `role` (Owner, Manager, Warehouse, Buyer) as custom claims mirrored into the doc for query convenience.
@@ -129,13 +156,13 @@ Original plan aimed at broad vendor/format coverage; narrowed here to validate t
 
 ## Phase 2 — Intelligence (8–10 weeks)
 
-- Async, batched Gemini product analysis (cached by UPC/ASIN — no duplicate re-analysis across imports)
+- Async, batched Gemini product analysis (cached by UPC/ASIN — no duplicate re-analysis across imports). *First real implementation is the "Treasure Hunter" item-identification pipeline (`PALLETIQ-025`/`026`/`027`), a photo-in/price-out appraisal tool for the Buyer's pre-purchase field-scan workflow, running as a parallel track — see `ADR-0011`.*
 - Explainable pallet scoring engine (factor breakdown UI, not a black-box number)
 - Duplicate detection via embeddings
 - Historical ROI tracking + reconciliation workflow: manifest-claimed vs. actually-received vs. actually-sold — *added per review, closes the AI feedback loop*
 - Manifest comparison UI (side-by-side, not just AI-assistant text) — *added per review*
 - Pass/reject logging with reason capture — *added per review, feeds AI training data*
-- Seed `product_intelligence` cross-tenant collection (anonymized) from early outcome data
+- Seed `product_intelligence` cross-tenant collection (anonymized) from early outcome data. *First real writer is `PALLETIQ-028`'s outcome-data flywheel, several tickets ahead of this phase's own general scoring work — see `ADR-0011`.*
 
 **QA / Verification:** Pallet score factor breakdown renders correctly for a sample pallet; reconciliation flags a discrepancy when received quantity differs from manifest; duplicate detection correctly flags a known duplicate pair in test data.
 
@@ -165,10 +192,10 @@ Original plan aimed at broad vendor/format coverage; narrowed here to validate t
   Phase 2, not gated on it — see `ADR-0009`. The rest of this bullet
   (broader API/email/watch-folder ingestion across more vendors) is still
   unstarted Phase 4 scope.*
-- Pricing intelligence engine (marketplace price checks, cached/rate-limited, not live-per-request)
+- Pricing intelligence engine (marketplace price checks, cached/rate-limited, not live-per-request). *The real eBay sold-comps/outcome-data half of this is `PALLETIQ-028` (real Marketplace Insights access, pending a pre-flight check) and `PALLETIQ-029` (fashion/sneaker categories via a compliant paid vendor, also pre-flight-gated) — a pulled-forward continuation of the "Treasure Hunter" track started in Phase 2, see `ADR-0011`.*
 - Cross-tenant benchmarking features ("your ROI vs. similar sellers") using `product_intelligence`
 - Negotiation assistant (counter-offer suggestions from vendor discount history) — *added per review*
-- Listing copy generation (titles/descriptions from manifest + image data) — *added per review*
+- Listing copy generation (titles/descriptions from manifest + image data) — *added per review. First real implementation is `PALLETIQ-030`, generating listing drafts from a `PALLETIQ-025` `item_scans` identification record rather than raw manifest text — see `ADR-0011`.*
 - Marketplace integrations: Shopify, Amazon Seller Central, eBay, Facebook Marketplace
 - Multi-tenant SaaS polish: usage metering enforcement, tenant data export/portability
 
@@ -187,7 +214,7 @@ Original plan aimed at broad vendor/format coverage; narrowed here to validate t
 
 ## Competitive Advantages (explicit strategy, not incidental)
 
-1. **Anonymized cross-tenant outcome data** (`product_intelligence`) — the platform's strongest long-term moat; modeled from Phase 1, populated from Phase 2 onward.
+1. **Anonymized cross-tenant outcome data** (`product_intelligence`) — the platform's strongest long-term moat; modeled from Phase 1, populated from Phase 2 onward. *The "Treasure Hunter" item-scan flywheel (`PALLETIQ-028`) is the first feature that actually writes to it — see `ADR-0011`.*
 2. **Explainable scoring** — factor-level transparency as a first-class UX requirement, not an afterthought.
 3. **Vendor reliability scoring** — a data product with value beyond the core tool.
 4. **Full lifecycle coverage** (source → decide → receive → sell → learn) vs. competitors that only solve manifest lookup.

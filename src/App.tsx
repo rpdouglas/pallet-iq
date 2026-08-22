@@ -12,6 +12,7 @@ import { OnboardingPage } from './pages/OnboardingPage'
 import { SignInPage } from './pages/SignInPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { VendorsPage } from './pages/VendorsPage'
+import { WatchlistPage } from './pages/WatchlistPage'
 
 function App() {
   return (
@@ -54,6 +55,7 @@ function App() {
         <Route path="/manifests" element={<ManifestsPage />} />
         <Route path="/manifests/:importId" element={<ManifestDetailPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
+        <Route path="/watchlist" element={<WatchlistPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

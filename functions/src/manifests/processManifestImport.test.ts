@@ -164,6 +164,28 @@ describe('processManifestImport', () => {
     expect(noCostLineItem[1]).toEqual(expect.objectContaining({ unitCost: 50 }))
   })
 
+  // PALLETIQ-023. totalPurchasePrice: 0 is a valid, correctly-entered free
+  // lot (enqueueManifestImport only rejects < 0) - it must compute a flat
+  // unit cost of 0 for cost-less rows, not be treated as "no price given"
+  // and fail every such row's normalization outright.
+  it('treats totalPurchasePrice: 0 as a real free-lot price, not a missing one', async () => {
+    resetMocks()
+    mockImportGet.mockResolvedValueOnce({
+      data: () => ({ vendorId: 'vendor-1', totalPurchasePrice: 0 }),
+    })
+    mockDownload.mockResolvedValueOnce([Buffer.from('irrelevant, parseFile is mocked')])
+    mockParseFile.mockResolvedValueOnce([{ description: 'Free sample', quantity: 1 }])
+
+    await processManifestImport.run(taskRequest(validPayload))
+
+    const [lineItemArgs] = mockBatchSet.mock.calls
+    expect(lineItemArgs[1]).toEqual(expect.objectContaining({ unitCost: 0 }))
+    expect(mockImportUpdate).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ status: 'completed', successCount: 1, errorCount: 0 }),
+    )
+  })
+
   it('rejects a file over the size limit without calling parseFile', async () => {
     resetMocks()
     mockDownload.mockResolvedValueOnce([Buffer.alloc(MAX_FILE_SIZE_BYTES + 1)])
