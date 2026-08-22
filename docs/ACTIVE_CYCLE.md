@@ -1044,3 +1044,40 @@ fetched 10 page(s), 399 new, 0 updated, 0 closed`, and real lot docs
   partial-row-failure rate, not a reason to withhold "Done"). No UI
   surfaces `restock_lots` to a Buyer yet - unchanged from the ticket's
   original scope note, still a natural future ticket once one is wanted.
+
+- **2026-08-22 — `PALLETIQ-023`/`024` closed together.** Both were found
+  via `/code-review` on `PALLETIQ-022`'s diff and scoped as separate
+  tickets rather than reopening it (see `docs/BACKLOG.md`'s scope notes);
+  implemented together here since both are one-line-condition fixes to
+  the same two adjacent functions. Shipped exactly per each scope note, no
+  drift:
+  - **`PALLETIQ-023`:** `processManifestImport.ts`'s `flatUnitCost`
+    pre-pass condition changed from `totalPurchasePrice > 0 && totalQuantity
+
+> 0`to`totalPurchasePrice !== null && totalQuantity > 0`- an
+    explicit, correctly-entered`totalPurchasePrice: 0`(a free lot) now
+    computes a flat rate of`0` instead of being treated identically to no
+> price given at all.
+
+- **`PALLETIQ-024`:** `normalize.ts`'s `unitCost` resolution now checks
+  `directUnitCost !== null && directUnitCost < 0` first and returns the
+  same `'Missing or invalid unit cost'` error immediately when true,
+  before ever consulting `flatUnitCost` - a negative manifest-stated
+  cost (a vendor typo) is surfaced as a data error again, matching
+  `ADR-0010`'s own stated intent, rather than silently replaced by the
+  flat lot-price rate.
+- The pre-existing `normalize.test.ts` case
+  (`'treats a negative direct cost as absent, falling back to
+flatUnitCost'`) encoded the `PALLETIQ-024` bug as expected behavior -
+  rewritten to assert the corrected behavior instead of just adding a
+  new case alongside a wrong one. New test added to
+  `processManifestImport.test.ts` for the `totalPurchasePrice: 0`
+  free-lot path (`PALLETIQ-023`).
+- `npm run lint` initially flagged the `PALLETIQ-024` fix's
+  `directUnitCost !== null ? directUnitCost : flatUnitCost` as
+  preferring `??` (`@typescript-eslint/prefer-nullish-coalescing`) -
+  simplified to `directUnitCost ?? flatUnitCost` (equivalent once the
+  negative case returns early above it).
+- Verified via `functions/`'s full suite (114/114, up from 113) and root
+  `pre-pr-check` checklist (format/lint/typecheck/test). No
+  `firestore.rules`/UI change, as scoped - `test:rules` not applicable.
