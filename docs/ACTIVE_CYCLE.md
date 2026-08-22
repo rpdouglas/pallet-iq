@@ -941,3 +941,220 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
     spec (scheduled ingestion against a real endpoint), not a reason to build
     an undocumented-endpoint scraper. Document the response here (or open a
     proper ticket) once Ryan has an answer, whichever way it goes.
+
+- **2026-08-13 — Ticket ID collision on `PALLETIQ-020`/`021`/`ADR-0009`,
+  resolved by renumbering.** A concurrent session (mobile Claude Code) opened
+  and merged `PALLETIQ-020`/`021`/`ADR-0009` (the restock.ca scraper +
+  watchlist, PRs #42/#43) to `main` while this session's
+  `palletiq-020-lot-price-unit-cost-allocation` branch had independently
+  opened its own `PALLETIQ-020`/`021`/`022`/`ADR-0009` (lot purchase price
+  allocation + two follow-up bug tickets) locally, unaware of the other
+  session's work - both branched from the same pre-merge commit. Caught
+  while re-syncing this branch with `origin/main`. Per `docs/BACKLOG.md`'s
+  "sequential, never reused" rule, since the mobile session's PR merged
+  first, this branch's tickets/ADR were renumbered to the next free slots -
+  `PALLETIQ-020`/`021`/`022` → `PALLETIQ-022`/`023`/`024`, `ADR-0009` →
+  `ADR-0010` (file renamed, all in-repo references updated) - rather than
+  contesting the already-merged IDs. No functional drift, purely an ID
+  bookkeeping fix. Worth naming as a process gap: nothing currently checks
+  for this at Planning-gate time when two sessions run concurrently against
+  the same `docs/BACKLOG.md` snapshot; not opening a ticket for tooling
+  around it yet since this is the first time it's happened, but revisit if
+  it recurs.
+
+- **2026-08-13 — `PALLETIQ-022` closed.** Planned scope (per `docs/BACKLOG.md`'s
+  scope note and `ADR-0010`): fix `normalize.ts`'s header-alias gap (`Title`/
+  `Merchant SKU` unrecognized) and add a `totalPurchasePrice` fallback so a
+  manifest with no per-item cost column - a real Restock.ca file that
+  previously produced 0 successful rows / 13 errors - imports cleanly with a
+  flat per-unit-quantity `unitCost`. Shipped exactly per that scope note, no
+  drift: `FIELD_ALIASES` gained `title`→`description`/`merchant sku`→`sku`;
+  `ImportForm.tsx` collects an optional `totalPurchasePrice` at import time
+  only; `enqueueManifestImport` validates and threads it onto
+  `ImportDoc.totalPurchasePrice`; `processManifestImport.ts`'s pre-pass sums
+  quantity and computes the flat rate, used only when a row has no direct
+  cost; `unitCost` stays a required, always-populated field, no nullability
+  introduced. Test coverage uses the real Restock.ca header shape as inline
+  fixtures in `normalize.test.ts`/`processManifestImport.test.ts`, matching
+  the repo's existing inline-fixture convention. No `firestore.rules` change
+  needed, as scoped - `imports/{importId}`'s existing
+  `isOwnerOrBuyer`/`isTenantMember` rules already cover the new field.
+  Verified against Phase 1's QA criterion ("a real vendor manifest ... imports
+  cleanly end-to-end with correct landed cost per unit") via the
+  Restock.ca-shaped fixture covering exactly the previously-failing scenario,
+  plus `pre-pr-check`'s full checklist (`format`/`lint`/`typecheck`/`test` -
+  root 123/123, `functions/` 113/113 after an `npm install` for the merge's
+  new `cheerio` dep - and Check IV, audited clean by `design-system-auditor`).
+  `test:rules` not runnable in this session's sandbox (no Java for the
+  Firestore emulator); N/A regardless since this ticket's diff doesn't touch
+  `firestore.rules`. **Known gaps, intentionally not fixed here - confirmed
+  the shipped code still exhibits both exactly as scoped:** `PALLETIQ-023`
+  (a `totalPurchasePrice: 0` free lot is mishandled as "no price given") and
+  `PALLETIQ-024` (a negative manifest-stated unit cost is silently replaced by
+  the flat rate instead of surfacing as a data error) both remain open,
+  separate tickets - not folded into this one's scope.
+
+- **2026-08-22 — `PALLETIQ-020` closed (belatedly; a real gap, not just
+  bookkeeping).** PR #43 merged the `scrapeRestockLots` implementation on
+  2026-08-13, but `docs/BACKLOG.md` was never flipped from `Planned` to
+  `Done` and no close note was recorded here - caught while surveying the
+  backlog for what to work on next. Checking further found this wasn't
+  just a missed status flip: `firebase functions:list --project
+mrt-pallet-iq` showed `scrapeRestockLots` had never actually been
+  deployed. Cloud Functions don't auto-deploy on merge to `main`
+  (`PALLETIQ-014`'s deliberate design), and PR #43's own test plan had
+  left both live-verification checkboxes unchecked, blocked at the time by
+  this session's sandbox having no network egress to restock.ca. So the
+  real state was: code merged and CI-green, but the feature had never run
+  and `restock_lots` had zero documents - the same "PR merged, ticket not
+  actually done" pattern flagged before (`PALLETIQ-014`), just with a
+  bigger gap this time (never deployed, not just a missed doc update).
+  Per `close-ticket`'s own gate ("if the QA criteria aren't clean, stop and
+  report rather than closing anyway"), this was reported to the owner
+  rather than silently flipped to `Done`; the owner chose to deploy and
+  verify live now rather than leave it open.
+  **Shipped/verified this session:** `firebase deploy --only
+functions:scrapeRestockLots --project mrt-pallet-iq` (first deploy;
+  auto-enabled `cloudscheduler.googleapis.com`, confirmed
+  `firebase-schedule-scrapeRestockLots-us-central1` created, `every 1
+hours`, `ENABLED`). Rather than wait an hour for the first natural
+  firing, triggered it immediately via the Cloud Scheduler REST API's
+  `:run` endpoint (using the same firebase-tools-refresh-token-to-
+  access-token credential trick as prior sessions' live verifications - no
+  gcloud ADC configured in this sandbox). Confirmed via
+  `firebase functions:log` and a direct Firestore REST API read: the
+  function ran end-to-end against the real site, `scrapeRestockLots:
+fetched 10 page(s), 399 new, 0 updated, 0 closed`, and real lot docs
+  (e.g. `restock_lots/1011402`, a Staples Canada stacking-chairs lot) are
+  now live in the collection with the expected shape.
+  **Real bug found via this live run, not folded into this close:** 121 of
+  ~520 cards across 8 of the 10 pages logged `unparsedCount` warnings
+  (title didn't match `TITLE_PATTERN`) and were silently skipped - traced
+  to lots with a warehouse-prefixed lot number (e.g. `"...(Lot #
+105-917312)"`) that the regex's plain-`(\d+)` capture doesn't account
+  for, a format `__fixtures__/category-page.html`'s sample data never
+  happened to include. Real, ongoing data loss (~19% of listings seen),
+  not cosmetic - opened as `PALLETIQ-031` (P1) rather than reopening this
+  ticket, matching how `PALLETIQ-022`'s own review-found bugs became
+  `PALLETIQ-023`/`024` instead of expanding an already-scoped ticket.
+  **This ticket's own literal scope - a scheduled function that scrapes
+  restock.ca and keeps a global `restock_lots` collection in sync - is
+  genuinely delivered and now live-verified**, the `PALLETIQ-031` gap
+  notwithstanding (comparable to `PALLETIQ-008` shipping with a known
+  partial-row-failure rate, not a reason to withhold "Done"). No UI
+  surfaces `restock_lots` to a Buyer yet - unchanged from the ticket's
+  original scope note, still a natural future ticket once one is wanted.
+
+- **2026-08-22 — `PALLETIQ-023`/`024` closed together.** Both were found
+  via `/code-review` on `PALLETIQ-022`'s diff and scoped as separate
+  tickets rather than reopening it (see `docs/BACKLOG.md`'s scope notes);
+  implemented together here since both are one-line-condition fixes to
+  the same two adjacent functions. Shipped exactly per each scope note, no
+  drift:
+  - **`PALLETIQ-023`:** `processManifestImport.ts`'s `flatUnitCost`
+    pre-pass condition changed from `totalPurchasePrice > 0 && totalQuantity
+
+> 0`to`totalPurchasePrice !== null && totalQuantity > 0`- an
+    explicit, correctly-entered`totalPurchasePrice: 0`(a free lot) now
+    computes a flat rate of`0` instead of being treated identically to no
+> price given at all.
+
+- **`PALLETIQ-024`:** `normalize.ts`'s `unitCost` resolution now checks
+  `directUnitCost !== null && directUnitCost < 0` first and returns the
+  same `'Missing or invalid unit cost'` error immediately when true,
+  before ever consulting `flatUnitCost` - a negative manifest-stated
+  cost (a vendor typo) is surfaced as a data error again, matching
+  `ADR-0010`'s own stated intent, rather than silently replaced by the
+  flat lot-price rate.
+- The pre-existing `normalize.test.ts` case
+  (`'treats a negative direct cost as absent, falling back to
+flatUnitCost'`) encoded the `PALLETIQ-024` bug as expected behavior -
+  rewritten to assert the corrected behavior instead of just adding a
+  new case alongside a wrong one. New test added to
+  `processManifestImport.test.ts` for the `totalPurchasePrice: 0`
+  free-lot path (`PALLETIQ-023`).
+- `npm run lint` initially flagged the `PALLETIQ-024` fix's
+  `directUnitCost !== null ? directUnitCost : flatUnitCost` as
+  preferring `??` (`@typescript-eslint/prefer-nullish-coalescing`) -
+  simplified to `directUnitCost ?? flatUnitCost` (equivalent once the
+  negative case returns early above it).
+- Verified via `functions/`'s full suite (114/114, up from 113) and root
+  `pre-pr-check` checklist (format/lint/typecheck/test). No
+  `firestore.rules`/UI change, as scoped - `test:rules` not applicable.
+
+- **2026-08-22 — `PALLETIQ-021` closed.** Shipped exactly per the
+  `docs/BACKLOG.md` scope note and `ADR-0009`: a `WatchlistLot` type
+  (`title`/`source`/`category`/`units`/`currentBid`/`closesAt`/
+  `productUrl`/`notes`, plus a Cloud-Functions-independent
+  `addedAt` server timestamp kept out of the public type, same precedent
+  `Vendor`'s `createdAt`/`updatedAt` already set), a new tenant-scoped
+  `tenants/{tenantId}/watchlist_lots` collection with `firestore.rules`
+  (`read: isTenantMember`, `write: isOwnerOrBuyer` - reusing `ADR-0006`'s
+  helper) folded into the existing `describe.each(['imports',
+'manifests'])` parameterized rules-test block rather than a new
+  standalone block, since it shares the exact same RBAC shape. A
+  `WatchlistLotForm` (quick-add, mirrors `VendorForm`'s structure) and
+  `WatchlistPage` (mirrors `VendorsPage`'s table/empty-state/RBAC-omission
+  structure) wired into a new `/watchlist` route inside the existing
+  `AppShell` nav (`Gavel` icon). `src/lib/watchlist/README.md` documents,
+  quoting both platforms' actual Terms of Use/Service clauses, why this
+  is manual-entry only - satisfying `ADR-0009`'s Track B
+  Definition-of-Done requirement.
+  **Naming call made at implementation time, not drift:** the scope
+  note's field list said "price/currentBid" (one field, ambiguous
+  naming) - resolved to `currentBid` alone, matching how both B-Stock and
+  Direct Liquidation are described throughout `ADR-0009` as live auction
+  mechanisms rather than fixed-price listings.
+  **No edit action, by design, not an oversight:** the scope note asked
+  for a "minimal quick-add form," not full CRUD - `WatchlistLotForm` has
+  no edit mode (unlike `VendorForm`'s add/edit modes), just add and
+  delete. Revisit if editing a tracked lot's current bid turns out to be
+  a real recurring need.
+  **First optional-numeric and first date/time form fields in the app** -
+  `lib/watchlist/schemas.ts` needed a `z.preprocess` step converting an
+  empty string to `undefined` before `z.coerce.number()`/`z.coerce.date()`
+  runs, since `z.coerce.number()` on `''` coerces to `0` rather than
+  failing (`Number('') === 0`) - a genuinely-optional field would
+  otherwise silently become `0`/an invalid date instead of staying unset.
+  Same class of `z.coerce` gotcha `PALLETIQ-009`'s `LandedCostForm` hit
+  for a required field, one step further for optional ones.
+  **Governance checks run before close, not just claimed:** dispatched
+  both `firestore-rules-auditor` (Check I - confirmed all 26 collections
+  now have rules+test coverage, `watchlist_lots`'s `isOwnerOrBuyer` choice
+  consistent with `imports`/`manifests`) and `design-system-auditor`
+  (Check IV - zero violations; RBAC write-affordances correctly omitted
+  from the DOM per role, not CSS-hidden, verified both by the auditor's
+  static read and by `WatchlistPage.test.tsx`'s `queryByRole(...).not
+.toBeInTheDocument()` assertions). `design-system-auditor` flagged three
+  genuinely new UI patterns with no `docs/design/` precedent yet - logged
+  here rather than silently absorbed, none are violations: (1) the first
+  `type="datetime-local"` input in the app: (2) the first client-side
+  date-based table sort (closes-soonest-first, no visual urgency
+  indicator as a close time nears - a product/UX call, not a defect);
+  (3) an `ExternalLink` icon next to a linked table-cell title (first
+  instance of that affordance). Worth folding into `components.md`'s Form
+  inputs/Data tables sections if any of the three recur.
+  **Verified live against `mrt-pallet-iq`, not just the emulator/unit
+  suite:** `npm run test:rules` run for real (downloaded a Temurin 21
+  JDK into this session, same as prior close-outs needing the emulator -
+  102/102 passing, up from 96, including the new `watchlist_lots` cases).
+  Root `pre-pr-check` checklist (format/lint/typecheck, 135/135 unit
+  tests) all green. Then a real Playwright run against the live
+  `mrt-pallet-iq` project and local dev server: signed in as a fresh
+  test Owner, added two lots, confirmed closes-soonest sort ordering
+  render-order matched the fixture data, swapped the same test user's
+  custom claims to `warehouse` and forced a real sign-out+sign-in (per
+  the documented gotcha - a reload alone doesn't pick up new claims),
+  confirmed zero Add/Remove controls rendered for that role, zero
+  console/page errors throughout. **Real bug caught and fixed by this
+  live pass, not by the emulator or unit tests:** the first live write
+  attempt failed with "Missing or insufficient permissions" - the
+  updated `firestore.rules` had never actually been deployed to
+  `mrt-pallet-iq` (only verified against the local emulator). Ran
+  `firebase deploy --only firestore:rules --project mrt-pallet-iq`,
+  confirmed the exact same write then succeeded. A reminder that
+  emulator-green isn't the same claim as live-deployed, the same
+  distinction `PALLETIQ-020`'s close this cycle already surfaced for
+  Cloud Functions. Test tenant, its `watchlist_lots` docs, and the Auth
+  user were all deleted afterward via the same firebase-tools
+  refresh-token-to-access-token trick used throughout this cycle.
