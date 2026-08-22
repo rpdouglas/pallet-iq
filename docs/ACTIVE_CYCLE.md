@@ -941,3 +941,55 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
     spec (scheduled ingestion against a real endpoint), not a reason to build
     an undocumented-endpoint scraper. Document the response here (or open a
     proper ticket) once Ryan has an answer, whichever way it goes.
+
+- **2026-08-13 — Ticket ID collision on `PALLETIQ-020`/`021`/`ADR-0009`,
+  resolved by renumbering.** A concurrent session (mobile Claude Code) opened
+  and merged `PALLETIQ-020`/`021`/`ADR-0009` (the restock.ca scraper +
+  watchlist, PRs #42/#43) to `main` while this session's
+  `palletiq-020-lot-price-unit-cost-allocation` branch had independently
+  opened its own `PALLETIQ-020`/`021`/`022`/`ADR-0009` (lot purchase price
+  allocation + two follow-up bug tickets) locally, unaware of the other
+  session's work - both branched from the same pre-merge commit. Caught
+  while re-syncing this branch with `origin/main`. Per `docs/BACKLOG.md`'s
+  "sequential, never reused" rule, since the mobile session's PR merged
+  first, this branch's tickets/ADR were renumbered to the next free slots -
+  `PALLETIQ-020`/`021`/`022` → `PALLETIQ-022`/`023`/`024`, `ADR-0009` →
+  `ADR-0010` (file renamed, all in-repo references updated) - rather than
+  contesting the already-merged IDs. No functional drift, purely an ID
+  bookkeeping fix. Worth naming as a process gap: nothing currently checks
+  for this at Planning-gate time when two sessions run concurrently against
+  the same `docs/BACKLOG.md` snapshot; not opening a ticket for tooling
+  around it yet since this is the first time it's happened, but revisit if
+  it recurs.
+
+- **2026-08-13 — `PALLETIQ-022` closed.** Planned scope (per `docs/BACKLOG.md`'s
+  scope note and `ADR-0010`): fix `normalize.ts`'s header-alias gap (`Title`/
+  `Merchant SKU` unrecognized) and add a `totalPurchasePrice` fallback so a
+  manifest with no per-item cost column - a real Restock.ca file that
+  previously produced 0 successful rows / 13 errors - imports cleanly with a
+  flat per-unit-quantity `unitCost`. Shipped exactly per that scope note, no
+  drift: `FIELD_ALIASES` gained `title`→`description`/`merchant sku`→`sku`;
+  `ImportForm.tsx` collects an optional `totalPurchasePrice` at import time
+  only; `enqueueManifestImport` validates and threads it onto
+  `ImportDoc.totalPurchasePrice`; `processManifestImport.ts`'s pre-pass sums
+  quantity and computes the flat rate, used only when a row has no direct
+  cost; `unitCost` stays a required, always-populated field, no nullability
+  introduced. Test coverage uses the real Restock.ca header shape as inline
+  fixtures in `normalize.test.ts`/`processManifestImport.test.ts`, matching
+  the repo's existing inline-fixture convention. No `firestore.rules` change
+  needed, as scoped - `imports/{importId}`'s existing
+  `isOwnerOrBuyer`/`isTenantMember` rules already cover the new field.
+  Verified against Phase 1's QA criterion ("a real vendor manifest ... imports
+  cleanly end-to-end with correct landed cost per unit") via the
+  Restock.ca-shaped fixture covering exactly the previously-failing scenario,
+  plus `pre-pr-check`'s full checklist (`format`/`lint`/`typecheck`/`test` -
+  root 123/123, `functions/` 113/113 after an `npm install` for the merge's
+  new `cheerio` dep - and Check IV, audited clean by `design-system-auditor`).
+  `test:rules` not runnable in this session's sandbox (no Java for the
+  Firestore emulator); N/A regardless since this ticket's diff doesn't touch
+  `firestore.rules`. **Known gaps, intentionally not fixed here - confirmed
+  the shipped code still exhibits both exactly as scoped:** `PALLETIQ-023`
+  (a `totalPurchasePrice: 0` free lot is mishandled as "no price given") and
+  `PALLETIQ-024` (a negative manifest-stated unit cost is silently replaced by
+  the flat rate instead of surfacing as a data error) both remain open,
+  separate tickets - not folded into this one's scope.
