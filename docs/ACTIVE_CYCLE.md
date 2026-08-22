@@ -993,3 +993,54 @@ palletiq-logo-lockup-source.png`), from which the icon was chroma-keyed
   `PALLETIQ-024` (a negative manifest-stated unit cost is silently replaced by
   the flat rate instead of surfacing as a data error) both remain open,
   separate tickets - not folded into this one's scope.
+
+- **2026-08-22 — `PALLETIQ-020` closed (belatedly; a real gap, not just
+  bookkeeping).** PR #43 merged the `scrapeRestockLots` implementation on
+  2026-08-13, but `docs/BACKLOG.md` was never flipped from `Planned` to
+  `Done` and no close note was recorded here - caught while surveying the
+  backlog for what to work on next. Checking further found this wasn't
+  just a missed status flip: `firebase functions:list --project
+mrt-pallet-iq` showed `scrapeRestockLots` had never actually been
+  deployed. Cloud Functions don't auto-deploy on merge to `main`
+  (`PALLETIQ-014`'s deliberate design), and PR #43's own test plan had
+  left both live-verification checkboxes unchecked, blocked at the time by
+  this session's sandbox having no network egress to restock.ca. So the
+  real state was: code merged and CI-green, but the feature had never run
+  and `restock_lots` had zero documents - the same "PR merged, ticket not
+  actually done" pattern flagged before (`PALLETIQ-014`), just with a
+  bigger gap this time (never deployed, not just a missed doc update).
+  Per `close-ticket`'s own gate ("if the QA criteria aren't clean, stop and
+  report rather than closing anyway"), this was reported to the owner
+  rather than silently flipped to `Done`; the owner chose to deploy and
+  verify live now rather than leave it open.
+  **Shipped/verified this session:** `firebase deploy --only
+functions:scrapeRestockLots --project mrt-pallet-iq` (first deploy;
+  auto-enabled `cloudscheduler.googleapis.com`, confirmed
+  `firebase-schedule-scrapeRestockLots-us-central1` created, `every 1
+hours`, `ENABLED`). Rather than wait an hour for the first natural
+  firing, triggered it immediately via the Cloud Scheduler REST API's
+  `:run` endpoint (using the same firebase-tools-refresh-token-to-
+  access-token credential trick as prior sessions' live verifications - no
+  gcloud ADC configured in this sandbox). Confirmed via
+  `firebase functions:log` and a direct Firestore REST API read: the
+  function ran end-to-end against the real site, `scrapeRestockLots:
+fetched 10 page(s), 399 new, 0 updated, 0 closed`, and real lot docs
+  (e.g. `restock_lots/1011402`, a Staples Canada stacking-chairs lot) are
+  now live in the collection with the expected shape.
+  **Real bug found via this live run, not folded into this close:** 121 of
+  ~520 cards across 8 of the 10 pages logged `unparsedCount` warnings
+  (title didn't match `TITLE_PATTERN`) and were silently skipped - traced
+  to lots with a warehouse-prefixed lot number (e.g. `"...(Lot #
+105-917312)"`) that the regex's plain-`(\d+)` capture doesn't account
+  for, a format `__fixtures__/category-page.html`'s sample data never
+  happened to include. Real, ongoing data loss (~19% of listings seen),
+  not cosmetic - opened as `PALLETIQ-031` (P1) rather than reopening this
+  ticket, matching how `PALLETIQ-022`'s own review-found bugs became
+  `PALLETIQ-023`/`024` instead of expanding an already-scoped ticket.
+  **This ticket's own literal scope - a scheduled function that scrapes
+  restock.ca and keeps a global `restock_lots` collection in sync - is
+  genuinely delivered and now live-verified**, the `PALLETIQ-031` gap
+  notwithstanding (comparable to `PALLETIQ-008` shipping with a known
+  partial-row-failure rate, not a reason to withhold "Done"). No UI
+  surfaces `restock_lots` to a Buyer yet - unchanged from the ticket's
+  original scope note, still a natural future ticket once one is wanted.
