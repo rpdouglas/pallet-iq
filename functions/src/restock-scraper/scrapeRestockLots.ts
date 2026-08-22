@@ -78,8 +78,16 @@ async function fetchManifestUrl(productUrl: string): Promise<string | null> {
 // manifest-link page per lot sequentially - same "intentional, documented
 // resource-sandbox boundary" reasoning PALLETIQ-012/ADR-0008 used pinning
 // processManifestImport's memory/timeoutSeconds.
+//
+// PALLETIQ-032: 256MiB was enough for a first run against an empty
+// collection, but OOM'd (265-266 MiB used) on the second real run, once
+// `collection.get()` has a full existing snapshot to hold in memory
+// alongside a freshly-scraped `lots` array - live-verified crash-looping
+// in production. Bumped to 512MiB, matching processManifestImport's own
+// resource-sandbox precedent, with headroom rather than the exact
+// observed peak.
 export const scrapeRestockLots = onSchedule(
-  { schedule: 'every 1 hours', timeoutSeconds: 540, memory: '256MiB' },
+  { schedule: 'every 1 hours', timeoutSeconds: 540, memory: '512MiB' },
   async () => {
     const db = getFirestore()
     const collection = db.collection('restock_lots')

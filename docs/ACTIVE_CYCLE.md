@@ -1158,3 +1158,47 @@ flatUnitCost'`) encoded the `PALLETIQ-024` bug as expected behavior -
   Cloud Functions. Test tenant, its `watchlist_lots` docs, and the Auth
   user were all deleted afterward via the same firebase-tools
   refresh-token-to-access-token trick used throughout this cycle.
+
+- **2026-08-22 — `PALLETIQ-031` and `PALLETIQ-032` closed together.**
+  `031` fixed `parseLotListPage.ts`'s `TITLE_PATTERN` to accept a
+  warehouse-prefixed lot number (`(\d+(?:-\d+)?)` in place of `(\d+)`),
+  per the gap found closing `PALLETIQ-020`. New fixture-based test case
+  using the real captured title (`"...(Lot # 105-917312)"`) added to
+  `parseLotListPage.test.ts` - 8/8 tests passing (up from 7).
+  **Live-verified twice, and the second pass found a second real bug:**
+  first, fetched a fresh copy of restock.ca's page 2 directly and ran it
+  through the actual compiled (fixed) parser - confirmed 0 unparsed
+  cards, down from 15. Then redeployed `scrapeRestockLots` to
+  `mrt-pallet-iq` and triggered a real run via the Cloud Scheduler API
+  (same technique as `PALLETIQ-020`'s close) to confirm the fix holds
+  end-to-end, not just in isolation. That run crashed -
+  `firebase functions:log`'s CLI output was showing stale cached lines,
+  so the crash was only caught by querying the Cloud Logging REST API
+  directly: `Memory limit of 256 MiB exceeded with 265-266 MiB used`,
+  on both the initial attempt and an auto-retry. Root cause: 256MiB was
+  only ever exercised against an empty `restock_lots` collection (the
+  very first run); every run since has to hold a full existing-docs
+  snapshot in memory alongside the freshly-scraped `lots` array, and
+  `031`'s own fix makes that array larger by correctly recovering the
+  ~121 previously-dropped cards - pushing memory just over the edge.
+  Net effect before this fix: the scraper was crash-looping every hour
+  in production with zero progress past its initial 399 lots. Reported
+  to the owner per the close-ticket gate's "stop and report rather than
+  closing anyway" standard rather than silently shipping `031` alone;
+  the owner chose to fix `032` in the same pass given the severity
+  (an hourly production crash loop). Fixed by bumping
+  `scrapeRestockLots`'s memory from `256MiB` to `512MiB`, matching
+  `processManifestImport`'s existing resource-sandbox precedent
+  (`ADR-0008`) rather than tuning to the exact observed peak.
+  **Re-verified live after the memory fix, not just assumed fixed:**
+  redeployed again, triggered another real run, polled Cloud Logging
+  directly until a terminal log line appeared (the CLI's caching issue
+  made this the only reliable check). Result: `fetched 10 page(s), 113
+new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
+  cards logged as unparsed across all 10 pages (down from 121 before
+  `031`'s fix) - a ~93% reduction, consistent with `031`'s own scope
+  note anticipating "near zero, not necessarily exactly zero" since
+  other, smaller-scale title-format variants may still exist. Neither
+  ticket's fix required a `firestore.rules`/schema/UI change; both
+  verified via `functions/`'s full suite (115/115, up from 113) and
+  root `pre-pr-check` checklist (format/lint/typecheck/135 tests).

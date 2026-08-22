@@ -88,4 +88,28 @@ describe('parseLotListPage', () => {
     expect(unparsedCount).toBe(0)
     expect(lots[0]).toMatchObject({ units: 1, condition: 'Brand New', lotNumber: '5555' })
   })
+
+  // PALLETIQ-031. A real title captured live from restock.ca/all/?page=2
+  // (not in the original fixture) - some lots use a warehouse-prefixed lot
+  // number instead of a plain one, and the old pattern silently dropped
+  // every one of them.
+  it('handles a warehouse-prefixed lot number (e.g. "105-917312")', () => {
+    const html = `
+      <ul class="productGrid">
+        <li class="product">
+          <article class="card">
+            <h4 class="card-title"><a href="https://www.restock.ca/105-917312/">1400 units of Pharmacy &amp; Wellness - MSRP $25,190 - Like New (Lot # 105-917312)</a></h4>
+          </article>
+        </li>
+      </ul>
+    `
+    const { lots, unparsedCount } = parseLotListPage(html)
+    expect(unparsedCount).toBe(0)
+    expect(lots[0]).toMatchObject({
+      units: 1400,
+      category: 'Pharmacy & Wellness',
+      condition: 'Like New',
+      lotNumber: '105-917312',
+    })
+  })
 })
