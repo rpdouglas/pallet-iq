@@ -28,8 +28,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Planned     | P1       |
-| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Done        | P1       |
 | PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer         | 2     | Planned     | P1       |
 | PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer         | 2     | Planned     | P1       |
 | PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Planned     | P2       |
