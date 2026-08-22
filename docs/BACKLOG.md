@@ -25,7 +25,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin   | 0     | Done        | P2       |
 | PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin   | 0     | Done        | P1       |
 | PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin   | 1     | Done        | P2       |
-| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer         | 1     | Done        | P1       |
 | PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Planned     | P1       |
@@ -36,6 +36,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
+| PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1620,3 +1621,45 @@ this recurs (the plan's section 8 lists several more features that would
 reuse the same "editable AI draft" pattern).
 
 _ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
+
+_Scope note on `PALLETIQ-031` (2026-08-22) — Planning gate only, not started:_
+
+_Found via live verification while closing `PALLETIQ-020`:_ `scrapeRestockLots`
+was deployed to `mrt-pallet-iq` and run for real for the first time (see
+`PALLETIQ-020`'s close note in `docs/ACTIVE_CYCLE.md`). It succeeded — 399
+new `restock_lots` docs created from 10 real category pages — but logged
+`unparsedCount` warnings on 8 of those 10 pages (121 cards skipped, ~19% of
+the ~520 total cards seen). Fetching one of those pages directly and
+testing its titles against `parseLotListPage.ts`'s `TITLE_PATTERN` found
+the exact cause: some lots use a warehouse-prefixed lot number
+(e.g. `"1400 units of Pharmacy & Wellness - MSRP $25,190 - Like New (Lot #
+105-917312)"`) instead of the plain-numeric format the regex's lot-number
+capture group (`(\d+)`) assumes (e.g. `"...(Lot # 1011402)"`, which
+`__fixtures__/category-page.html`'s sample data happened to only contain).
+Every prefixed-lot-number card is silently dropped rather than stored —
+real, ongoing data loss, not a cosmetic gap.
+
+_In scope:_ `TITLE_PATTERN`'s lot-number capture group loosens from `(\d+)`
+to accept an optional warehouse-prefix segment (e.g. `(\d+(?:-\d+)?)`),
+verified against both the existing fixture's plain-numeric lot numbers and
+a new fixture case covering the prefixed format. `RestockLotDoc.lotNumber`
+already stores this as a plain string (confirmed via the live
+`restock_lots/1011402` doc), and a hyphenated value is a valid Firestore
+document ID, so no schema or storage-layer change is needed beyond the
+regex itself.
+
+_Out of scope:_ investigating what the `105-` prefix specifically denotes
+(a warehouse/region code, most likely, but not load-bearing for the fix —
+the regex just needs to accept the shape, not interpret it); any other
+`unparsedCount` cause not already covered by this exact pattern — re-run
+against a fresh page sample after the fix ships to confirm `unparsedCount`
+drops to (near) zero rather than assuming this is the only format variant.
+
+_Firestore/RBAC impact:_ none — no schema or rules change, fixes existing
+parsing logic only.
+
+_UI pattern notes:_ none — no UI change, this ticket ships no UI.
+
+_ADR:_ not needed — bug fix within `ADR-0009`'s existing design, same
+reasoning `PALLETIQ-023`/`024` used for bugs found via review of
+`PALLETIQ-022`.
