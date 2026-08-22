@@ -48,6 +48,29 @@ Standard Tailwind scale — don't invent custom breakpoints:
   quantity-delta indicators — reuse the existing green/red-with-arrow delta
   convention from the base doc, sized up for at-a-glance mobile reading.
 
+## Exception: Buyer's Treasure Hunter capture flow (mobile-first)
+
+Added per `ADR-0011`, `PALLETIQ-025`. The pre-purchase field-scan capture
+flow (photo/barcode capture, and the resulting scan-result/confidence
+view) is a narrow, explicitly-scoped exception to "Buyer is desktop-first"
+above — a phone-in-hand scan standing in a warehouse aisle can't be a
+shrunk-down desktop layout. This exception applies **only** to the capture
+and scan-result screens; every other Buyer surface (dashboard, vendors,
+manifests, inventory, watchlist) stays desktop-first, unchanged.
+
+- Reuses the Mobile-first (Warehouse) patterns above verbatim — bottom tab
+  bar for primary nav on these screens, ≥44×44px touch targets, single-
+  column layout, a persistent always-visible capture/scan entry point
+  (floating action button or a tab-bar slot) — rather than inventing a
+  second mobile pattern.
+- The scan-result view (confidence panel, factor breakdown, top-3
+  candidates when identification is uncertain) uses the same density and
+  touch-target rules as Warehouse's reconciliation screens, not the
+  desktop card padding used elsewhere in Buyer's surfaces.
+- Below `lg`, a Buyer session on these two screens sees the bottom tab bar
+  instead of the sidebar; navigating to any other Buyer page returns to
+  the standard desktop-first sidebar/top-app-bar behavior.
+
 ## Density
 
 Desktop surfaces can use the base doc's card padding/spacing as specified. Mobile

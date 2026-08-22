@@ -101,8 +101,14 @@ export function normalizeRow(
     return { error: 'Missing or invalid quantity' }
   }
 
+  // A manifest-stated cost that parses but is negative (e.g. a vendor typo)
+  // is a data error to surface, not a missing value to fall back from -
+  // only an absent/unparseable cost column reaches for flatUnitCost.
   const directUnitCost = coerceNumber(findField(rawRow, FIELD_ALIASES.unitCost))
-  const unitCost = directUnitCost !== null && directUnitCost >= 0 ? directUnitCost : flatUnitCost
+  if (directUnitCost !== null && directUnitCost < 0) {
+    return { error: 'Missing or invalid unit cost' }
+  }
+  const unitCost = directUnitCost ?? flatUnitCost
   if (unitCost === null || unitCost < 0) {
     return { error: 'Missing or invalid unit cost' }
   }
