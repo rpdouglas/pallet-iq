@@ -4,38 +4,38 @@ Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused. Status
 follows the 3-phase gate model in [`docs/GOVERNANCE.md`](./GOVERNANCE.md):
 Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
-| ID           | Title                                                                               | Persona     | Phase | Status      | Priority |
-| ------------ | ----------------------------------------------------------------------------------- | ----------- | ----- | ----------- | -------- |
-| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin | 0     | In Progress | P2       |
-| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer       | 0     | Done        | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin | 1     | Done        | P0       |
-| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse   | 1     | Done        | P1       |
-| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin | 0     | Done        | P2       |
-| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin | 1     | Done        | P2       |
-| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer       | 4     | Planned     | P1       |
-| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer       | 4     | Planned     | P2       |
-| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer       | 2     | Planned     | P1       |
-| PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer       | 2     | Planned     | P1       |
-| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer       | 2     | Planned     | P2       |
-| PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer       | 4     | Planned     | P2       |
-| PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer       | 4     | Planned     | P2       |
-| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4   | Planned     | P2       |
+| ID           | Title                                                                               | Persona       | Phase | Status      | Priority |
+| ------------ | ----------------------------------------------------------------------------------- | ------------- | ----- | ----------- | -------- |
+| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin   | 0     | In Progress | P2       |
+| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer         | 0     | Done        | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin   | 1     | Done        | P0       |
+| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse     | 1     | Done        | P1       |
+| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin   | 0     | Done        | P2       |
+| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin   | 1     | Done        | P2       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Planned     | P2       |
+| PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -1503,7 +1503,7 @@ and timeline are unconfirmed as of the plan's writing (eBay closed
 logged-out sold-listing access in July 2026, a tightening signal, not a
 loosening one). If neither clears, this ticket ships the outcome-logging
 half alone and the discount-ratio calibration described below still
-works — sold-comps access improves the *input*, it isn't a dependency for
+works — sold-comps access improves the _input_, it isn't a dependency for
 the flywheel itself.
 
 _In scope:_ self-reported outcome fields added to `item_scans` (listed
@@ -1591,11 +1591,12 @@ work.
 _In scope:_ a Gemini text-generation call (extends the existing `ai_tasks`
 pipeline with a new task type, reuses `PALLETIQ-025`'s `GEMINI_API_KEY`)
 that takes a completed `item_scans` doc and produces a draft listing title
-+ description, surfaced to Store Manager on the inventory item it's
-associated with (first read access to `item_scans` for a persona other
-than Buyer — see RBAC below). Editable before use, not auto-published
-anywhere (no marketplace integrations exist yet, Phase 4's own later
-bullet).
+
+- description, surfaced to Store Manager on the inventory item it's
+  associated with (first read access to `item_scans` for a persona other
+  than Buyer — see RBAC below). Editable before use, not auto-published
+  anywhere (no marketplace integrations exist yet, Phase 4's own later
+  bullet).
 
 _Out of scope, deferred:_ keywords/SEO tags, defect descriptions, bundle
 suggestions, cross-listing recommendations, the ROI calculator, and aging-

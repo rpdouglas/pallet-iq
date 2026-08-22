@@ -4,7 +4,7 @@
 
 A photo-in, price-out appraisal feature: snap an item, let Gemini identify it, run it through a cost-aware pricing waterfall, and surface an MSRP / sale price / liquidation price / saleability score — with the reasoning shown, not just the number.
 
-*Status: exploratory · Owner: Ryan · Scope: pricing pipeline + data sourcing + product architecture*
+_Status: exploratory · Owner: Ryan · Scope: pricing pipeline + data sourcing + product architecture_
 
 > **Merged into PalletIQ's backlog (2026-08-22):** this plan's architecture is
 > adopted in [`ADR-0011`](../adr/0011-treasure-hunter-identification-and-pricing-architecture.md)
@@ -63,21 +63,21 @@ Every platform below was checked for whether it has a real, self-serve way to pu
 
 **Status key:** 🟢 usable now, official or clean · 🟡 usable, but gated, paid, or needs verifying · 🔴 no public path — avoid direct integration
 
-| Source | Covers | What it actually gets you | Status |
-|---|---|---|---|
-| **Google Search grounding** *(via Gemini — promoted in v2)* | Retail, manufacturer, and general web pricing signal | Not a comps engine, but a live, parallel pricing input: Gemini can surface a current Walmart, Best Buy, Target, or manufacturer listing, or a discontinued/variant notice, directly into the identification response. Free to run alongside the identification call. Best for MSRP and retail cross-checks; treat anything it surfaces about a specific sold price as a low-confidence lead, not a comp, especially now that eBay's own sold pages are gated (below). | 🟢 usable |
-| **eBay Browse API** *(official)* | Everything on eBay | Free, OAuth, open to any registered app — but **active listings only**. Good for "what's it asking right now," and, combined with a calibrated discount ratio, the basis for a workable sold-price estimate (see the waterfall below). | 🟢 open |
-| **eBay Marketplace Insights API** *(official)* | Everything on eBay | The API actually built for this — ~90 days of sold-item data. Free, but multiple developers on eBay's own community forums describe it as limited-release and hard to get approved for as a new application. **As of July 2026, eBay also closed logged-out public access to sold/completed listing pages entirely** — a sign the door is tightening, not opening. Needs a direct check with eBay before this gets designed around. | 🟡 gated |
-| **Terapeak** *(official, in-dashboard)* | Everything on eBay | Free with an eBay Store subscription, 3 years of aggregated trend data — but it's a human dashboard inside Seller Hub, not an API. Fine for spot-checking a formula by hand, useless for automating the feature. | 🟡 manual only |
-| **Third-party sold-comp vendors** (e.g. hosted comp APIs) | Everything on eBay | Paid ($9–79/mo tiers seen in the market), built by scraping eBay themselves and reselling access. Pragmatic shortcut, but it makes your pricing pipeline dependent on someone else's scraper staying alive — and the July 2026 login wall is exactly the kind of change that breaks a scraper overnight. | 🟡 paid, fragile upstream |
-| **DIY scraping** | Everything on eBay | Technically possible, but almost certainly a Terms of Service violation at commercial scale, plus ongoing maintenance as markup and access rules change. Not a foundation to build a product on. | 🔴 avoid |
-| **Amazon via Keepa** (third-party, well-established) | Anything with an ASIN | Token-metered API: price history, sales rank, and buy-box price per ASIN. Reliable and widely used by resellers already — strong for barcoded retail goods, which is a large share of pallet contents. | 🟢 usable |
-| **PriceCharting API** *(official)* | Games, trading cards, comics, Funko, LEGO, coins | Paid subscription plus per-call token, but clean official data with condition-graded pricing (loose/complete/new/graded). Narrow category, but very good within it. | 🟢 usable |
-| **Discogs API** *(official)* | Vinyl, CDs, music media | Free tier, marketplace stats (low/median/high) per release. Narrow but clean and official. | 🟢 usable |
-| **Google Books API** *(official)* | ISBN-barcoded books | Free, official, gives title/edition/list-price metadata by ISBN. Combine with Keepa (most books also have an ASIN) for an actual price signal — Google Books alone is closer to a catalog than a pricing source. | 🟢 usable |
-| **WorthPoint** | Antiques, art, collectibles | Strong price-guide data and a history of doing data partnerships with auction platforms — but no clear self-serve public API surfaced in this research. Worth a direct partnership conversation rather than assuming self-serve access. | 🟡 inquire directly |
-| **StockX** | Sneakers, streetwear, watches | A developer portal exists but no public documentation of open self-serve access was found — most integrations seen in the wild are unofficial. Treat as unverified until confirmed directly with StockX. | 🟡 unverified |
-| **Poshmark, Mercari, Depop, Whatnot, Facebook Marketplace** | Fashion, general secondhand | No official public APIs for any of these. What exists is unofficial scrapers with real ToS exposure. If these categories matter to Pallet IQ's users, the right move is a paid, compliant data vendor rather than a DIY integration. | 🔴 no public path |
+| Source                                                      | Covers                                               | What it actually gets you                                                                                                                                                                                                                                                                                                                                                                                                                                             | Status                    |
+| ----------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| **Google Search grounding** _(via Gemini — promoted in v2)_ | Retail, manufacturer, and general web pricing signal | Not a comps engine, but a live, parallel pricing input: Gemini can surface a current Walmart, Best Buy, Target, or manufacturer listing, or a discontinued/variant notice, directly into the identification response. Free to run alongside the identification call. Best for MSRP and retail cross-checks; treat anything it surfaces about a specific sold price as a low-confidence lead, not a comp, especially now that eBay's own sold pages are gated (below). | 🟢 usable                 |
+| **eBay Browse API** _(official)_                            | Everything on eBay                                   | Free, OAuth, open to any registered app — but **active listings only**. Good for "what's it asking right now," and, combined with a calibrated discount ratio, the basis for a workable sold-price estimate (see the waterfall below).                                                                                                                                                                                                                                | 🟢 open                   |
+| **eBay Marketplace Insights API** _(official)_              | Everything on eBay                                   | The API actually built for this — ~90 days of sold-item data. Free, but multiple developers on eBay's own community forums describe it as limited-release and hard to get approved for as a new application. **As of July 2026, eBay also closed logged-out public access to sold/completed listing pages entirely** — a sign the door is tightening, not opening. Needs a direct check with eBay before this gets designed around.                                   | 🟡 gated                  |
+| **Terapeak** _(official, in-dashboard)_                     | Everything on eBay                                   | Free with an eBay Store subscription, 3 years of aggregated trend data — but it's a human dashboard inside Seller Hub, not an API. Fine for spot-checking a formula by hand, useless for automating the feature.                                                                                                                                                                                                                                                      | 🟡 manual only            |
+| **Third-party sold-comp vendors** (e.g. hosted comp APIs)   | Everything on eBay                                   | Paid ($9–79/mo tiers seen in the market), built by scraping eBay themselves and reselling access. Pragmatic shortcut, but it makes your pricing pipeline dependent on someone else's scraper staying alive — and the July 2026 login wall is exactly the kind of change that breaks a scraper overnight.                                                                                                                                                              | 🟡 paid, fragile upstream |
+| **DIY scraping**                                            | Everything on eBay                                   | Technically possible, but almost certainly a Terms of Service violation at commercial scale, plus ongoing maintenance as markup and access rules change. Not a foundation to build a product on.                                                                                                                                                                                                                                                                      | 🔴 avoid                  |
+| **Amazon via Keepa** (third-party, well-established)        | Anything with an ASIN                                | Token-metered API: price history, sales rank, and buy-box price per ASIN. Reliable and widely used by resellers already — strong for barcoded retail goods, which is a large share of pallet contents.                                                                                                                                                                                                                                                                | 🟢 usable                 |
+| **PriceCharting API** _(official)_                          | Games, trading cards, comics, Funko, LEGO, coins     | Paid subscription plus per-call token, but clean official data with condition-graded pricing (loose/complete/new/graded). Narrow category, but very good within it.                                                                                                                                                                                                                                                                                                   | 🟢 usable                 |
+| **Discogs API** _(official)_                                | Vinyl, CDs, music media                              | Free tier, marketplace stats (low/median/high) per release. Narrow but clean and official.                                                                                                                                                                                                                                                                                                                                                                            | 🟢 usable                 |
+| **Google Books API** _(official)_                           | ISBN-barcoded books                                  | Free, official, gives title/edition/list-price metadata by ISBN. Combine with Keepa (most books also have an ASIN) for an actual price signal — Google Books alone is closer to a catalog than a pricing source.                                                                                                                                                                                                                                                      | 🟢 usable                 |
+| **WorthPoint**                                              | Antiques, art, collectibles                          | Strong price-guide data and a history of doing data partnerships with auction platforms — but no clear self-serve public API surfaced in this research. Worth a direct partnership conversation rather than assuming self-serve access.                                                                                                                                                                                                                               | 🟡 inquire directly       |
+| **StockX**                                                  | Sneakers, streetwear, watches                        | A developer portal exists but no public documentation of open self-serve access was found — most integrations seen in the wild are unofficial. Treat as unverified until confirmed directly with StockX.                                                                                                                                                                                                                                                              | 🟡 unverified             |
+| **Poshmark, Mercari, Depop, Whatnot, Facebook Marketplace** | Fashion, general secondhand                          | No official public APIs for any of these. What exists is unofficial scrapers with real ToS exposure. If these categories matter to Pallet IQ's users, the right move is a paid, compliant data vendor rather than a DIY integration.                                                                                                                                                                                                                                  | 🔴 no public path         |
 
 **The practical read, updated:** nothing here hands you a free, open, automatable feed of real eBay sold prices — and as of July 2026, eBay is actively closing off even the casual, logged-out ways of checking a sold price by hand. That's worth treating as a signal, not just an obstacle: the space is consolidating around paid, approved access, which makes the case for a multi-source strategy stronger, not weaker. Grounding, Browse-API-plus-calibration, and the category specialists below aren't a workaround for v1 — they're likely to remain the steadier foundation even after any Marketplace Insights application clears.
 
@@ -87,27 +87,27 @@ Every platform below was checked for whether it has a real, self-serve way to pu
 
 Instead of fanning out to every source on every scan, each item runs down a cost-ordered sequence and stops as soon as confidence is high enough — which controls spend and latency at the same time.
 
-| Step | Source | Notes | Cost |
-|---|---|---|---|
-| 0 | **Cache lookup** | Keyed by UPC / ASIN / identification fingerprint. A hit returns instantly for free — and on a pallet full of repeat consumer goods, this is where most scans should actually end. | instant · free |
-| 1 | **Barcode / UPC exact match** | Deterministic brand, model, and often MSRP, with no vision call needed. | cheap |
-| 2 | **Keepa** | If an ASIN resolves: price history, sales rank, buy-box price. | low cost |
-| 3 | **Google Search grounding** | Retail / manufacturer cross-check for MSRP and current availability, run alongside identification. | low cost |
-| 4 | **eBay Browse API + calibration** | Active-listing asking prices, adjusted by a learned asking-to-sold discount ratio (see below). | free |
-| 5 | **Category specialist** | PriceCharting, Discogs, or Google Books, conditional on category — see the table below. | paid, targeted |
-| 6 | **Paid comps vendor / Marketplace Insights** | Only reached when confidence is still low after everything cheaper — the most expensive step, used sparingly by construction. | expensive |
+| Step | Source                                       | Notes                                                                                                                                                                             | Cost           |
+| ---- | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| 0    | **Cache lookup**                             | Keyed by UPC / ASIN / identification fingerprint. A hit returns instantly for free — and on a pallet full of repeat consumer goods, this is where most scans should actually end. | instant · free |
+| 1    | **Barcode / UPC exact match**                | Deterministic brand, model, and often MSRP, with no vision call needed.                                                                                                           | cheap          |
+| 2    | **Keepa**                                    | If an ASIN resolves: price history, sales rank, buy-box price.                                                                                                                    | low cost       |
+| 3    | **Google Search grounding**                  | Retail / manufacturer cross-check for MSRP and current availability, run alongside identification.                                                                                | low cost       |
+| 4    | **eBay Browse API + calibration**            | Active-listing asking prices, adjusted by a learned asking-to-sold discount ratio (see below).                                                                                    | free           |
+| 5    | **Category specialist**                      | PriceCharting, Discogs, or Google Books, conditional on category — see the table below.                                                                                           | paid, targeted |
+| 6    | **Paid comps vendor / Marketplace Insights** | Only reached when confidence is still low after everything cheaper — the most expensive step, used sparingly by construction.                                                     | expensive      |
 
 Stop as soon as confidence crosses the threshold. A barcoded Instant Pot resolves at step 0 or 1; a damaged, label-less item may need every step — and if it's still low-confidence after all of them, it goes to the "unknown item" workflow instead of a guess.
 
 **The order isn't the same for every category:**
 
-| Category | Waterfall order (cheap → expensive) |
-|---|---|
-| Electronics & appliances | Cache → UPC/Keepa → Grounding → Browse API + calibration → paid vendor if still uncertain |
-| Games, cards, collectibles | Cache → PriceCharting → Browse API + calibration → Grounding (WorthPoint / forum mentions as a soft signal) |
-| Media (books, vinyl, CDs) | Cache → ISBN/barcode → Discogs or Google Books → Keepa if an ASIN exists → Grounding |
-| Tools & home goods, often unbarcoded | Cache → UPC if present → Grounding (retail/manufacturer search) → Browse API + calibration → unknown-item fallback |
-| Fashion, sneakers, streetwear | Cache → Grounding → (Phase 4 only) compliant paid vendor — no direct StockX/Poshmark/Mercari integration until one is confirmed |
+| Category                             | Waterfall order (cheap → expensive)                                                                                             |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| Electronics & appliances             | Cache → UPC/Keepa → Grounding → Browse API + calibration → paid vendor if still uncertain                                       |
+| Games, cards, collectibles           | Cache → PriceCharting → Browse API + calibration → Grounding (WorthPoint / forum mentions as a soft signal)                     |
+| Media (books, vinyl, CDs)            | Cache → ISBN/barcode → Discogs or Google Books → Keepa if an ASIN exists → Grounding                                            |
+| Tools & home goods, often unbarcoded | Cache → UPC if present → Grounding (retail/manufacturer search) → Browse API + calibration → unknown-item fallback              |
+| Fashion, sneakers, streetwear        | Cache → Grounding → (Phase 4 only) compliant paid vendor — no direct StockX/Poshmark/Mercari integration until one is confirmed |
 
 This is also where duplicate-photo cost gets handled: sending all of an item's photos to Gemini in one multimodal call, rather than one call per photo, means the waterfall runs once per item, not once per angle.
 
@@ -117,9 +117,9 @@ This is also where duplicate-photo cost gets handled: sending all of an item's p
 
 Three numbers, each answering a different question, derived from whatever the waterfall returned, with different discipline applied to each.
 
-| | MSRP (~100%) | Sale price (~55–80%) | Liquidation price (~15–35%) |
-|---|---|---|---|
-| **Answers** | "What it cost new." | "What you'd list it for." | "What moves it fast." |
+|                  | MSRP (~100%)                                                                                                                                                                                                                  | Sale price (~55–80%)                                                                                                                                                                                                                                                                                             | Liquidation price (~15–35%)                                                                                                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Answers**      | "What it cost new."                                                                                                                                                                                                           | "What you'd list it for."                                                                                                                                                                                                                                                                                        | "What moves it fast."                                                                                                                                                                                        |
 | **Derived from** | Cross-referenced from Gemini's grounded retail lookup, Keepa's list-price field when an ASIN exists, and any manufacturer page grounding surfaced. Take the consensus; flag as estimated when sources disagree or none exist. | Median (or trimmed mean) of whatever comp signal the waterfall reached — sold comps if a paid source was used, or Browse-API asking prices scaled by the calibrated discount ratio otherwise — then scaled again by condition: roughly 90–100% of median for Like New, 70–85% for Good, 40–60% for Fair/Damaged. | A lower percentile (roughly 10th–25th) of the comp distribution rather than the median, further discounted by condition. A "days to sell" slider could push this number down further for a faster clear-out. |
 
 **The asking-to-sold calibration, concretely:** pull the median asking price of active comps from the Browse API (free, open, no approval needed). Apply a discount ratio — a reasonable starting default is roughly 75–85% of median asking, borrowed from how the gap between list and sold prices is generally discussed in resale — to approximate a sold price. Log the actual outcome every time a Pallet IQ user reports what they really sold an item for, and use that growing dataset to replace the borrowed default with a number calibrated on Pallet IQ's own users. This is the single technique that gets most of the value of sold-comps data without needing anything gated.
@@ -136,24 +136,25 @@ Two panels, shown together: what the market is actually doing, and why the app l
 
 **Illustrative mockup — not real data**
 
-| Median sold | Range | Sell-through | Comps (90d) |
-|---|---|---|---|
-| $34 | $22–$61 | 68% | 17 |
+| Median sold | Range   | Sell-through | Comps (90d) |
+| ----------- | ------- | ------------ | ----------- |
+| $34         | $22–$61 | 68%          | 17          |
 
-| Item | Condition | Sold price |
-|---|---|---|
-| Item — Good condition | Good | $38 |
-| Item — Like New, sealed box | Like New | $52 |
-| Item — Used, minor wear | Fair | $24 |
+| Item                        | Condition | Sold price |
+| --------------------------- | --------- | ---------- |
+| Item — Good condition       | Good      | $38        |
+| Item — Like New, sealed box | Like New  | $52        |
+| Item — Used, minor wear     | Fair      | $24        |
 
 Sample count, date range, and whether the figures are true sold comps or calibrated asking prices should always be shown next to the stats — a median from 3 comps means something very different from one built on 40, and an estimate is not the same claim as a sale.
 
-Sell-through rate deserves special mention: it's *sold count ÷ (sold + currently active)* over the same window, and it's arguably more useful than the price stats alone — it's a direct read on demand, and it feeds straight into the saleability score below.
+Sell-through rate deserves special mention: it's _sold count ÷ (sold + currently active)_ over the same window, and it's arguably more useful than the price stats alone — it's a direct read on demand, and it feeds straight into the saleability score below.
 
 ### The confidence & explanation panel
 
 **High confidence example**
 `$67 · 91% confidence`
+
 - ✓ 18 comps from Browse API + calibration
 - ✓ Keepa list price matches within 5%
 - ✓ Grounding found the manufacturer's page
@@ -161,6 +162,7 @@ Sell-through rate deserves special mention: it's *sold count ÷ (sold + currentl
 
 **Low confidence example**
 `$24 · 38% confidence`
+
 - ✗ Only 2 comparable listings found
 - ✗ No barcode — vision ID only
 - ✗ High price variance across comps

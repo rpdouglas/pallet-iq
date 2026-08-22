@@ -20,7 +20,7 @@ moat.
 
 Reviewed against `docs/ROADMAP.md`, `docs/BACKLOG.md`, and
 `docs/projects/PROJ-PALLETIQ.md` per the Planning gate. Resolved with the
-owner via `AskUserQuestion`: the plan itself doesn't pin down *when* in
+owner via `AskUserQuestion`: the plan itself doesn't pin down _when_ in
 PalletIQ's existing workflow a user reaches for this, and that choice
 changes phase placement, RBAC scope, and UI pattern materially. The owner
 chose the **pre-purchase field scan** — a Buyer standing at a liquidation
@@ -168,7 +168,7 @@ need re-litigating here.
 - `docs/personas/buyer.md` gains `item_scans` (read/write) and
   `product_price_cache` (read) to its permission lists.
 - New ongoing per-scan cost (Gemini + metered third-party APIs) with no
-  usage-metering *enforcement* yet — `PALLETIQ-003`'s `incrementUsage` hook
+  usage-metering _enforcement_ yet — `PALLETIQ-003`'s `incrementUsage` hook
   exists but nothing calls it. Flagged, not blocking: a real cost-control
   mechanism (rate limit, tier gate) will likely be needed before this
   reaches broad usage, tracked as a fold-forward note rather than a
