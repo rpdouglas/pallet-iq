@@ -1081,3 +1081,80 @@ flatUnitCost'`) encoded the `PALLETIQ-024` bug as expected behavior -
 - Verified via `functions/`'s full suite (114/114, up from 113) and root
   `pre-pr-check` checklist (format/lint/typecheck/test). No
   `firestore.rules`/UI change, as scoped - `test:rules` not applicable.
+
+- **2026-08-22 — `PALLETIQ-021` closed.** Shipped exactly per the
+  `docs/BACKLOG.md` scope note and `ADR-0009`: a `WatchlistLot` type
+  (`title`/`source`/`category`/`units`/`currentBid`/`closesAt`/
+  `productUrl`/`notes`, plus a Cloud-Functions-independent
+  `addedAt` server timestamp kept out of the public type, same precedent
+  `Vendor`'s `createdAt`/`updatedAt` already set), a new tenant-scoped
+  `tenants/{tenantId}/watchlist_lots` collection with `firestore.rules`
+  (`read: isTenantMember`, `write: isOwnerOrBuyer` - reusing `ADR-0006`'s
+  helper) folded into the existing `describe.each(['imports',
+'manifests'])` parameterized rules-test block rather than a new
+  standalone block, since it shares the exact same RBAC shape. A
+  `WatchlistLotForm` (quick-add, mirrors `VendorForm`'s structure) and
+  `WatchlistPage` (mirrors `VendorsPage`'s table/empty-state/RBAC-omission
+  structure) wired into a new `/watchlist` route inside the existing
+  `AppShell` nav (`Gavel` icon). `src/lib/watchlist/README.md` documents,
+  quoting both platforms' actual Terms of Use/Service clauses, why this
+  is manual-entry only - satisfying `ADR-0009`'s Track B
+  Definition-of-Done requirement.
+  **Naming call made at implementation time, not drift:** the scope
+  note's field list said "price/currentBid" (one field, ambiguous
+  naming) - resolved to `currentBid` alone, matching how both B-Stock and
+  Direct Liquidation are described throughout `ADR-0009` as live auction
+  mechanisms rather than fixed-price listings.
+  **No edit action, by design, not an oversight:** the scope note asked
+  for a "minimal quick-add form," not full CRUD - `WatchlistLotForm` has
+  no edit mode (unlike `VendorForm`'s add/edit modes), just add and
+  delete. Revisit if editing a tracked lot's current bid turns out to be
+  a real recurring need.
+  **First optional-numeric and first date/time form fields in the app** -
+  `lib/watchlist/schemas.ts` needed a `z.preprocess` step converting an
+  empty string to `undefined` before `z.coerce.number()`/`z.coerce.date()`
+  runs, since `z.coerce.number()` on `''` coerces to `0` rather than
+  failing (`Number('') === 0`) - a genuinely-optional field would
+  otherwise silently become `0`/an invalid date instead of staying unset.
+  Same class of `z.coerce` gotcha `PALLETIQ-009`'s `LandedCostForm` hit
+  for a required field, one step further for optional ones.
+  **Governance checks run before close, not just claimed:** dispatched
+  both `firestore-rules-auditor` (Check I - confirmed all 26 collections
+  now have rules+test coverage, `watchlist_lots`'s `isOwnerOrBuyer` choice
+  consistent with `imports`/`manifests`) and `design-system-auditor`
+  (Check IV - zero violations; RBAC write-affordances correctly omitted
+  from the DOM per role, not CSS-hidden, verified both by the auditor's
+  static read and by `WatchlistPage.test.tsx`'s `queryByRole(...).not
+.toBeInTheDocument()` assertions). `design-system-auditor` flagged three
+  genuinely new UI patterns with no `docs/design/` precedent yet - logged
+  here rather than silently absorbed, none are violations: (1) the first
+  `type="datetime-local"` input in the app: (2) the first client-side
+  date-based table sort (closes-soonest-first, no visual urgency
+  indicator as a close time nears - a product/UX call, not a defect);
+  (3) an `ExternalLink` icon next to a linked table-cell title (first
+  instance of that affordance). Worth folding into `components.md`'s Form
+  inputs/Data tables sections if any of the three recur.
+  **Verified live against `mrt-pallet-iq`, not just the emulator/unit
+  suite:** `npm run test:rules` run for real (downloaded a Temurin 21
+  JDK into this session, same as prior close-outs needing the emulator -
+  102/102 passing, up from 96, including the new `watchlist_lots` cases).
+  Root `pre-pr-check` checklist (format/lint/typecheck, 135/135 unit
+  tests) all green. Then a real Playwright run against the live
+  `mrt-pallet-iq` project and local dev server: signed in as a fresh
+  test Owner, added two lots, confirmed closes-soonest sort ordering
+  render-order matched the fixture data, swapped the same test user's
+  custom claims to `warehouse` and forced a real sign-out+sign-in (per
+  the documented gotcha - a reload alone doesn't pick up new claims),
+  confirmed zero Add/Remove controls rendered for that role, zero
+  console/page errors throughout. **Real bug caught and fixed by this
+  live pass, not by the emulator or unit tests:** the first live write
+  attempt failed with "Missing or insufficient permissions" - the
+  updated `firestore.rules` had never actually been deployed to
+  `mrt-pallet-iq` (only verified against the local emulator). Ran
+  `firebase deploy --only firestore:rules --project mrt-pallet-iq`,
+  confirmed the exact same write then succeeded. A reminder that
+  emulator-green isn't the same claim as live-deployed, the same
+  distinction `PALLETIQ-020`'s close this cycle already surfaced for
+  Cloud Functions. Test tenant, its `watchlist_lots` docs, and the Auth
+  user were all deleted afterward via the same firebase-tools
+  refresh-token-to-access-token trick used throughout this cycle.
