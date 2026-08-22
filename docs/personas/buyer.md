@@ -21,13 +21,18 @@ Custom claim: `role: "buyer"`
 - **Read:** vendors, imports, manifests, pallets, inventory (read-only),
   bids, favorites, watchlists, notes, tasks, `product_intelligence`
   (cross-tenant, anonymized), `restock_lots` (cross-tenant, scraped
-  sourcing feed — see `ADR-0009`), `watchlist_lots`
+  sourcing feed — see `ADR-0009`), `watchlist_lots`, `item_scans`
+  (own tenant's item-identification/pricing scans — see `ADR-0011`),
+  `product_price_cache` (cross-tenant pricing cache — see `ADR-0011`)
 - **Write:** `imports`, `manifests` (importing/uploading manifests - see
   `ADR-0006`; this is Buyer's core daily workflow, not an admin task like
   vendor management), own bids, favorites, watchlists, notes, pass/reject
   logging, `watchlist_lots` (manual sourcing watchlist entries - see
   `ADR-0009`; `restock_lots` itself is Cloud-Functions-write-only, no
-  client, including Buyer, writes to it directly)
+  client, including Buyer, writes to it directly), `item_scans`
+  (the "Treasure Hunter" pre-purchase field-scan capture flow — see
+  `ADR-0011`; `product_price_cache` is Cloud-Functions-write-only, same
+  as `restock_lots`)
 - **No access to:** `settings` (tenant config), `subscriptions` (billing),
   `api_keys`, `audit_logs`, team/user management
 
