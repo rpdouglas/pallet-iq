@@ -4,32 +4,38 @@ Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused. Status
 follows the 3-phase gate model in [`docs/GOVERNANCE.md`](./GOVERNANCE.md):
 Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
-| ID           | Title                                                                               | Persona     | Phase | Status      | Priority |
-| ------------ | ----------------------------------------------------------------------------------- | ----------- | ----- | ----------- | -------- |
-| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin | 0     | In Progress | P2       |
-| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer       | 0     | Done        | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin | 1     | Done        | P0       |
-| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse   | 1     | Done        | P1       |
-| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer       | 1     | Done        | P0       |
-| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin | 0     | Done        | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin | 0     | Done        | P2       |
-| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin | 0     | Done        | P1       |
-| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin | 1     | Done        | P2       |
-| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer       | 4     | Planned     | P1       |
-| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer       | 4     | Planned     | P2       |
-| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer       | 1     | Done        | P1       |
-| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer       | 1     | Planned     | P1       |
-| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer       | 1     | Planned     | P1       |
+| ID           | Title                                                                               | Persona       | Phase | Status      | Priority |
+| ------------ | ----------------------------------------------------------------------------------- | ------------- | ----- | ----------- | -------- |
+| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin   | 0     | In Progress | P2       |
+| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer         | 0     | Done        | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin   | 1     | Done        | P0       |
+| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse     | 1     | Done        | P1       |
+| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin   | 0     | Done        | P2       |
+| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin   | 1     | Done        | P2       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Planned     | P1       |
+| PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Planned     | P2       |
+| PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -1320,3 +1326,297 @@ _UI pattern notes:_ none - no UI change.
 
 _ADR:_ not needed - bug fix within `ADR-0010`'s existing design, not a new
 architectural decision.
+
+_Scope note on `PALLETIQ-025` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ an external feature master plan,
+[`docs/projects/treasure-hunter-plan.md`](./projects/treasure-hunter-plan.md)
+("Treasure Hunter," v2, Ryan) — a photo-in/price-out item appraisal
+capability. Reviewed against `docs/ROADMAP.md`/`docs/BACKLOG.md`/
+`docs/projects/PROJ-PALLETIQ.md` and merged in via the Planning gate; see
+`ADR-0011` for the full architectural reasoning, including why the owner
+chose the pre-purchase field-scan workflow (this ticket and `026`–`029`)
+over the post-receiving/pre-listing alternatives the plan also names
+(`030` and later tickets pick those up).
+
+_Pulled forward from Phase 2, resolved with the owner:_ `PROJ-PALLETIQ.md`'s
+Phase 2 already names "Async, batched Gemini product analysis" — this
+ticket is that capability's first real implementation, arriving as a
+parallel track alongside the rest of Phase 2 (pallet-level scoring,
+duplicate detection, ROI reconciliation), not gated on it — see `ADR-0011`.
+
+_In scope:_ maps to the plan's own "Phase 0" (section 10). A mobile-first
+capture flow for Buyer (2–5 photos: overall, label/tag, barcode, damage —
+per `docs/design/mobile-responsive.md`'s new Buyer-capture-flow addendum,
+this PR), uploading to a new `tenants/{tenantId}/item_scans/{scanId}/...`
+Storage path (same size-limit posture as `ADR-0008`). A new
+`enqueueItemScan` callable + `processItemScan` Cloud Tasks worker (extends
+`PALLETIQ-005`'s existing `ai_tasks` pipeline with a new task type — first
+real Gemini API call in the codebase, `GEMINI_API_KEY` via `defineSecret`
+per `PALLETIQ-004`'s convention) that sends all captured photos in one
+multimodal call with Google Search grounding enabled, requests structured
+JSON output (item name, brand, model, category, condition grade + one-line
+justification, confidence per field), and writes the full result to a new
+`tenants/{tenantId}/item_scans/{scanId}` doc — storing the complete
+identification record, not just pricing-relevant fields, per the plan's
+section 2 reuse argument. The low-confidence path: when confidence is
+below threshold, request and store the top-3 candidate matches instead of
+forcing one answer, with a UI for the Buyer to pick/correct. New
+`firestore.rules` block for `item_scans` (`read: isTenantMember`,
+`write: isOwnerOrBuyer` — reusing `ADR-0006`'s helper) plus
+`firestore.rules.test.ts` coverage (Check I).
+
+_Out of scope, deferred:_ any pricing/waterfall logic (`PALLETIQ-026`);
+barcode/UPC exact-match lookup (`PALLETIQ-026`'s waterfall step 1, not
+identification itself — this ticket's vision path handles the barcode as
+one more image input to Gemini, not a separate deterministic lookup path
+yet); the saleability score (`PALLETIQ-027`); any outcome-data logging
+(`PALLETIQ-028`); Warehouse/Store Manager access to `item_scans` (Buyer-only
+for this ticket, per `ADR-0011`'s chosen use case).
+
+_Firestore/RBAC impact:_ new collection `tenants/{tenantId}/item_scans`.
+`read: isTenantMember(tenantId)`; `write: isOwnerOrBuyer(tenantId)`
+(existing helper from `ADR-0006`). New Storage path,
+`tenants/{tenantId}/item_scans/{scanId}/...`, mirroring `PALLETIQ-008`'s
+manifests path (Owner/Manager/Buyer read, Owner/Buyer write) plus a size
+limit in `storage.rules`.
+
+_UI pattern notes:_ new mobile-first capture flow — see
+`docs/design/mobile-responsive.md`'s Buyer-capture-flow addendum (this PR),
+reusing Warehouse's existing bottom-tab-bar/44×44-touch-target/single-
+column patterns rather than inventing new ones. No documented pattern
+exists yet for a multi-photo capture input specifically (camera vs. file
+picker, per-photo retake) — flagging that gap rather than silently
+inventing one; first real instance to resolve during implementation.
+Low-confidence top-3-candidates picker: no existing pattern, likely a
+simple card-select list — flag if it needs more than that.
+
+_ADR:_ written — see
+[`docs/adr/0011-treasure-hunter-identification-and-pricing-architecture.md`](../adr/0011-treasure-hunter-identification-and-pricing-architecture.md).
+Covers the full six-ticket architecture shared by this and the next five
+tickets.
+
+_Scope note on `PALLETIQ-026` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ same plan/ADR as `PALLETIQ-025` above — this ticket is the plan's
+"Phase 1" (section 10): the pricing waterfall itself, plus the trust UI
+that ships alongside the first price rather than after it, per the plan's
+own explicit reasoning.
+
+_In scope:_ a cost-ordered waterfall run against an existing `item_scans`
+doc: step 0 cache lookup against a new global `product_price_cache`
+collection (keyed by UPC/ASIN/identification fingerprint); step 1
+deterministic UPC/barcode exact-match lookup; step 3 Google Search
+grounding (already available from `PALLETIQ-025`'s identification call,
+reused here for a retail/MSRP cross-check); step 4 eBay Browse API (OAuth,
+`EBAY_APP_ID`/`EBAY_CERT_ID` via `defineSecret`) active-listing asking
+prices, scaled by a hardcoded starting discount ratio (75–85% of median
+asking, per the plan's section 5 — not yet calibrated against real outcome
+data, that's `PALLETIQ-028`). Computes and stores MSRP / sale price /
+liquidation price on the `item_scans` doc. Ships the confidence &
+explanation panel and the recent-sales panel (plan section 6) as instances
+of `docs/design/explainable-scoring.md`'s existing score-badge + factor-
+breakdown pattern — no new component. The "we're not sure" empty state for
+a scan that clears no waterfall step with adequate confidence.
+
+_Out of scope, deferred:_ Keepa/PriceCharting/Discogs/Google Books category
+specialists and background enrichment (`PALLETIQ-027`); the saleability
+score itself (`PALLETIQ-027` — this ticket produces the confidence/
+explanation inputs the formula will consume, not the formula); real eBay
+sold-comps data or Marketplace Insights access (`PALLETIQ-028`); calibrating
+the discount ratio against real outcomes (`PALLETIQ-028`, no outcome data
+exists yet to calibrate against).
+
+_Firestore/RBAC impact:_ new global collection `product_price_cache`
+(cross-tenant, same "separate security domain" shape as `restock_lots`/
+`product_intelligence` per `ADR-0009`/`ADR-0011`): `read: isSignedIn()`;
+`write: if false` (Cloud Functions only — the waterfall's cache-write step
+is the only writer). `item_scans` gains pricing fields, covered by its
+existing `PALLETIQ-025` rule — no rule change needed, confirm via
+`firestore-rules-auditor` at close.
+
+_UI pattern notes:_ `docs/design/explainable-scoring.md`'s score-badge +
+factor-breakdown + provenance-labeling pattern, reused directly for both
+the confidence panel and the recent-sales panel — first real instance of
+that addendum in shipped code (it predates any Phase 2 scoring work).
+`docs/design/components.md`'s Empty States pattern for the "we're not
+sure" state.
+
+_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
+
+_Scope note on `PALLETIQ-027` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ same plan/ADR — the plan's "Phase 2" (section 10): category
+specialists, background enrichment, and the saleability score.
+
+_In scope:_ category-conditional waterfall branches per the plan's section
+4 table — Keepa (`KEEPA_API_KEY`) for ASIN-matched items (price history,
+sales rank, buy-box price), PriceCharting (`PRICECHARTING_API_KEY`) for
+games/cards/collectibles/LEGO, Discogs (free tier) for vinyl/CDs/media,
+Google Books (free) for ISBN-barcoded books. Slow/paid steps move to
+background enrichment: the client gets an instant estimate from whatever
+`PALLETIQ-026` step already resolved, then `item_scans` updates in place as
+slower steps complete, with the UI notified of the update (extends
+`PALLETIQ-025`'s async task pattern, doesn't replace it). The saleability
+score formula from the plan's section 7 (sell-through, price variance,
+condition, listing saturation, sales rank, sample confidence — seasonality
+and category velocity explicitly deferred per the plan's own reasoning),
+computed once the waterfall settles and shown via the same
+`explainable-scoring.md` factor-breakdown component `PALLETIQ-026`
+introduced.
+
+_Out of scope, deferred:_ eBay Marketplace Insights / real sold-comps data,
+outcome-data logging (`PALLETIQ-028`); fashion/sneaker categories and
+StockX/Poshmark/Mercari (`PALLETIQ-029` — none of those vendors are
+confirmed self-serve yet, per the plan's section 12); calibrating
+saleability weights against real outcomes (no outcome data exists until
+`PALLETIQ-028`, weights ship as the plan's stated "first guess, not
+gospel").
+
+_Firestore/RBAC impact:_ none beyond `PALLETIQ-025`/`026` — `item_scans`
+gains a `saleabilityScore` field and category-specialist pricing data,
+covered by the existing rule.
+
+_UI pattern notes:_ `explainable-scoring.md`'s factor-breakdown pattern,
+reused for the saleability score (a second instance alongside the pricing
+confidence panel) — same component, different factor set. Background-
+enrichment loading state reuses `components.md`'s skeleton-blocks
+convention, same as `PALLETIQ-008`'s async job status.
+
+_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
+
+_Scope note on `PALLETIQ-028` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ same plan/ADR — the plan's "Phase 3" (section 10): real eBay
+sold-comps evaluation and "the start of the flywheel."
+
+_Pulled forward from Phase 4, resolved with the owner:_ `PROJ-PALLETIQ.md`'s
+Phase 4 already names "Pricing intelligence engine" — this ticket is the
+part of that bullet concerned with real sold-comps access and closing the
+outcome-data loop, arriving alongside the rest of the Treasure Hunter track
+rather than waiting for Phase 3 (Operations) to ship first.
+
+_Pre-flight check required before implementation starts, per `ADR-0011`'s
+Consequences:_ apply for eBay Marketplace Insights API access and evaluate
+a paid comps vendor in parallel, per the plan's section 12 — access odds
+and timeline are unconfirmed as of the plan's writing (eBay closed
+logged-out sold-listing access in July 2026, a tightening signal, not a
+loosening one). If neither clears, this ticket ships the outcome-logging
+half alone and the discount-ratio calibration described below still
+works — sold-comps access improves the _input_, it isn't a dependency for
+the flywheel itself.
+
+_In scope:_ self-reported outcome fields added to `item_scans` (listed
+price, sold price, days-to-sell — lightweight, user-entered, not gated on
+Phase 3's full `sales`-tracking workflow, which doesn't exist yet and
+isn't a dependency for this parallel track). A Cloud Function that, on a
+completed outcome, writes an anonymized row into the global
+`product_intelligence` collection (UPC/ASIN → historical resale price,
+sell-through time) — `product_intelligence`'s first real writer, per
+`ADR-0011`. Recalibrating `PALLETIQ-026`'s hardcoded asking-to-sold
+discount ratio against accumulated real outcomes once there's enough
+sample size to trust (the plan's section 12 names this open question
+explicitly; a specific sample-size threshold gets decided against real
+data at implementation time, not guessed here).
+
+_Out of scope, deferred:_ any UI change to how a sold-comps result is
+sourced beyond the confidence panel's existing labeling (`PALLETIQ-026`);
+fashion/sneaker categories (`PALLETIQ-029`); usage-metering enforcement on
+the now-real per-scan third-party API cost (`ADR-0011`'s flagged, non-
+blocking consequence — `PALLETIQ-003`'s `incrementUsage` hook stays
+uncalled here too, a separate ticket if cost becomes a real problem).
+
+_Firestore/RBAC impact:_ `item_scans` gains outcome fields, covered by the
+existing rule. `product_intelligence` gets its first real writer (Cloud
+Functions/Admin SDK only — no rules change, the collection's existing
+`read: isSignedIn()` / `write: if false` rule from `PALLETIQ-001` already
+covers this).
+
+_UI pattern notes:_ a small "report the outcome" form (reuses
+`components.md`'s Form inputs pattern) — first instance of a user
+self-reporting historical/completed data rather than current state.
+
+_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
+
+_Scope note on `PALLETIQ-029` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ same plan/ADR — part of the plan's "Phase 4" (section 10):
+fashion & sneaker categories.
+
+_Pre-flight check required before implementation starts:_ per the plan's
+sections 3 and 12, none of StockX, Poshmark, Mercari, Depop, or Facebook
+Marketplace have confirmed self-serve API access — the plan explicitly
+rules out DIY scraping for this category as a real Terms-of-Service risk
+(plan section 11, and the same discipline `ADR-0009` applied to B-Stock/
+Direct Liquidation). This ticket does not start until a compliant paid
+data vendor or direct partnership is confirmed; if none clears, this
+ticket stays blocked/deferred rather than shipping a scraper.
+
+_In scope, once the pre-flight check clears:_ a fashion/sneaker waterfall
+branch (plan section 4's category table: Cache → Grounding → confirmed
+compliant paid vendor) feeding the existing `PALLETIQ-026`/`027` pricing
+and saleability pipeline — no new collection or UI pattern, a new
+category branch in the existing waterfall only.
+
+_Out of scope, deferred:_ listing-copy generation and other "beyond
+pricing" features (`PALLETIQ-030`); any direct StockX/Poshmark/Mercari
+integration without a confirmed compliant path (explicitly rejected, see
+above).
+
+_Firestore/RBAC impact:_ none beyond the existing `item_scans` pricing
+fields.
+
+_UI pattern notes:_ none new — extends the existing confidence/pricing
+panels with one more category branch.
+
+_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`. Revisit this
+ticket's specific vendor choice if the pre-flight check surfaces new
+information not already in the plan's section 3 research.
+
+_Scope note on `PALLETIQ-030` (2026-08-22) — Planning gate only, not started:_
+
+_Origin:_ same plan/ADR — the plan's section 8 "Beyond pricing": the first
+feature built on the stored identification record beyond pricing itself,
+and the first ticket in this track for a persona other than Buyer.
+
+_Pulled forward from Phase 4, resolved with the owner:_ `PROJ-PALLETIQ.md`'s
+Phase 4 already names "Listing copy generation (titles/descriptions from
+manifest + image data)" — this ticket is that bullet's first real
+implementation, reusing `PALLETIQ-025`'s stored `item_scans` identification
+record (brand, model, category, condition, notable features) as the input
+instead of raw manifest text, per the plan's section 8 argument that this
+is "new uses of work that's already being done," not new identification
+work.
+
+_In scope:_ a Gemini text-generation call (extends the existing `ai_tasks`
+pipeline with a new task type, reuses `PALLETIQ-025`'s `GEMINI_API_KEY`)
+that takes a completed `item_scans` doc and produces a draft listing title
+
+- description, surfaced to Store Manager on the inventory item it's
+  associated with (first read access to `item_scans` for a persona other
+  than Buyer — see RBAC below). Editable before use, not auto-published
+  anywhere (no marketplace integrations exist yet, Phase 4's own later
+  bullet).
+
+_Out of scope, deferred:_ keywords/SEO tags, defect descriptions, bundle
+suggestions, cross-listing recommendations, the ROI calculator, and aging-
+inventory alerts — all named in the plan's section 8 as further reusable
+outputs of the same engine, each its own future ticket once this first one
+validates the pattern; any marketplace integration to actually publish a
+listing (separate, unstarted Phase 4 bullet).
+
+_Firestore/RBAC impact:_ `item_scans`' `read` rule (`isTenantMember`,
+`PALLETIQ-025`) already covers Store Manager — no rule change. If a
+generated listing draft is persisted rather than shown ephemerally, it
+lands on the existing `inventory` doc's write path (`isOwnerOrManagerOrWarehouse`
+from `PALLETIQ-011` already includes Manager) — confirm the exact field
+shape at implementation time.
+
+_UI pattern notes:_ no documented pattern yet for an AI-generated,
+user-editable text draft — flagging this gap now rather than inventing one
+silently; likely a text-area pre-filled with the generated draft plus a
+"regenerate" action, but worth a `docs/design/components.md` addition if
+this recurs (the plan's section 8 lists several more features that would
+reuse the same "editable AI draft" pattern).
+
+_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
