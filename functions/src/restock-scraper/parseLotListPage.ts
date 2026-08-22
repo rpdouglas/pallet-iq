@@ -16,8 +16,15 @@ export interface ParsedLotListPage {
 // packs each lot's headline data into one title string, e.g.:
 //   "13 units of Home Furniture - MSRP $4,638 - Returns (Lot # 1016710)"
 // Verified against a real captured page - see __fixtures__/category-page.html.
+//
+// PALLETIQ-031: some lots use a warehouse-prefixed lot number instead of a
+// plain one, e.g. "...(Lot # 105-917312)" - the fixture's sample data never
+// happened to include this format, so the lot-number group was too narrow
+// and silently dropped ~19% of real listings. Widened to accept an optional
+// "<prefix>-" segment; stored as-is (a plain string field, and a valid
+// Firestore document ID either way - see types.ts).
 const TITLE_PATTERN =
-  /^(\d+)\s+units?\s+of\s+(.+?)\s+-\s+MSRP\s+\$([\d,.]+)\s+-\s+([^(]+?)\s+\(Lot #\s*(\d+)\)\s*$/i
+  /^(\d+)\s+units?\s+of\s+(.+?)\s+-\s+MSRP\s+\$([\d,.]+)\s+-\s+([^(]+?)\s+\(Lot #\s*(\d+(?:-\d+)?)\)\s*$/i
 
 function parseMoney(text: string | undefined): number | null {
   if (!text) {

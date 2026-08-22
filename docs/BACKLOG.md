@@ -36,7 +36,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
-| PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -1663,3 +1664,43 @@ _UI pattern notes:_ none — no UI change, this ticket ships no UI.
 _ADR:_ not needed — bug fix within `ADR-0009`'s existing design, same
 reasoning `PALLETIQ-023`/`024` used for bugs found via review of
 `PALLETIQ-022`.
+
+_Scope note on `PALLETIQ-032` (2026-08-22) — Planning gate only, not started:_
+
+_Found via live verification while closing `PALLETIQ-031`:_ redeploying
+`scrapeRestockLots` with the fixed `TITLE_PATTERN` and triggering a real
+run crashed with `Memory limit of 256 MiB exceeded with 265-266 MiB
+used` before ever reaching its completion log — confirmed via a direct
+Cloud Logging query (the `firebase functions:log` CLI was showing stale
+cached lines and didn't surface this on its own). It crashed identically
+on a second, auto-retried attempt. Root cause: the function's memory
+budget was only ever exercised against an empty `restock_lots`
+collection (the very first run, `PALLETIQ-020`'s close) - every run
+since has to hold a full existing-docs snapshot (`collection.get()`) in
+memory alongside a freshly-scraped `lots` array, and `PALLETIQ-031`'s own
+fix makes that array bigger by correctly recovering the ~121 previously-
+dropped, prefixed-lot-number cards. Net effect: the scraper was crash-
+looping every hour in production, making zero progress past its initial
+399 lots.
+
+_In scope:_ `scrapeRestockLots`'s `onSchedule` memory bumped from
+`256MiB` to `512MiB` - matching `processManifestImport`'s own existing
+resource-sandbox precedent (`ADR-0008`), with headroom above the
+observed peak rather than the exact number.
+
+_Out of scope:_ any deeper memory optimization (e.g. projecting only the
+fields `scrapeRestockLots` actually needs from the existing snapshot
+instead of full documents, paginating the existing-docs read) - a flat
+memory bump is the same "pin it explicitly, don't over-engineer a
+resource bound you haven't proven you need" reasoning `PALLETIQ-012`
+already used, and 512MiB comfortably clears the observed ~266 MiB peak.
+Revisit if the collection grows enough that 512MiB stops being enough.
+
+_Firestore/RBAC impact:_ none - no schema or rules change, a Cloud
+Functions resource-configuration change only.
+
+_UI pattern notes:_ none - no UI change, this ticket ships no UI.
+
+_ADR:_ not needed - a resource-bound tuning change within `ADR-0009`'s
+existing architecture, same class of change `ADR-0008` already made for
+`processManifestImport` without its own ADR.
