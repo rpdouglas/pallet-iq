@@ -2087,3 +2087,109 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   sometimes (its Weber Genesis grill test got 4 of them) - it appears to
   be inconsistent per-item rather than never happening, worth watching
   real usage data post-deploy rather than a gap to chase further here.
+
+- **2026-08-24 — PALLETIQ-039 closed.** Requested directly by the owner
+  right after the `PALLETIQ-020`/`021`/`031`/`032` status review that
+  prompted this ticket's own opening - the browse UI `PALLETIQ-020`
+  explicitly deferred for `restock_lots`, now that its scraped data has
+  been running live since `PALLETIQ-020`/`031`/`032` closed with nowhere
+  for a Buyer to actually see it.
+
+  **Shipped as scoped.** A new `/discovered-lots` route
+  (`src/pages/DiscoveredLotsPage.tsx`) added to `AppShell.tsx`'s base
+  `NAV_ITEMS` - unrestricted by role, matching `restock_lots`' own
+  `isSignedIn()`-only read rule (no role differentiation to reflect, so
+  nothing for `AppShell.tsx`'s existing `SCAN_NAV_ITEM`-style role gate
+  to do here). `src/lib/restockLots/restockLotsActions.ts`'s
+  `listActiveRestockLots()` queries the global `restock_lots` collection
+  with a single `where('status', '==', 'active')` equality filter - no
+  Firestore composite index needed, since it doesn't combine that with
+  a server-side `orderBy` on a different field. Sorting (newest-
+  discovered-first, by `firstSeenAt`) and category filtering both happen
+  client-side instead, the same choice `WatchlistPage.tsx` already made
+  for its own closes-soonest sort - reused directly rather than inventing
+  a second convention. A plain category dropdown (`SelectField`, used as
+  a standalone controlled filter rather than inside a `react-hook-form`
+  form for the first time in this codebase - `design-system-auditor`
+  confirmed this doesn't introduce a new visual pattern) plus that
+  newest-first default match the scope note's own "enough for a first
+  pass" framing exactly - no full-text search, no unified view with
+  `watchlist_lots` (both explicitly deferred, see below).
+
+  **Real, deliberate drift from the scope note's field list, named
+  rather than silently narrowed:** the scope note listed
+  `RestockLotDoc`'s full field set (`costPerUnit`, `vendor`, `warehouse`,
+  `imageUrl` included) as available data; the shipped `RestockLot`
+  client type and table render a narrower set (`title`, `category`,
+  `condition`, `units`, `msrp`, `price`, `firstSeenAt`, plus
+  `productUrl`/`manifestUrl` as links) - those four fields exist in the
+  underlying document but were never brought into the client type or
+  rendered. Not an oversight: `costPerUnit`/`vendor`/`warehouse` read as
+  scraper-internal bookkeeping a Buyer browsing lots doesn't need at a
+  glance (matching the same instinct that already kept them out of
+  `WatchlistLot`'s deliberately-minimal shape), and no thumbnail-grid
+  pattern exists yet in `docs/design/` to justify adding `imageUrl`
+  display as a one-off. Easy to widen later - the doc field, not the UI,
+  is the constraint - flagged here so a future ticket doesn't wonder why
+  they're missing.
+
+  **Deferred exactly as scoped, confirmed not accidentally built:** the
+  unified `restock_lots`/`watchlist_lots` "all sourcing opportunities"
+  view `ADR-0009` left open for "if/when a real 'all opportunities' UI is
+  scoped" - this ticket is that trigger point in the sense that a second
+  list UI now exists, but the unification itself (a merged read model
+  across two different security domains) is real, separate architectural
+  work this ticket deliberately didn't do. Converting a discovered lot
+  into a `watchlist_lots` entry or a real purchase/import - also not
+  built. Full-text search beyond the category dropdown - not built.
+
+  **Governance:** no Firestore/rules impact (confirmed - only
+  `firestore.rules`-adjacent file touched is nothing; `restock_lots`'
+  existing `read: isSignedIn()` / `write: if false` already covers this
+  read-only page, no `firestore.rules` diff at all). Check II (async AI
+  boundary): N/A, no Gemini/Vertex SDK usage anywhere in this diff. Check
+  III (RBAC in UI and rules): no role-gated boundary added on either
+  side - correctly symmetric with `restock_lots`' own role-agnostic read
+  rule, nothing to flag. Check IV (design-system-auditor, dispatched
+  against `DiscoveredLotsPage.tsx`/`AppShell.tsx`/`App.tsx`): **clean
+  pass**, no new violations - confirmed the Data table pattern matches
+  `WatchlistPage.tsx`'s precedent structurally (zebra striping, right-
+  aligned numeric columns, shared `EmptyState`), confirmed no hardcoded
+  colors/fonts (`PALLETIQ-016`'s token system already covers every class
+  used here), and separately noted the title cell's icon-only external-
+  link/manifest-link targets fall under 44×44px - not a new regression
+  (identical to `WatchlistPage.tsx`'s own `ExternalLink`/`Trash2` icon
+  buttons) and not actually a violation of `mobile-responsive.md`'s
+  literal scope either, since that doc explicitly lists Watchlist (this
+  page's direct analog) among the Buyer surfaces that "stay desktop-
+  first, unchanged." No ADR needed, as scoped - no new collection, no
+  rules change, reuses `ADR-0009`'s existing design and an existing UI
+  pattern.
+
+  **Verification gap, named rather than glossed over:** `CLAUDE.md` asks
+  for an actual in-browser check on UI changes before calling them done.
+  Attempted one against real `mrt-pallet-iq` data via a scripted
+  Playwright session (sign in as a real test user, navigate to
+  `/discovered-lots`, screenshot) - the credential-minting step (setting
+  a password on a freshly-created test Auth user, needed because this
+  sandbox has no IAM `signBlob` permission for custom-token minting, the
+  same gap `PALLETIQ-037`'s live-verification hit) was blocked by this
+  session's own auto-mode safety classifier as a sensitive credential
+  action, and that block was respected rather than routed around. No
+  live-browser click-through happened as a result. What did verify this
+  ticket instead: 6 new tests (`DiscoveredLotsPage.test.tsx` - empty
+  state, newest-first sort order, money formatting, manifest-link
+  rendering, category filtering, category-scoped empty message;
+  `restockLotsActions.test.ts` - the exact Firestore query shape and the
+  doc-to-`RestockLot` mapping) plus the clean Check IV pass above. The
+  query logic itself is low-complexity (one equality filter) and reads
+  from the same `restock_lots` collection `PALLETIQ-020`/`031`/`032`
+  already live-verified has real, correctly-shaped documents in it - but
+  a full authenticated render was never actually watched happen, and
+  that's a real gap from what `CLAUDE.md` asks for, not something to
+  claim was done when it wasn't.
+
+  Full checklist run clean: repo-root `npm run format:check` / `lint` /
+  `typecheck` / `npm test` (192/192, up from 186). No `firestore.rules`
+  change, so `npm run test:rules` doesn't apply. Re-synced with
+  `origin/main` before closing - already up to date, no conflicts.

@@ -7,6 +7,7 @@ import {
   Gavel,
   LayoutDashboard,
   Menu,
+  PackageSearch,
   X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -30,6 +31,10 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/manifests', label: 'Manifests', icon: FileSpreadsheet },
   { to: '/inventory', label: 'Inventory', icon: Boxes },
   { to: '/watchlist', label: 'Watchlist', icon: Gavel },
+  // PALLETIQ-039 / ADR-0009. restock_lots' read rule is isSignedIn() - any
+  // authenticated user, any role - so this is unrestricted like every other
+  // base nav item, not role-gated the way SCAN_NAV_ITEM below is.
+  { to: '/discovered-lots', label: 'Discovered lots', icon: PackageSearch },
 ]
 
 // PALLETIQ-025 / ADR-0011. Owner/Buyer only, matching item_scans'

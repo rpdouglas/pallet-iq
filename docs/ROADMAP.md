@@ -72,10 +72,14 @@ Automated vendor ingestion, pricing intelligence engine, cross-tenant
 benchmarking, negotiation assistant, listing copy generation, marketplace
 integrations, multi-tenant SaaS polish.
 
-**Pull-forward in progress (Planned):** `PALLETIQ-020`/`021` (restock.ca
-scheduled scraper + compliant manual watchlist for B-Stock/Direct
-Liquidation) are a narrow slice of "automated vendor ingestion" pulled
-forward from this phase, tracked in `docs/BACKLOG.md`. `PALLETIQ-028`/
+**Pull-forward in progress:** `PALLETIQ-020`/`021` (restock.ca scheduled
+scraper + compliant manual watchlist for B-Stock/Direct Liquidation) and
+`031`/`032` (two real bugs found via live verification - a dropped-lot
+title-parsing gap and an hourly production OOM crash loop, both fixed) are
+a narrow slice of "automated vendor ingestion" pulled forward from this
+phase, tracked in `docs/BACKLOG.md` - all **Done**. `PALLETIQ-039` (the
+`restock_lots` browse UI `PALLETIQ-020` itself deferred) is the same
+pull-forward, **Done** as of this update. `PALLETIQ-028`/
 `029`/`030` (the later half of the "Treasure Hunter" item-identification
 track — real eBay sold-comps/outcome-data flywheel, fashion/sneaker
 categories, and the first "beyond pricing" listing-copy feature) are a
