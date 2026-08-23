@@ -1202,3 +1202,87 @@ new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
   ticket's fix required a `firestore.rules`/schema/UI change; both
   verified via `functions/`'s full suite (115/115, up from 113) and
   root `pre-pr-check` checklist (format/lint/typecheck/135 tests).
+
+- **2026-08-23 — PALLETIQ-025 closed.** Planned scope (per `ADR-0011` and
+  the ticket's own `docs/BACKLOG.md` scope note) shipped as specified: a
+  mobile-first Buyer capture flow (1-5 photos), a new `tenants/{tenantId}/
+  item_scans/{scanId}/...` Storage path, `enqueueItemScan` callable +
+  `processItemScan` Cloud Tasks worker making the first real Gemini API
+  call in the codebase (vision + Google Search grounding, prompt-engineered
+  JSON parsed and Zod-validated rather than `responseSchema` +
+  tool-use), the low-confidence top-3-candidate picker with a direct
+  client write for selection, and `firestore.rules`/`storage.rules` +
+  test coverage for the new collection/path.
+
+  **Design-doc assumption corrected (mirrors `PALLETIQ-011`'s precedent):**
+  `mobile-responsive.md`'s Buyer-capture-flow addendum (written during
+  `ADR-0011` planning) said to reuse "Warehouse's existing bottom-tab-bar"
+  pattern verbatim - but per `AppShell.tsx`'s own comment, that bottom tab
+  bar was never actually built (every role still uses the sidebar/
+  hamburger-drawer shell). Since the same addendum explicitly permits a
+  floating action button as an alternative "rather than inventing a second
+  mobile pattern," shipped a role-gated (`owner`/`buyer`) FAB on `AppShell`
+  instead of building a new tab-bar shell for one route. `mobile-
+  responsive.md` should be reworded to drop the now-incorrect "Warehouse's
+  existing bottom-tab-bar" reference next time that doc is touched -
+  logged here rather than editing design docs mid-ticket.
+
+  **`design-system-auditor` (Check IV) caught 3 real defects, fixed same
+  session:** an `<h2>` using `font-bold` instead of the design system's
+  Semibold spec for H2; a photo-remove touch target that shrank below the
+  44x44px "hard floor" at the `sm` breakpoint; and a bespoke failed-scan
+  card duplicating the existing `EmptyState` pattern instead of reusing it
+  (now consolidated). The auditor's fourth finding - that identification
+  results should use `explainable-scoring.md`'s score-badge/factor-
+  breakdown pattern, citing `ADR-0011`'s "confidence & explanation panel"
+  commitment - was checked against the source plan
+  (`docs/projects/treasure-hunter-plan.md` §6) and rejected: that panel is
+  explicitly the *pricing* confidence view (dollar amount + comp checklist),
+  scoped to Phase 1/`PALLETIQ-026`-`027`, not Phase 0 identification. Left
+  as a plain confidence percentage per this ticket's own scope note ("no
+  existing pattern, likely a simple card-select list").
+
+  **Two real bugs found only by live verification, not by any test suite:**
+  (1) `zod` was a dependency of the root `package.json` (frontend) only,
+  never added to `functions/package.json` - local dev/test resolved it by
+  walking up to the root `node_modules`, masking the gap until the actual
+  Cloud Functions deploy (which packages only `functions/`) crashed both
+  new functions on cold start with `Cannot find module 'zod'`. Fixed by
+  adding `zod` as an explicit `functions/package.json` dependency - this
+  class of bug (a transitive/hoisted import that only works because of
+  monorepo directory-walking, not because the deployed unit actually
+  declares it) is worth a standing lint/CI check if it recurs.
+  (2) `gemini-2.5-flash` (the model name used in `identifyItem.ts`)
+  returned `404 ... no longer available to new users` from the live API -
+  swapped to `gemini-3.6-flash` per the API's own error message, since
+  training-era model names can't be trusted against a live-changing API
+  surface.
+
+  **Infra gap found via live verification, unrelated to this ticket's own
+  code:** the first deploy attempt's crash (bug 1 above) meant Firebase's
+  normal "grant `roles/run.invoker` to `allUsers` on a new callable's
+  Cloud Run service" step never ran; the follow-up deploy succeeded as an
+  *update*, which doesn't re-grant it, so `enqueueItemScan` returned a
+  bare `401` at the Cloud Run ingress layer (before reaching our own
+  auth check) until the binding was granted manually to match every other
+  `onCall` function. Investigated whether `processItemScan` (a Cloud-
+  Tasks-dispatched worker, not a public callable) needed the same
+  `allUsers` grant and confirmed via IAM inspection that it does not -
+  `processManifestImport`/`processDummyTask` (long-established, working
+  task workers) both have an empty invoker policy, and Cloud Tasks
+  dispatch to `processItemScan` was confirmed working live with the same
+  empty policy once `enqueueItemScan` itself was fixed. Granting `allUsers`
+  there would have been a real regression (anyone with the URL could
+  trigger arbitrary Gemini calls and write fabricated data to any tenant's
+  `item_scans` doc, bypassing `firestore.rules` since the worker uses the
+  Admin SDK) - reverted that grant once the actual cause was found. No
+  code or doc change needed beyond this note; flagging in case a future
+  ticket's first deploy also crashes before creation completes.
+
+  **Live-verified end-to-end** (test tenant/user/Storage objects/Firestore
+  docs all cleaned up after): real photo upload under live `storage.rules`,
+  `enqueueItemScan` callable under live `firestore.rules`, Cloud Tasks
+  dispatch, a real Gemini vision call returning structured, schema-valid
+  JSON, confidence-based auto-selection, and the direct-client-write
+  `selectItemScanCandidate` RBAC path - all confirmed working against
+  `mrt-pallet-iq`, not just the emulator.

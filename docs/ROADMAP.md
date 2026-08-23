@@ -26,14 +26,16 @@ Async batched Gemini product analysis, explainable pallet scoring,
 duplicate detection via embeddings, ROI reconciliation workflow, manifest
 comparison UI, pass/reject logging, seed `product_intelligence`.
 
-**Pull-forward in progress (Planned):** `PALLETIQ-025`/`026`/`027`
+**Pull-forward in progress:** `PALLETIQ-025`/`026`/`027`
 ("Treasure Hunter" — a photo-in/price-out item identification and pricing
 feature for the Buyer's pre-purchase field-scan workflow) are the first
 real implementation of this phase's "Async batched Gemini product
 analysis" bullet, running as a parallel track alongside the rest of Phase
 2's pallet-level scoring work — neither blocks nor is blocked by the
-other. See `ADR-0011` and `docs/projects/PROJ-PALLETIQ.md`'s Phase 2
-section for the full rationale, and `docs/BACKLOG.md` for scope.
+other. `PALLETIQ-025` (item identification) is **Done**; `026`/`027`
+(pricing waterfall + saleability score) are still Planned. See `ADR-0011`
+and `docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
+rationale, and `docs/BACKLOG.md` for scope.
 
 ## ⚪ Phase 3 — Operations (6–8 weeks)
 

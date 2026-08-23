@@ -1,35 +1,48 @@
 import { describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import type { User } from 'firebase/auth'
+import type { Role } from '../types/auth'
+import { AuthContext, type AuthState } from '../lib/auth/AuthContext'
 
 const signOutUser = vi.fn<() => Promise<void>>()
 vi.mock('../lib/auth/authActions', () => ({ signOutUser }))
 
 const { AppShell } = await import('./AppShell')
 
-function renderShell(initialEntry = '/') {
+function renderShell(initialEntry = '/', role: Role = 'manager') {
+  const authState: AuthState = {
+    user: {} as User,
+    tenantId: 'tenant-a',
+    role,
+    loading: false,
+    refreshClaims: () => Promise.resolve(),
+  }
   return render(
-    <MemoryRouter initialEntries={[initialEntry]}>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route path="/" element={<div>Dashboard content</div>} />
-          <Route path="/vendors" element={<div>Vendors content</div>} />
-          <Route path="/manifests" element={<div>Manifests content</div>} />
-          <Route path="/inventory" element={<div>Inventory content</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <AuthContext.Provider value={authState}>
+      <MemoryRouter initialEntries={[initialEntry]}>
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route path="/" element={<div>Dashboard content</div>} />
+            <Route path="/vendors" element={<div>Vendors content</div>} />
+            <Route path="/manifests" element={<div>Manifests content</div>} />
+            <Route path="/inventory" element={<div>Inventory content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </AuthContext.Provider>,
   )
 }
 
 describe('AppShell', () => {
-  it('renders links to every existing page and nothing else', () => {
-    renderShell()
+  it('renders links to every existing page and nothing else for a role without scan access', () => {
+    renderShell('/', 'manager')
 
     expect(screen.getByRole('link', { name: 'Dashboard' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Vendors' })).toHaveAttribute('href', '/vendors')
     expect(screen.getByRole('link', { name: 'Manifests' })).toHaveAttribute('href', '/manifests')
     expect(screen.getByRole('link', { name: 'Inventory' })).toHaveAttribute('href', '/inventory')
+    expect(screen.queryByRole('link', { name: 'Scan item' })).not.toBeInTheDocument()
   })
 
   it('marks the current route as active via aria-current', () => {
@@ -78,4 +91,19 @@ describe('AppShell', () => {
 
     expect(screen.getAllByRole('link', { name: 'Vendors' })).toHaveLength(1)
   })
+
+  it.each(['owner', 'buyer'] as const)('shows a Scan item nav link and FAB for a %s', (role) => {
+    renderShell('/', role)
+
+    expect(screen.getAllByRole('link', { name: 'Scan item' }).length).toBeGreaterThan(0)
+  })
+
+  it.each(['manager', 'warehouse'] as const)(
+    'omits the Scan item nav link and FAB for a %s (not shown-and-disabled)',
+    (role) => {
+      renderShell('/', role)
+
+      expect(screen.queryByRole('link', { name: 'Scan item' })).not.toBeInTheDocument()
+    },
+  )
 })

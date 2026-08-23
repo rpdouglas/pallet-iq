@@ -6,6 +6,7 @@ import { RequireRole } from './lib/auth/RequireRole'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { DashboardPage } from './pages/DashboardPage'
 import { InventoryPage } from './pages/InventoryPage'
+import { ItemScanPage } from './pages/ItemScanPage'
 import { ManifestDetailPage } from './pages/ManifestDetailPage'
 import { ManifestsPage } from './pages/ManifestsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
@@ -56,6 +57,14 @@ function App() {
         <Route path="/manifests/:importId" element={<ManifestDetailPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/watchlist" element={<WatchlistPage />} />
+        <Route
+          path="/scan"
+          element={
+            <RequireRole roles={['owner', 'buyer']}>
+              <ItemScanPage />
+            </RequireRole>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
