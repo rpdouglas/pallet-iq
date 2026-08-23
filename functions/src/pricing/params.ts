@@ -9,3 +9,12 @@ import { defineSecret } from 'firebase-functions/params'
 // convention once ready.
 export const ebayAppId = defineSecret('EBAY_APP_ID')
 export const ebayCertId = defineSecret('EBAY_CERT_ID')
+
+// PALLETIQ-027 / ADR-0011. Category-specialist pricing sources. Live
+// verification deferred the same way as EBAY_APP_ID/EBAY_CERT_ID above -
+// the owner provisions real accounts and secret values when ready.
+// Discogs and Google Books need no secret (free/anonymous tiers), per
+// ADR-0011's "Discogs and Google Books' free/anonymous tiers need no
+// secret for v1" note.
+export const keepaApiKey = defineSecret('KEEPA_API_KEY')
+export const priceChartingApiKey = defineSecret('PRICECHARTING_API_KEY')

@@ -1389,3 +1389,84 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   against the verified-real UPCItemDB/eBay API shapes but not live-
   verified end-to-end - that needs either a real barcode-bearing product
   photo or real eBay credentials, neither available in this session.
+
+- **2026-08-23 — PALLETIQ-027 closed.** Planned scope (per `ADR-0011` and
+  the ticket's own `docs/BACKLOG.md` scope note) shipped as specified:
+  category-specialist waterfall branches (Keepa for ASIN/UPC-matched
+  electronics, PriceCharting for games/collectibles, Discogs for vinyl/
+  CDs, Google Books for ISBN books), the saleability score formula from
+  the plan's section 7, and background enrichment (`enrichItemScanPricing`,
+  a new Cloud Tasks worker) so the slow/paid specialist calls run after
+  `PALLETIQ-026`'s instant estimate rather than blocking it - `item_scans`
+  updates in place once enrichment settles, same async pattern as
+  identification.
+
+  **A real formula gap resolved with the owner rather than guessed:** the
+  saleability formula's `sell_through` term (0.30 weight, the largest)
+  has no real data source anywhere in this codebase - eBay Browse API,
+  Keepa, PriceCharting, and Discogs all only expose active/current
+  listing state, never real sold-vs-active counts (that needs eBay
+  Marketplace Insights, gated behind `PALLETIQ-028`'s pre-flight check).
+  Confirmed with the owner: redistribute `sell_through`'s weight across
+  the other five terms, using the exact fallback mechanism the plan
+  itself already specifies for a missing `sales_rank` term - applied by
+  the same generic mechanism in `computeSaleability.ts`, not a bespoke
+  special case. `SaleabilityPanel` always shows an honest "Sell-through
+  rate not available yet" factor row rather than silently omitting the
+  gap.
+
+  **Keepa's field-shape risk, flagged rather than presented as more
+  certain than it is:** unlike the other three specialist APIs (all
+  confirmed live or via clear published docs during planning), Keepa's
+  own docs page returned a JS-rendered shell to every fetch attempt
+  (browser user-agent included) and Keepa requires a paid account to
+  test live - `keepa.ts`'s field names (`salesRanks`, `stats.current[18]`
+  for buy box price) follow community-documented convention, not a
+  response this code has actually seen. Parsing is deliberately
+  defensive (every access falls back to null, never throws) so a wrong
+  guess degrades to "no Keepa signal" rather than crashing enrichment -
+  re-verify against a real response once the owner has Keepa credentials.
+
+  **eBay/Keepa/PriceCharting live verification deferred, by the owner's
+  choice (same posture as `PALLETIQ-026`/`003`):** `KEEPA_API_KEY`/
+  `PRICECHARTING_API_KEY` get the same inert-placeholder treatment as
+  `EBAY_APP_ID`/`EBAY_CERT_ID` to unblock deployment - real credentials
+  swap in whenever the owner provisions those accounts, no code change
+  needed.
+
+  **`design-system-auditor` (Check IV) ran clean this time** - no hard
+  violations. Two items logged rather than fixed: (1) `SaleabilityPanel`
+  reuses the extracted `FactorBreakdownList` but not sorted by magnitude
+  of contribution (`explainable-scoring.md`'s literal spec) - unlike
+  `PricingPanel`'s factors (genuinely no magnitude data), saleability's
+  factors DO have real weighted coefficients (`computeSaleability.ts`'s
+  `BASE_WEIGHTS`) that could support true magnitude-sorting, so this gap
+  is weaker-justified for saleability than it was for pricing - worth
+  revisiting if a future ticket touches this component again, not fixed
+  now to avoid scope creep on an already-large ticket. (2) The outer
+  score-badge card shell (badge + label header row) is duplicated between
+  `PricingPanel` and `SaleabilityPanel` rather than extracted the way
+  `FactorBreakdownList` was - defensible since `PricingPanel`'s version
+  carries extra MSRP/sale-range/liquidation content `SaleabilityPanel`
+  doesn't need, but a `ScoreCard`-style extraction would follow
+  `explainable-scoring.md`'s reuse principle more completely.
+
+  **A real functional gap the audit surfaced but didn't own, logged as a
+  follow-up rather than fixed here:** the saleability-failed retry button
+  calls `priceItemScan` (re-running the _entire_ pricing waterfall) since
+  no dedicated saleability-only retry action exists - a user reading
+  "try again" on a saleability failure would reasonably expect only
+  re-scoring, not a full pricing re-run. The 30-day `product_price_cache`
+  significantly reduces the practical cost (a retry moments later mostly
+  hits a warm cache rather than re-fetching eBay), which is why this
+  wasn't treated as blocking - but it's a real UX/wiring mismatch worth
+  its own small ticket rather than silently accepted forever.
+
+  **Live verification status:** the new `enrichItemScanPricing` worker
+  and saleability scoring path are covered by unit tests (10 for
+  `computeSaleability`, 8 for `runEnrichment`, plus the four specialist
+  clients' own tests, 225 functions tests total passing) but had not yet
+  been deployed or live-verified against `mrt-pallet-iq` as of ticket
+  close - pending `KEEPA_API_KEY`/`PRICECHARTING_API_KEY` placeholder
+  secrets (same as `EBAY_APP_ID`/`EBAY_CERT_ID`) and a deploy + live
+  round-trip, same as every other ticket in this track.

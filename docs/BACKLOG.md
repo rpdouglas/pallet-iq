@@ -32,7 +32,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Done        | P1       |
 | PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Planned     | P2       |
+| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |

@@ -1,5 +1,7 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import type { ItemScanCandidate } from '../item-scans/types'
+import { classifyCategoryProfile, computeCacheKey } from './categoryProfile'
+import type { CategoryProfile } from './categoryProfile'
 import { searchActiveListings } from './ebayBrowseApi'
 import { lookupUpc } from './upcLookup'
 import { computeLiquidationPrice, computeMsrp, computeSalePrice } from './computePrices'
@@ -16,42 +18,21 @@ export const PRICING_CONFIDENCE_THRESHOLD = 0.6
 // doesn't.
 const CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
-type CategoryProfile = 'electronics' | 'games' | 'media' | 'tools' | 'fashion'
 type WaterfallStep = 'upc' | 'grounding' | 'ebay'
 
 // docs/projects/treasure-hunter-plan.md section 4's category-conditional
-// ordering table, reduced to the steps actually available in this ticket -
-// Keepa/PriceCharting/Discogs/Google Books (category specialists) are
-// PALLETIQ-027, so those table entries are dropped rather than
-// approximated with the wrong source.
+// ordering table, reduced to the steps that resolve synchronously in the
+// priceItemScan callable's own response - the free/cheap steps. Keepa/
+// PriceCharting/Discogs/Google Books (paid or multi-call category
+// specialists) run as PALLETIQ-027's background enrichment instead, see
+// enrichment.ts - "slow/paid steps move to background enrichment" per
+// this ticket's own scope note.
 const PROFILE_STEPS: Record<CategoryProfile, WaterfallStep[]> = {
   electronics: ['upc', 'grounding', 'ebay'],
   games: ['ebay', 'grounding'],
   media: ['upc', 'grounding'],
   tools: ['upc', 'grounding', 'ebay'],
   fashion: ['grounding'],
-}
-
-function classifyCategoryProfile(category: string): CategoryProfile {
-  const c = category.toLowerCase()
-  if (/game|card|collectible|toy|funko|lego/.test(c)) return 'games'
-  if (/book|vinyl|\bcd\b|music|media|isbn/.test(c)) return 'media'
-  if (/fashion|sneaker|shoe|apparel|clothing|streetwear/.test(c)) return 'fashion'
-  if (/tool|home good|hardware/.test(c)) return 'tools'
-  return 'electronics'
-}
-
-function computeCacheKey(candidate: ItemScanCandidate): string {
-  if (candidate.barcodeNumber) {
-    return `upc:${candidate.barcodeNumber}`
-  }
-  const fingerprint = [candidate.brand, candidate.model, candidate.itemName]
-    .filter((v): v is string => !!v)
-    .join('|')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-  return `fp:${fingerprint}`
 }
 
 function stepConfidence(stepsUsed: string[], sampleSize: number): number {
@@ -185,7 +166,7 @@ export async function runWaterfall(
     }
   }
 
-  const msrpResult = computeMsrp({ groundedRetailPrice, upcMedianOfferPrice })
+  const msrpResult = computeMsrp([groundedRetailPrice, upcMedianOfferPrice])
   const compPrices = ebayListings.map((l) => l.price)
   const saleResult = computeSalePrice(compPrices, candidate.condition)
   const liquidationPrice = computeLiquidationPrice(compPrices, candidate.condition)

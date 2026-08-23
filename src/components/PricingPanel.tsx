@@ -1,20 +1,9 @@
-import { ArrowDown, ArrowUp, ExternalLink, Minus } from 'lucide-react'
-import type { PricingFactorDirection, PricingResult } from '../types/itemScan'
+import { ExternalLink } from 'lucide-react'
+import { FactorBreakdownList } from './FactorBreakdownList'
+import type { PricingResult } from '../types/itemScan'
 
 function formatCurrency(value: number | null): string {
   return value === null ? '—' : `$${value.toFixed(2)}`
-}
-
-const DIRECTION_ICON: Record<PricingFactorDirection, typeof ArrowUp> = {
-  up: ArrowUp,
-  down: ArrowDown,
-  neutral: Minus,
-}
-
-const DIRECTION_COLOR: Record<PricingFactorDirection, string> = {
-  up: 'text-success',
-  down: 'text-danger',
-  neutral: 'text-slate-gray',
 }
 
 // docs/design/explainable-scoring.md's score-badge + factor-breakdown +
@@ -41,8 +30,14 @@ const DIRECTION_COLOR: Record<PricingFactorDirection, string> = {
 // (matching the plan's own mockup: "✓ 18 comps... ✓ Grounding found...")
 // not a scored/weighted list. buildFactors() (functions/src/pricing/
 // waterfall.ts) orders them by a fixed, documented priority instead.
-// Magnitude-based sorting is more naturally PALLETIQ-027's territory,
-// once the saleability formula has real weighted coefficients to sort by.
+// PALLETIQ-027's saleability score DOES have real weighted coefficients
+// (see computeSaleability.ts) but SaleabilityPanel doesn't sort by them
+// either, for the same practical reason: the weights determine each
+// term's max possible contribution, not its actual pull for a specific
+// scan (a 0.20-weighted term at value 0.1 can matter less than a
+// 0.05-weighted term at value 1.0) - computing a true per-factor
+// magnitude would need re-deriving each term's marginal contribution to
+// the final score, deferred rather than done half-right here.
 export function PricingPanel({ pricing }: { pricing: PricingResult }) {
   return (
     <div className="flex flex-col gap-4">
@@ -76,27 +71,7 @@ export function PricingPanel({ pricing }: { pricing: PricingResult }) {
           </div>
         </dl>
 
-        <ul className="mt-5 flex flex-col gap-3">
-          {pricing.factors.map((factor, index) => {
-            const Icon = DIRECTION_ICON[factor.direction]
-            return (
-              <li key={index} className="flex items-start gap-2">
-                <Icon
-                  className={`mt-0.5 shrink-0 ${DIRECTION_COLOR[factor.direction]}`}
-                  size={14}
-                />
-                <div>
-                  <p className="text-body text-ink-navy leading-relaxed">{factor.label}</p>
-                  {factor.explanation ? (
-                    <p className="text-label text-slate-gray leading-relaxed">
-                      {factor.explanation}
-                    </p>
-                  ) : null}
-                </div>
-              </li>
-            )
-          })}
-        </ul>
+        <FactorBreakdownList factors={pricing.factors} />
       </div>
 
       {pricing.comps.length > 0 ? (

@@ -4,33 +4,34 @@ import {
   CONDITION_SALE_MULTIPLIERS,
   computeLiquidationPrice,
   computeMsrp,
+  computePriceVariance,
   computeSalePrice,
 } from './computePrices'
 
 describe('computeMsrp', () => {
   it('returns null with no sources', () => {
-    expect(computeMsrp({ groundedRetailPrice: null, upcMedianOfferPrice: null })).toEqual({
-      msrp: null,
-      sourcesAgree: null,
-    })
+    expect(computeMsrp([null, null])).toEqual({ msrp: null, sourcesAgree: null })
   })
 
   it('returns the single available source with unknown agreement', () => {
-    expect(computeMsrp({ groundedRetailPrice: 99.99, upcMedianOfferPrice: null })).toEqual({
-      msrp: 99.99,
-      sourcesAgree: null,
-    })
+    expect(computeMsrp([99.99, null])).toEqual({ msrp: 99.99, sourcesAgree: null })
   })
 
   it('averages two agreeing sources and marks sourcesAgree true', () => {
-    const result = computeMsrp({ groundedRetailPrice: 100, upcMedianOfferPrice: 95 })
+    const result = computeMsrp([100, 95])
     expect(result.msrp).toBe(97.5)
     expect(result.sourcesAgree).toBe(true)
   })
 
   it('marks sourcesAgree false when sources diverge by more than 20%', () => {
-    const result = computeMsrp({ groundedRetailPrice: 100, upcMedianOfferPrice: 50 })
+    const result = computeMsrp([100, 50])
     expect(result.sourcesAgree).toBe(false)
+  })
+
+  it('averages 3+ sources', () => {
+    const result = computeMsrp([100, 100, 106])
+    expect(result.msrp).toBeCloseTo(102)
+    expect(result.sourcesAgree).toBe(true)
   })
 })
 
@@ -72,5 +73,28 @@ describe('computeLiquidationPrice', () => {
     const liquidation = computeLiquidationPrice(comps, 'good')
     expect(sale).not.toBeNull()
     expect(liquidation).toBeLessThan(sale?.point ?? -Infinity)
+  })
+})
+
+describe('computePriceVariance', () => {
+  it('returns null with no comps', () => {
+    expect(computePriceVariance([])).toBeNull()
+  })
+
+  it('returns a low value for tightly clustered comps', () => {
+    const variance = computePriceVariance([100, 101, 99, 100, 100])
+    expect(variance).not.toBeNull()
+    expect(variance).toBeLessThan(0.1)
+  })
+
+  it('returns a higher value for widely scattered comps', () => {
+    const variance = computePriceVariance([10, 50, 90, 130, 170])
+    expect(variance).not.toBeNull()
+    expect(variance).toBeGreaterThan(0.5)
+  })
+
+  it('clamps to a maximum of 1', () => {
+    const variance = computePriceVariance([1, 1000])
+    expect(variance).toBeLessThanOrEqual(1)
   })
 })

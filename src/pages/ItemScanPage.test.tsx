@@ -5,7 +5,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
 import type { Role } from '../types/auth'
 import { AuthContext, type AuthState } from '../lib/auth/AuthContext'
-import type { ItemScan, ItemScanCandidate, PricingResult } from '../types/itemScan'
+import type {
+  ItemScan,
+  ItemScanCandidate,
+  PricingResult,
+  SaleabilityResult,
+} from '../types/itemScan'
 
 const newScanId = vi.fn<(tenantId: string) => string>()
 const uploadScanPhoto =
@@ -99,6 +104,33 @@ const PRICING: PricingResult = {
   waterfallStepsUsed: ['ebay'],
 }
 
+const SALEABILITY: SaleabilityResult = {
+  score: 0.72,
+  factors: [
+    { label: 'Sell-through rate not available yet', direction: 'neutral', explanation: null },
+  ],
+}
+
+// Base fixture - every test overrides only the fields it cares about,
+// rather than repeating all 12 ItemScan fields each time.
+function baseScan(overrides: Partial<ItemScan> = {}): ItemScan {
+  return {
+    id: 'scan-1',
+    status: 'completed',
+    photoPaths: [],
+    candidates: [CANDIDATE],
+    selectedCandidateIndex: 0,
+    error: null,
+    pricingStatus: 'not_priced',
+    pricing: null,
+    pricingError: null,
+    saleabilityStatus: 'not_scored',
+    saleabilityScore: null,
+    saleabilityError: null,
+    ...overrides,
+  }
+}
+
 describe('ItemScanPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -111,17 +143,9 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'processing',
-      photoPaths: [],
-      candidates: [],
-      selectedCandidateIndex: null,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ status: 'processing', candidates: [], selectedCandidateIndex: null }),
+    )
     renderPage()
 
     const file = photoFile()
@@ -144,17 +168,7 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(baseScan())
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])
@@ -171,28 +185,10 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'priced',
-      pricing: PRICING,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ pricingStatus: 'priced', pricing: PRICING, saleabilityStatus: 'scoring' }),
+    )
     priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
     renderPage()
 
@@ -212,28 +208,10 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'unknown',
-      pricing: null,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ pricingStatus: 'unknown', saleabilityStatus: 'scoring' }),
+    )
     priceItemScan.mockResolvedValueOnce({ pricing: null })
     renderPage()
 
@@ -249,28 +227,10 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [CANDIDATE],
-      selectedCandidateIndex: 0,
-      error: null,
-      pricingStatus: 'failed',
-      pricing: null,
-      pricingError: 'eBay is down',
-    })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ pricingStatus: 'failed', pricingError: 'eBay is down' }),
+    )
     priceItemScan.mockResolvedValueOnce({ pricing: null })
     renderPage()
 
@@ -281,6 +241,60 @@ describe('ItemScanPage', () => {
     expect(screen.getByRole('button', { name: /try pricing again/i })).toBeInTheDocument()
   })
 
+  it('shows the saleability panel once background scoring completes', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    // The intermediate "scoring" poll tick isn't simulated here (it needs
+    // real elapsed time via refetchInterval, not worth faking timers for) -
+    // this asserts the settled 'scored' state renders correctly, same
+    // two-stage pattern as the "auto-starts pricing" test above.
+    getItemScan.mockResolvedValueOnce(
+      baseScan({
+        pricingStatus: 'priced',
+        pricing: PRICING,
+        saleabilityStatus: 'scored',
+        saleabilityScore: SALEABILITY,
+      }),
+    )
+    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByText('72')).toBeInTheDocument()
+    expect(screen.getByText('Saleability score')).toBeInTheDocument()
+    expect(screen.getByText('Sell-through rate not available yet')).toBeInTheDocument()
+  })
+
+  it('shows a saleability failure message and lets the buyer retry', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    getItemScan.mockResolvedValueOnce(
+      baseScan({
+        pricingStatus: 'priced',
+        pricing: PRICING,
+        saleabilityStatus: 'failed',
+        saleabilityError: 'Keepa is down',
+      }),
+    )
+    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByText('Keepa is down')).toBeInTheDocument()
+  })
+
   it('shows a top-3 picker when confidence is low, and selects a candidate', async () => {
     const lowA = { ...CANDIDATE, itemName: 'Mystery A', confidence: 0.4 }
     const lowB = { ...CANDIDATE, itemName: 'Mystery B', confidence: 0.3 }
@@ -289,17 +303,9 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'completed',
-      photoPaths: [],
-      candidates: [lowA, lowB],
-      selectedCandidateIndex: null,
-      error: null,
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ candidates: [lowA, lowB], selectedCandidateIndex: null }),
+    )
     selectItemScanCandidate.mockResolvedValueOnce(undefined)
     renderPage()
 
@@ -322,17 +328,14 @@ describe('ItemScanPage', () => {
       storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
     })
     enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
-    getItemScan.mockResolvedValueOnce({
-      id: 'scan-1',
-      status: 'failed',
-      photoPaths: [],
-      candidates: [],
-      selectedCandidateIndex: null,
-      error: 'Gemini returned an empty response.',
-      pricingStatus: 'not_priced',
-      pricing: null,
-      pricingError: null,
-    })
+    getItemScan.mockResolvedValueOnce(
+      baseScan({
+        status: 'failed',
+        candidates: [],
+        selectedCandidateIndex: null,
+        error: 'Gemini returned an empty response.',
+      }),
+    )
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])

@@ -59,6 +59,15 @@ export interface PricingResult {
   waterfallStepsUsed: string[]
 }
 
+// PALLETIQ-027 / ADR-0011.
+export type SaleabilityStatus = 'not_scored' | 'scoring' | 'scored' | 'failed'
+
+export interface SaleabilityResult {
+  /** 0-1. */
+  score: number
+  factors: PricingFactor[]
+}
+
 // PALLETIQ-025 / ADR-0011. Mirrors functions/src/item-scans/types.ts's
 // ItemScanDoc - kept as a plain client-side interface (id added on read),
 // not re-exported from functions, since the two packages don't share a
@@ -73,4 +82,7 @@ export interface ItemScan {
   pricingStatus: PricingStatus
   pricing: PricingResult | null
   pricingError: string | null
+  saleabilityStatus: SaleabilityStatus
+  saleabilityScore: SaleabilityResult | null
+  saleabilityError: string | null
 }

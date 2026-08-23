@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { DollarSign, PackageSearch } from 'lucide-react'
+import { DollarSign, PackageSearch, TrendingUp } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EmptyState } from '../components/EmptyState'
 import { ItemScanCapture } from '../components/ItemScanCapture'
 import { PricingPanel } from '../components/PricingPanel'
+import { SaleabilityPanel } from '../components/SaleabilityPanel'
 import { useAuth } from '../lib/auth/useAuth'
 import {
   enqueueItemScan,
@@ -59,9 +60,14 @@ export function ItemScanPage() {
     enabled: !!tenantId && mode.kind === 'result',
     // Identification runs asynchronously (queued -> processing ->
     // completed/failed) server-side, same polling posture as
-    // ManifestsPage's import status.
+    // ManifestsPage's import status. Also polls while saleabilityStatus is
+    // 'scoring' - PALLETIQ-027's background enrichment (Keepa/PriceCharting/
+    // Discogs/Google Books + the saleability score) resolves later than
+    // this callable's own response, unlike pricingStatus above.
     refetchInterval: (query) =>
-      query.state.data?.status === 'queued' || query.state.data?.status === 'processing'
+      query.state.data?.status === 'queued' ||
+      query.state.data?.status === 'processing' ||
+      query.state.data?.saleabilityStatus === 'scoring'
         ? 2000
         : false,
   })
@@ -232,6 +238,37 @@ export function ItemScanPage() {
                       }}
                     >
                       Try pricing again
+                    </Button>
+                  }
+                />
+              </div>
+            ) : null}
+
+            {scan.saleabilityStatus === 'scoring' ? (
+              <div className="flex flex-col gap-3 rounded-xl bg-white p-8 shadow-sm">
+                <div className="bg-cloud-gray h-8 w-1/3 animate-pulse rounded-lg" />
+                <div className="bg-cloud-gray h-16 animate-pulse rounded-lg" />
+                <p className="text-label text-slate-gray">Scoring saleability…</p>
+              </div>
+            ) : null}
+
+            {scan.saleabilityStatus === 'scored' && scan.saleabilityScore ? (
+              <SaleabilityPanel saleability={scan.saleabilityScore} />
+            ) : null}
+
+            {scan.saleabilityStatus === 'failed' ? (
+              <div className="rounded-xl bg-white p-8 shadow-sm">
+                <EmptyState
+                  icon={TrendingUp}
+                  message={scan.saleabilityError ?? 'Saleability scoring failed.'}
+                  action={
+                    <Button
+                      className="min-h-11"
+                      onClick={() => {
+                        if (resultScanId) startPricing(resultScanId)
+                      }}
+                    >
+                      Try again
                     </Button>
                   }
                 />
