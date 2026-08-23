@@ -38,6 +38,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
 | PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -1704,3 +1705,53 @@ _UI pattern notes:_ none - no UI change, this ticket ships no UI.
 _ADR:_ not needed - a resource-bound tuning change within `ADR-0009`'s
 existing architecture, same class of change `ADR-0008` already made for
 `processManifestImport` without its own ADR.
+
+_Scope note on `PALLETIQ-033` (2026-08-23) — Planning gate only, not started:_
+
+_Found during `PALLETIQ-027`'s Check IV design-system audit and recorded as
+a logged-not-fixed follow-up in `docs/ACTIVE_CYCLE.md`:_ `ItemScanPage`'s
+retry button on a `saleabilityStatus === 'failed'` state calls the same
+`startPricing` mutation (`priceItemScan`) as the pricing-failed retry
+button - re-running the _entire_ waterfall (cache/UPC/grounding/eBay) - even
+though the scan is already priced and only saleability scoring failed. A
+user reading "try again" on a saleability failure would reasonably expect
+just a re-score, not a full pricing re-run. Not blocking at the time (the
+30-day `product_price_cache` means a moments-later retry mostly hits a warm
+cache rather than re-fetching eBay), but a real UX/wiring mismatch worth
+its own ticket rather than staying silently accepted.
+
+_In scope:_ a dedicated way to re-trigger just `enrichItemScanPricing` for
+an already-priced scan - either a small new `onCall` (e.g.
+`retrySaleabilityScore`) that re-enqueues the same `enrichItemScanPricing`
+Cloud Tasks worker PALLETIQ-027 already built, or (if it turns out cheap
+enough) exposing `enqueueItemScan`'s existing task-queue enqueue call
+through a second, narrower callable - implementation detail to settle at
+build time, not here. Requires `scanData.pricingStatus === 'priced'`
+(otherwise there's nothing to re-score against) and resets
+`saleabilityStatus` to `'scoring'` before enqueueing, mirroring
+`priceItemScan`'s own pre-enqueue state transition. `ItemScanPage`'s
+saleability-failed `EmptyState` retry button switches from calling
+`startPricing` to calling this new mutation.
+
+_Out of scope:_ any change to the pricing-failed retry path (that one
+correctly re-runs the full waterfall, since pricing itself is what
+failed) - the mismatch is specific to the saleability-failed path only.
+Also out of scope: a UI change to `PricingPanel` or `SaleabilityPanel`
+themselves, and any change to `computeSaleability.ts`'s scoring formula -
+this ticket is wiring/plumbing only, not a scoring-logic change.
+
+_Firestore/RBAC impact:_ none new - the new callable reads/writes the same
+`tenants/{tenantId}/item_scans/{scanId}` doc `priceItemScan` already
+does, under the existing `product_price_cache`/`item_scans` rules from
+`PALLETIQ-025`/`026`. Same Owner/Buyer role check as `priceItemScan`
+(`request.auth.token.role !== 'owner' && !== 'buyer'` → `permission-denied`).
+
+_UI pattern notes:_ no new UI pattern - reuses the existing
+`docs/design/`-governed `EmptyState` + retry-button treatment already on
+this page (`PALLETIQ-026`/`027`), just rewires which mutation the existing
+saleability-failed button calls.
+
+_ADR:_ not needed - adds one narrowly-scoped callable within `ADR-0011`'s
+existing background-enrichment design (`enrichItemScanPricing` already
+exists; this just gives it a second, narrower entry point), not a new
+architectural decision.
