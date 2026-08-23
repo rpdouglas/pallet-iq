@@ -1737,3 +1737,108 @@ hunter-plan.md` §12 flagged is real but **not absolute**: for the
   direct script, not the deployed `priceItemScanWorker`/Cloud Tasks
   path - now confirmed working end-to-end for real, not just in
   isolation.
+
+- **2026-08-23 — PALLETIQ-036 closed.** Owner-reported directly, right
+  after live-verifying `PALLETIQ-035` with two real scans: uploading 2+
+  photos on the capture screen "takes too long and never finished," 1
+  photo "still took a long time but did finish," and pricing "took a
+  very long time." Asked to reduce friction/wait times generally and add
+  a spinning indicator wherever the app waits.
+
+  **Root cause, confirmed via code investigation before touching
+  anything:** no photo compression existed anywhere, client or server.
+  `ItemScanCapture.tsx` uploaded raw camera files as-is;
+  `processItemScan.ts` downloaded each from Storage and `identifyItem.ts`
+  base64'd every one into a single Gemini call. Real phone photos run
+  3-8MB each - 5 photos could total ~50MB raw, ~66MB once base64-inflated,
+  all sent inline in one request. Compounding this: `processItemScan.ts`'s
+  300s `onTaskDispatched` timeout, when actually hit, is a
+  platform-enforced kill that never reaches the function's own `catch`
+  block - `item_scans.status` stayed stuck at `'processing'` while Cloud
+  Tasks silently retried (up to 3 attempts, up to ~15 minutes) with no
+  visible client-side change, and the client polled indefinitely with no
+  give-up logic. This is exactly what "never finishes" looks like from
+  the Buyer's side.
+
+  Separately found while investigating: `docs/design/components.md`
+  already documented a spinner-vs-skeleton rule ("skeletons for long
+  waits with real layout to preview... spinners for short indeterminate
+  waits like a button mid-submit") that had never actually been
+  implemented - zero `Spinner`/`animate-spin` instances existed anywhere
+  in `src/`, confirmed via repo-wide grep both during planning and again
+  during the Check IV audit. The three item-scan wait states (identify/
+  price/score) already correctly used skeletons per that rule; the real
+  gap was `ItemScanCapture.tsx`'s submit button, a textbook "button
+  mid-submit" case that just swapped text with no indicator at all.
+
+  **Shipped as planned:** new `src/lib/itemScans/compressPhoto.ts`
+  (`createImageBitmap` with `imageOrientation: 'from-image'` for correct
+  EXIF rotation + canvas resize to 1600px longest-edge / 0.8 JPEG
+  quality, graceful fallback to the original file on any decode/encode
+  failure so compression can never block an upload), wired into
+  `ItemScanPage.tsx`'s `scanMutation` immediately before the existing
+  `uploadScanPhoto` call. New `src/components/Spinner.tsx` (`lucide-
+react`'s `Loader2` + Tailwind `animate-spin`, `role="status"`) - the
+  first real instance of the documented pattern, used only in
+  `ItemScanCapture.tsx`'s submit button; the three existing skeletons
+  deliberately left as skeletons (confirmed correct per the same rule,
+  not a regression to fix). Expectation-setting second-line captions
+  added to the identify/pricing skeletons in `ItemScanPage.tsx`, plus a
+  soft third line ("Still working — this is taking longer than usual.")
+  that appears after 90 seconds without stopping polling or swapping to
+  a failed/retry UI - deliberately not a hard give-up, since
+  identification's and pricing's legitimate worst-case durations differ
+  too much (~6 min vs. ~15 min post-tuning) for one threshold to safely
+  trigger a failed-looking state for both.
+
+  **A real, forced consequence worth naming:** `processItemScan.ts`'s
+  `timeoutSeconds` reduced 300→120, now that compressed payloads are
+  far smaller than what 300s was originally sized for - this shrinks
+  the worst-case silent-retry window from ~15 minutes to ~6 minutes if a
+  pathological case still occurs. `priceItemScanWorker.ts`'s 300s
+  timeout is deliberately untouched - pricing's latency is inherent to
+  live multi-page research (`PALLETIQ-035`), unrelated to this bug.
+
+  **Explicitly not built, and why:** a heartbeat/progress-write
+  mechanism (would need a second scheduled function or client-side
+  staleness detection - bigger scope than this bug calls for once the
+  root cause is fixed directly); a hard client-side give-up/stop-polling
+  mechanism (see above - the two stages' worst-case durations differ too
+  much for one safe threshold).
+
+  **Governance:** no ADR (bug fix + first implementation of an
+  already-decided documented pattern, same reasoning class as
+  `PALLETIQ-033`/`034`). No Firestore/rules impact - no schema change.
+  Check IV (design-system-auditor) audited `Spinner.tsx`/
+  `ItemScanCapture.tsx`/`ItemScanPage.tsx` and passed clean - confirmed
+  no prior `animate-spin` usage anywhere in the codebase (a genuine
+  first instance, not a duplicate), no hardcoded colors (`text-slate-
+gray`/`text-label` are project-defined tokens, not default-Tailwind
+  stand-ins - not even a `PALLETIQ-016` instance), mobile density holds
+  with the added caption lines. **One pre-existing detail surfaced by
+  the audit, logged not fixed (out of this ticket's scope):**
+  `docs/design/mobile-responsive.md`'s Buyer-capture-flow exception
+  specifies the scan-result view should use Warehouse-reconciliation
+  density, not "the desktop card padding used elsewhere" - the `p-8` on
+  these cards predates this ticket (from `PALLETIQ-026`) and wasn't
+  touched here; worth a look if a future ticket revisits this screen's
+  density, not a regression this ticket introduced.
+
+  **Verification:** `compressPhoto.test.ts` (6 cases: downscale,
+  already-small pass-through via drawImage assertion, undecodable-HEIC
+  fallback, null-blob-encoder fallback, missing-2d-context fallback),
+  `Spinner.test.tsx`, new `ItemScanCapture.tsx`/`ItemScanPage.tsx` tests
+  for the spinner-during-submit and expectation-setting-copy/90s-
+  reassurance behavior (the latter using `vi.useFakeTimers({
+shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
+  bug while writing it: a persistent `mockResolvedValue` wasn't cleared
+  by the next test's `vi.clearAllMocks()`, same class of issue
+  documented from `PALLETIQ-027`'s close-out). Full checklist (format/
+  lint/typecheck, 185 real tests, a production `vite build`) all clean.
+  Full browser verification wasn't feasible in this sandbox (no
+  `claude-in-chrome`, authenticated capture screen) - same limitation as
+  `PALLETIQ-034`, resolved the same way. Not yet deployed - the
+  frontend-only pieces (compression, Spinner, copy) need no functions
+  redeploy to take effect, but `processItemScan.ts`'s timeout change
+  does; pending the owner's go-ahead, same pattern as every other ticket
+  in this track.

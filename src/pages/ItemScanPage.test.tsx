@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
@@ -163,6 +163,66 @@ describe('ItemScanPage', () => {
     })
     expect(uploadScanPhoto).toHaveBeenCalledWith('tenant-a', 'scan-1', 0, file)
     expect(await screen.findByText(/identifying item/i)).toBeInTheDocument()
+    expect(screen.getByText('Usually takes under a minute.')).toBeInTheDocument()
+  })
+
+  it('shows expectation-setting copy while pricing', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce(baseScan())
+    let resolvePricing: () => void = () => {
+      // reassigned below before use
+    }
+    priceItemScan.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolvePricing = resolve
+      }),
+    )
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByText('Pricing…')).toBeInTheDocument()
+    expect(screen.getByText(/checking retail, kijiji, and ebay listings live/i)).toBeInTheDocument()
+
+    resolvePricing()
+  })
+
+  it('shows a reassurance message once identification takes longer than usual', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      newScanId.mockReturnValueOnce('scan-1')
+      uploadScanPhoto.mockResolvedValueOnce({
+        storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+      })
+      enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+      getItemScan.mockResolvedValue(
+        baseScan({ status: 'processing', candidates: [], selectedCandidateIndex: null }),
+      )
+      renderPage()
+
+      selectFiles(fileInput(), [photoFile()])
+      fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+      expect(await screen.findByText(/identifying item/i)).toBeInTheDocument()
+      expect(screen.queryByText(/taking longer than usual/i)).not.toBeInTheDocument()
+
+      act(() => {
+        vi.advanceTimersByTime(90_000)
+      })
+
+      expect(screen.getByText(/taking longer than usual/i)).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+      // mockResolvedValue (not ...Once) sets a persistent implementation
+      // that vi.clearAllMocks() in the next test's beforeEach won't clear -
+      // reset it explicitly so later tests get their own clean queue.
+      getItemScan.mockReset()
+    }
   })
 
   it('shows the completed candidate when confidence auto-resolved', async () => {

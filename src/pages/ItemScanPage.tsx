@@ -6,6 +6,7 @@ import { ItemScanCapture } from '../components/ItemScanCapture'
 import { PricingPanel } from '../components/PricingPanel'
 import { SaleabilityPanel } from '../components/SaleabilityPanel'
 import { useAuth } from '../lib/auth/useAuth'
+import { compressPhoto } from '../lib/itemScans/compressPhoto'
 import {
   enqueueItemScan,
   getItemScan,
@@ -20,6 +21,28 @@ import type { ItemScanCandidate } from '../types/itemScan'
 import { Button } from '../components/Button'
 
 type Mode = { kind: 'capture' } | { kind: 'result'; scanId: string }
+
+// PALLETIQ-036. Past this, append a "still working" reassurance line rather
+// than leaving a silent skeleton - not a hard give-up/failed swap (see
+// docs/BACKLOG.md's PALLETIQ-036 scope note for why: identify's and
+// pricing's legitimate worst-case durations differ too much for one
+// threshold to safely trigger a failed-looking state for both).
+const STILL_WORKING_MS = 90_000
+
+function useTakingLong(isActive: boolean): boolean {
+  const [takingLong, setTakingLong] = useState(false)
+  useEffect(() => {
+    if (!isActive) return
+    const timer = setTimeout(() => {
+      setTakingLong(true)
+    }, STILL_WORKING_MS)
+    return () => {
+      clearTimeout(timer)
+      setTakingLong(false)
+    }
+  }, [isActive])
+  return takingLong
+}
 
 function CandidateCard({ candidate }: { candidate: ItemScanCandidate }) {
   return (
@@ -81,7 +104,8 @@ export function ItemScanPage() {
       const scanId = newScanId(tenantId)
       const photoPaths = await Promise.all(
         photos.map(async (photo, index) => {
-          const { storagePath } = await uploadScanPhoto(tenantId, scanId, index, photo)
+          const compressed = await compressPhoto(photo)
+          const { storagePath } = await uploadScanPhoto(tenantId, scanId, index, compressed)
           return storagePath
         }),
       )
@@ -145,6 +169,13 @@ export function ItemScanPage() {
     }
   }, [resultScanId, hasSelectedCandidate, pricingStatus, isPricingPending, startPricing])
 
+  const isIdentifying =
+    mode.kind === 'result' &&
+    (scanQuery.isLoading || !scan || scan.status === 'queued' || scan.status === 'processing')
+  const isPricing = hasSelectedCandidate && (isPricingPending || pricingStatus === 'pricing')
+  const identifyTakingLong = useTakingLong(isIdentifying)
+  const pricingTakingLong = useTakingLong(isPricing)
+
   return (
     <main className="bg-cloud-gray min-h-svh p-4 sm:p-6">
       <div className="mx-auto flex max-w-xl flex-col gap-4">
@@ -160,15 +191,17 @@ export function ItemScanPage() {
           </div>
         ) : null}
 
-        {mode.kind === 'result' &&
-        (scanQuery.isLoading ||
-          !scan ||
-          scan.status === 'queued' ||
-          scan.status === 'processing') ? (
+        {isIdentifying ? (
           <div className="flex flex-col gap-3 rounded-xl bg-white p-8 shadow-sm">
             <div className="bg-cloud-gray h-6 w-2/3 animate-pulse rounded-lg" />
             <div className="bg-cloud-gray h-24 animate-pulse rounded-lg" />
             <p className="text-label text-slate-gray">Identifying item…</p>
+            <p className="text-label text-slate-gray">Usually takes under a minute.</p>
+            {identifyTakingLong ? (
+              <p className="text-label text-slate-gray">
+                Still working — this is taking longer than usual.
+              </p>
+            ) : null}
           </div>
         ) : null}
 
@@ -216,11 +249,20 @@ export function ItemScanPage() {
               </div>
             )}
 
-            {selectedCandidate && (isPricingPending || scan.pricingStatus === 'pricing') ? (
+            {isPricing ? (
               <div className="flex flex-col gap-3 rounded-xl bg-white p-8 shadow-sm">
                 <div className="bg-cloud-gray h-8 w-1/3 animate-pulse rounded-lg" />
                 <div className="bg-cloud-gray h-16 animate-pulse rounded-lg" />
                 <p className="text-label text-slate-gray">Pricing…</p>
+                <p className="text-label text-slate-gray">
+                  This can take up to a minute — we're checking retail, Kijiji, and eBay listings
+                  live.
+                </p>
+                {pricingTakingLong ? (
+                  <p className="text-label text-slate-gray">
+                    Still working — this is taking longer than usual.
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
