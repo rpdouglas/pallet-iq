@@ -1465,8 +1465,31 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   **Live verification status:** the new `enrichItemScanPricing` worker
   and saleability scoring path are covered by unit tests (10 for
   `computeSaleability`, 8 for `runEnrichment`, plus the four specialist
-  clients' own tests, 225 functions tests total passing) but had not yet
-  been deployed or live-verified against `mrt-pallet-iq` as of ticket
-  close - pending `KEEPA_API_KEY`/`PRICECHARTING_API_KEY` placeholder
-  secrets (same as `EBAY_APP_ID`/`EBAY_CERT_ID`) and a deploy + live
-  round-trip, same as every other ticket in this track.
+  clients' own tests, 225 functions tests total passing) and have now
+  also been live-verified end-to-end against `mrt-pallet-iq` post-merge.
+  Placeholder `KEEPA_API_KEY`/`PRICECHARTING_API_KEY` secrets were set
+  (same inert-placeholder pattern as `EBAY_APP_ID`/`EBAY_CERT_ID`), all
+  functions deployed cleanly (`enrichItemScanPricing` created, others
+  updated), and `enrichitemscanpricing`'s Cloud Run invoker IAM policy
+  was confirmed empty (no `allUsers` binding) - matching the
+  `processItemScan`/`processManifestImport` non-public-worker precedent,
+  and ruling out the crash-interrupted-first-deploy IAM gap seen on
+  PALLETIQ-025.
+
+  A scripted round-trip (real tenant/user/item_scan docs, cleaned up
+  after) drove a test candidate through `priceItemScan` →
+  `enrichItemScanPricing` → saleability scoring with real (not mocked)
+  Cloud Functions/Cloud Tasks/Firestore. With only placeholder eBay/Keepa
+  credentials in place, the waterfall correctly found no signal
+  (`pricingStatus: 'unknown'`, `pricing: null` - a legitimate terminal
+  state, not a crash), the Keepa call failed and was swallowed by
+  `runEnrichment`'s `try/catch` with no error-severity log entries for
+  the invocation (checked via the Cloud Logging API), and
+  `saleabilityStatus` still resolved to `'scored'` with a fully-formed,
+  correctly weight-redistributed score - confirming the "degrade
+  gracefully, never leave the user stuck in a stuck/failed state for a
+  missing paid signal" design holds under real (not mocked) conditions.
+  A real category-specialist "priced" happy path (i.e. an actual Keepa/
+  PriceCharting hit) remains unverified, same deferral as the rest of
+  this track - no real API keys or a suitable barcode-bearing test photo
+  are available in this sandbox.
