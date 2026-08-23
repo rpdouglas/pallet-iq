@@ -1866,3 +1866,79 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
     bhphotovideo.com). The two source photos were compressed 15.3MB→215KB
     and 18.6MB→158KB respectively - roughly a 98% size reduction, in line
     with what the unit tests already predicted.
+
+- **2026-08-23 — PALLETIQ-038 closed.** Planning gate (ticket + `ADR-0013`)
+  already existed before this session picked it up - opened directly by
+  the owner after reporting pricing "takes a long time and sometimes
+  doesn't even return anything," alongside a related-but-separate polling
+  bug (fixed directly, not part of this ticket - `ItemScanPage.tsx`'s
+  `refetchInterval` never checked `pricingStatus === 'pricing'`, so the
+  "Pricing…" skeleton would sit frozen once identification finished with
+  no visible progress until something else happened to trigger a
+  refetch).
+
+  **Shipped exactly as `ADR-0013` specified, with zero downstream
+  changes.** `priceResearch.ts`'s `researchPrice()` now runs three
+  concurrent Gemini legs (retail+openBox, kijiji, ebaySold - each
+  independently Zod-validated against its own narrower schema) via
+  `Promise.allSettled`, plus a fourth, tools-free synthesis call that
+  applies the SOP's existing synthesis rules to whichever legs succeeded.
+  A leg that rejects or fails schema validation degrades to the same
+  null/empty/thin shape the SOP already uses for "found nothing," plus a
+  code-generated `dataQuality.flags` entry naming which leg failed and
+  why - concatenated with whatever flags the synthesis call itself adds.
+  The synthesis call is NOT given the same safety net - if it fails, the
+  whole price still fails and Cloud Tasks retries, same all-or-nothing
+  behavior the single-call design already had for that one step.
+  `researchPrice()`'s exported signature and `PriceResearchResponse`
+  return shape are byte-identical to before, so `mapPriceResearch.ts` and
+  `priceItemScanWorker.ts` needed **zero code changes** - confirmed by
+  running the full functions suite unchanged (206 tests) immediately
+  after the rewrite with no other files touched.
+
+  **Live pre-flight spike against the real `GEMINI_API_KEY`** (direct
+  script against the compiled `functions/lib` output, not deployed) on
+  two real items (a DeWalt cordless drill, an Instant Pot Duo):
+
+  - Both produced correct, well-sourced results with real comps and
+    working URLs, same quality bar as `PALLETIQ-035`'s own live checks.
+  - The Instant Pot's eBay leg came back naturally thin (not a simulated
+    failure) - the synthesis call correctly anchored on Kijiji instead
+    and added an honest `dataQuality` flag, proving the partial-
+    degradation design works under real conditions, not just mocks.
+  - The synthesis call caught a genuine, unprompted data-quality issue
+    on the drill: "Significant discrepancy between US eBay sold averages
+    (~$104 CAD) and local Ontario Kijiji pricing" - exactly the kind of
+    judgment call a human running the SOP manually would flag, and
+    something no single deterministic waterfall step could have
+    surfaced.
+  - **Honest latency result, stated plainly rather than oversold:**
+    36.6s and 52.7s for the two items - comparable to, not dramatically
+    faster than, `PALLETIQ-035`'s own single-call latency numbers (~32-
+    38s). Consistent with `ADR-0013`'s own framing ("a meaningful cut
+    _whenever the three legs' durations are of comparable magnitude_,"
+    not a guaranteed win every time) - the eBay leg (search + multiple
+    listing-page fetches) appears to be the dominant bottleneck on these
+    two items regardless of whether the other two legs run before,
+    after, or alongside it, so total wall-clock ends up close to
+    max(legs) either way when one leg dominates that heavily. The real,
+    concretely-proven win from this session's testing is the resilience
+    improvement (a thin/failed leg no longer sinks the whole price), not
+    a guaranteed latency cut on every item - worth watching real usage
+    data post-deploy to see how often the three legs' durations are
+    actually balanced enough for the latency benefit to show up as
+    designed.
+
+  **Governance:** no Firestore/rules impact, no UI impact (confirmed -
+  `PricingPanel.tsx`/`ItemScanPage.tsx` untouched, merged response still
+  maps onto the unchanged `PricingResult` shape) - matches the ticket's
+  own scope note. `ADR-0013` flipped from `Proposed` to `Accepted` as
+  part of this implementation. Governance Check II (async AI boundary):
+  unaffected by construction - all four Gemini calls still only ever run
+  inside `priceItemScanWorker`'s Cloud-Tasks-dispatched worker, no new
+  inline call sites. `PALLETIQ-037` (comp URL verification) remains
+  open, independent of this ticket per both tickets' own scope notes -
+  not started.
+
+  **Not yet deployed** - pending the owner's go-ahead, same pattern as
+  every other ticket in this track.
