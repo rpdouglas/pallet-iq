@@ -1837,8 +1837,32 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   lint/typecheck, 185 real tests, a production `vite build`) all clean.
   Full browser verification wasn't feasible in this sandbox (no
   `claude-in-chrome`, authenticated capture screen) - same limitation as
-  `PALLETIQ-034`, resolved the same way. Not yet deployed - the
-  frontend-only pieces (compression, Spinner, copy) need no functions
-  redeploy to take effect, but `processItemScan.ts`'s timeout change
-  does; pending the owner's go-ahead, same pattern as every other ticket
-  in this track.
+  `PALLETIQ-034`, resolved the same way.
+
+  **Deployed and live-verified post-merge.** `processItemScan`'s Cloud
+  Run config was confirmed post-deploy: `timeout: 120s`, `memory: 512Mi`
+  - the reduction took effect. The frontend pieces (compression,
+    Spinner, copy) shipped via the existing CI/CD Hosting deploy
+    (`PALLETIQ-015`) on merge to `main`, no separate action needed.
+
+  Since `compressPhoto.ts` runs client-side only, a Node-based live
+  round-trip can't execute the real browser code directly - so rather
+  than upload uncompressed originals (which wouldn't prove anything new
+  beyond the unit tests) or fake the numbers, the verification used
+  ImageMagick to produce an equivalent output (1600px longest-edge,
+  JPEG quality 80 - matching `compressPhoto.ts`'s exact parameters) from
+  two real, deliberately worst-case-large source photos (two different
+  real angles of a Nikon D850 DSLR, 15.3MB and 18.6MB - 34MB combined,
+  larger than a typical multi-photo phone capture and exactly the shape
+  of payload that caused the original bug), then drove the compressed
+  output through the actual deployed `enqueueItemScan` → Cloud Tasks →
+  `processItemScan` → `identifyItem` path. Result: **16.2 seconds
+  total**, comfortably inside the new 120s ceiling, where the
+  pre-`PALLETIQ-036` code would have hung repeatedly for up to ~15
+  minutes on a payload this size. Identification was also fully correct
+  - "Nikon D850 DSLR Camera Body," 100% confidence, condition correctly
+    read from the photo ("no visible scuffs... tilting screen moves
+    freely"), a real grounded retail price found ($2596.95,
+    bhphotovideo.com). The two source photos were compressed 15.3MB→215KB
+    and 18.6MB→158KB respectively - roughly a 98% size reduction, in line
+    with what the unit tests already predicted.
