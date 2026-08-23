@@ -1916,8 +1916,8 @@ rather than force a number") rather than assuming it will work; the
 pre-flight spike (live `researchPrice()` calls against real items, before
 finalizing the prompt) confirms which path is actually hit in practice.
 
-_ADR:_ required - `ADR-0012`, written next as a separate step before any
-implementation starts. Supersedes `ADR-0011`'s "waterfall design, vendor
+_ADR:_ written - [`ADR-0012`](../adr/0012-treasure-hunter-pricing-llm-research-replaces-waterfall.md).
+Supersedes `ADR-0011`'s "waterfall design, vendor
 list" paragraph and its secrets list; explicitly confirms what's NOT
 superseded (the four-stage shape, the async AI boundary treatment, the
 Firestore collections/rules, the explainable-scoring UI reuse pattern,
