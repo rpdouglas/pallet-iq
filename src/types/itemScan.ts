@@ -21,6 +21,42 @@ export interface ItemScanCandidate {
   condition: ConditionGrade
   conditionJustification: string
   confidence: number
+  // PALLETIQ-026 / ADR-0011.
+  barcodeNumber: string | null
+  groundedRetailPrice: number | null
+  groundedRetailSource: string | null
+}
+
+// PALLETIQ-026 / ADR-0011.
+export type PricingStatus = 'not_priced' | 'pricing' | 'priced' | 'unknown' | 'failed'
+export type PricingFactorDirection = 'up' | 'down' | 'neutral'
+
+export interface PricingFactor {
+  label: string
+  direction: PricingFactorDirection
+  explanation: string | null
+}
+
+// An active-listing comp from the eBay Browse API, scaled by the
+// calibration ratio - never labeled "sold" anywhere in the UI, since eBay
+// Browse API only ever returns active asking prices, not real sold data.
+export interface PricingComp {
+  title: string
+  price: number
+  url: string | null
+}
+
+export interface PricingResult {
+  msrp: number | null
+  salePrice: number | null
+  salePriceLow: number | null
+  salePriceHigh: number | null
+  liquidationPrice: number | null
+  confidence: number
+  sampleSize: number
+  factors: PricingFactor[]
+  comps: PricingComp[]
+  waterfallStepsUsed: string[]
 }
 
 // PALLETIQ-025 / ADR-0011. Mirrors functions/src/item-scans/types.ts's
@@ -34,4 +70,7 @@ export interface ItemScan {
   candidates: ItemScanCandidate[]
   selectedCandidateIndex: number | null
   error: string | null
+  pricingStatus: PricingStatus
+  pricing: PricingResult | null
+  pricingError: string | null
 }

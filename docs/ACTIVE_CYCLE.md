@@ -1286,3 +1286,106 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   JSON, confidence-based auto-selection, and the direct-client-write
   `selectItemScanCandidate` RBAC path - all confirmed working against
   `mrt-pallet-iq`, not just the emulator.
+
+- **2026-08-23 — PALLETIQ-026 closed.** Planned scope (per `ADR-0011` and
+  the ticket's own `docs/BACKLOG.md` scope note) shipped as specified: the
+  pricing waterfall (cache -> UPC/barcode exact match -> Google Search
+  grounding, reused from `PALLETIQ-025`'s identification call, not a
+  second Gemini call -> eBay Browse API + calibration), category-
+  conditional step ordering (electronics/games/media/tools/fashion,
+  reduced to the steps available in this ticket - Keepa/PriceCharting/
+  Discogs/Google Books are `PALLETIQ-027`), MSRP/sale-price/liquidation-
+  price computation, a new global `product_price_cache` collection with
+  a 30-day staleness TTL, and the confidence/factor-breakdown/comps UI as
+  the first real instance of `docs/design/explainable-scoring.md`'s
+  pattern. No new Cloud Tasks queue needed - none of this ticket's
+  waterfall steps call Gemini, so Governance Check II doesn't gate
+  anything new here; cache/UPC/eBay all resolve synchronously in the
+  `priceItemScan` callable's own response, per `ADR-0011`'s async-
+  boundary note.
+
+  **eBay Browse API live verification deferred, by the owner's explicit
+  choice (mirrors `PALLETIQ-003`'s Stripe precedent):** `EBAY_APP_ID`/
+  `EBAY_CERT_ID` are real eBay Developer Program credential names,
+  confirmed via eBay's own OAuth client-credentials-grant docs before
+  writing `ebayBrowseApi.ts` - but Cloud Functions v2 requires a secret to
+  have at least one version to deploy a function that declares it, so the
+  owner set two inert placeholder values (not real credentials, same
+  posture as this repo's existing placeholder `STRIPE_SECRET_KEY`/etc.)
+  to unblock deployment. The eBay step is unit-tested against the
+  verified-real API shape (4 tests, mocked `fetch`) and confirmed live to
+  **fail gracefully** - a bad/placeholder credential throws inside
+  `runWaterfall`'s try/catch, which is swallowed and falls through with
+  whatever other signal was already found, rather than crashing the whole
+  pricing call. Swap in real credentials whenever the owner provisions an
+  eBay Developer account; no code change needed.
+
+  **UPC lookup (step 1) needed a real decision the ADR left open:**
+  `docs/projects/treasure-hunter-plan.md` names "a UPCitemdb-style
+  service" only as an example, and `ADR-0011`'s secrets list doesn't
+  budget one for step 1 - researched live and confirmed UPCItemDB's free
+  "trial" tier (`api.upcitemdb.com/prod/trial/lookup`, no signup, no API
+  key, 100 lookups/day) is real and matches that "no secret needed"
+  implication. Verified the actual response shape live (a real Coca-Cola
+  UPC lookup) before writing `upcLookup.ts` against it - the top-level
+  `lowest_recorded_price`/`highest_recorded_price` fields turned out to be
+  unreliable in practice (frequently 0 or a wild outlier), so MSRP signal
+  comes from the median of the per-merchant `offers[].price` array
+  instead, a deviation from the obvious-looking field names worth noting
+  for whoever touches this next.
+
+  **The barcode number itself still comes from the vision call, not a
+  true deterministic decode:** the plan's aspirational v1 architecture
+  ("barcode matches... don't need Gemini at all") would need a barcode-
+  scanning library against the raw photo pixels to fully deliver on that;
+  instead, `identifyItem.ts`'s existing structured-output schema (already
+  extended once in `PALLETIQ-025`) picked up one more field asking Gemini
+  to read the digits printed under a barcode photo, if one was captured
+  and is legible. Reuses the existing call (no added cost), but is a
+  pragmatic v1 choice, not the fully-deterministic step the plan
+  describes - flagged rather than silently presented as more rigorous
+  than it is.
+
+  **`design-system-auditor` (Check IV) caught real gaps in the first
+  shipped instance of `explainable-scoring.md`'s pattern**, fixed same
+  session: `PricingPanel.tsx` and the new pricing states in
+  `ItemScanPage.tsx` had reused unmodified desktop card padding (`p-6`)
+  instead of the increased density `mobile-responsive.md`'s Buyer-
+  capture-flow addendum requires for exactly this screen ("confidence
+  panel, factor breakdown... not desktop card padding") - bumped to `p-8`
+  with increased list/line-item spacing. Two new interactive elements (the
+  eBay comp external-link icon, the "Try pricing again" button) were below
+  the 44x44px touch-target floor - fixed; a third, pre-existing "Try
+  again" button on the identification-failure state (shipped in
+  `PALLETIQ-025`, not new to this diff, but on the same page and an easy
+  fix) got the same treatment. The audit's fourth finding - that factor
+  rows should be "sorted by magnitude of contribution" per
+  `explainable-scoring.md`'s literal text - was not implemented:
+  `PricingFactor` has no magnitude concept, only a direction, since this
+  ticket's factors are a qualitative checklist (matching the plan's own
+  mockup) not a scored/weighted list. Documented in code as intentionally
+  deferred to `PALLETIQ-027`, once the saleability formula has real
+  weighted coefficients to sort by - logged here too so it isn't lost.
+  **Known remaining gap, not fixed:** `CandidateCard` (the identification-
+  result card, `PALLETIQ-025`) still uses the old `p-6` density, so the
+  scan-result view is now visually inconsistent between the identification
+  card and the pricing panel below it on the same page - small enough to
+  leave for whoever next touches that component rather than expanding this
+  ticket's diff further.
+
+  **A second instance of the PALLETIQ-025 Cloud Run invoker gap, this
+  time NOT hit:** confirmed live that `priceItemScan`'s first deploy
+  attempt succeeded outright (no crash this time), and Firebase auto-
+  granted the `allUsers` invoker binding on creation as expected - the
+  gap found in `PALLETIQ-025` is specifically about a _crashed_ first
+  deploy skipping that step, not a general problem with this project.
+
+  **Live-verified end-to-end** (test tenant/user/Storage/Firestore
+  artifacts cleaned up after): real photo upload, `enqueueItemScan`,
+  Cloud Tasks identification, `priceItemScan` under live rules, the
+  waterfall's category classification, and the graceful eBay-failure ->
+  `pricingStatus: 'unknown'` path - all confirmed against `mrt-pallet-iq`.
+  The "priced" happy path with real numbers is covered by 24 unit tests
+  against the verified-real UPCItemDB/eBay API shapes but not live-
+  verified end-to-end - that needs either a real barcode-bearing product
+  photo or real eBay credentials, neither available in this session.

@@ -32,9 +32,10 @@ feature for the Buyer's pre-purchase field-scan workflow) are the first
 real implementation of this phase's "Async batched Gemini product
 analysis" bullet, running as a parallel track alongside the rest of Phase
 2's pallet-level scoring work — neither blocks nor is blocked by the
-other. `PALLETIQ-025` (item identification) is **Done**; `026`/`027`
-(pricing waterfall + saleability score) are still Planned. See `ADR-0011`
-and `docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
+other. `PALLETIQ-025` (item identification) and `PALLETIQ-026` (pricing
+waterfall v1) are **Done**; `027` (category-specialist pricing +
+saleability score) is still Planned. See `ADR-0011` and
+`docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
 rationale, and `docs/BACKLOG.md` for scope.
 
 ## ⚪ Phase 3 — Operations (6–8 weeks)
