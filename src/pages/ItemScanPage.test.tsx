@@ -28,6 +28,7 @@ const getItemScan = vi.fn<(tenantId: string, scanId: string) => Promise<ItemScan
 const selectItemScanCandidate =
   vi.fn<(tenantId: string, scanId: string, candidateIndex: number) => Promise<void>>()
 const priceItemScan = vi.fn<(scanId: string) => Promise<{ pricing: PricingResult | null }>>()
+const retrySaleabilityScore = vi.fn<(scanId: string) => Promise<void>>()
 vi.mock('../lib/itemScans/itemScanActions', () => ({
   newScanId,
   uploadScanPhoto,
@@ -35,6 +36,7 @@ vi.mock('../lib/itemScans/itemScanActions', () => ({
   getItemScan,
   selectItemScanCandidate,
   priceItemScan,
+  retrySaleabilityScore,
 }))
 
 beforeAll(() => {
@@ -135,6 +137,7 @@ describe('ItemScanPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     priceItemScan.mockResolvedValue({ pricing: null })
+    retrySaleabilityScore.mockResolvedValue(undefined)
   })
 
   it('uploads photos and enqueues a scan', async () => {
@@ -286,6 +289,10 @@ describe('ItemScanPage', () => {
         saleabilityError: 'Keepa is down',
       }),
     )
+    // Re-fetched after retrySaleabilityScore's onSuccess invalidates the query.
+    getItemScan.mockResolvedValueOnce(
+      baseScan({ pricingStatus: 'priced', pricing: PRICING, saleabilityStatus: 'scoring' }),
+    )
     priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
     renderPage()
 
@@ -293,6 +300,15 @@ describe('ItemScanPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
 
     expect(await screen.findByText('Keepa is down')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /try again/i }))
+
+    await waitFor(() => {
+      expect(retrySaleabilityScore).toHaveBeenCalledWith('scan-1')
+    })
+    // priceItemScan was only called once, by the initial auto-price effect -
+    // the saleability-only retry must not trigger a second, full waterfall re-run.
+    expect(priceItemScan).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText(/scoring saleability/i)).toBeInTheDocument()
   })
 
   it('shows a top-3 picker when confidence is low, and selects a candidate', async () => {

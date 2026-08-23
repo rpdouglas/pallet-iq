@@ -65,3 +65,11 @@ export async function priceItemScan(scanId: string): Promise<{ pricing: PricingR
   )
   return (await call({ scanId })).data
 }
+
+// PALLETIQ-033 / ADR-0011. Re-scores saleability only, without re-running
+// priceItemScan's full waterfall - for the saleability-failed retry path,
+// where pricing itself already succeeded.
+export async function retrySaleabilityScore(scanId: string): Promise<void> {
+  const call = httpsCallable<{ scanId: string }, null>(functions, 'retrySaleabilityScore')
+  await call({ scanId })
+}

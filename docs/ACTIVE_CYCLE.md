@@ -1493,3 +1493,36 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   PriceCharting hit) remains unverified, same deferral as the rest of
   this track - no real API keys or a suitable barcode-bearing test photo
   are available in this sandbox.
+
+- **2026-08-23 — PALLETIQ-033 opened and closed same session.** Planning
+  gate scope note (see `docs/BACKLOG.md`) shipped as written, with one
+  small refinement found at implementation time: a new `retrySaleabilityScore`
+  `onCall` (`functions/src/item-scans/retrySaleabilityScore.ts`) that
+  re-enqueues the existing `enrichItemScanPricing` Cloud Tasks worker
+  without re-running `priceItemScan`'s full waterfall, wired to
+  `ItemScanPage`'s saleability-failed retry button in place of the
+  previous `startPricing` call.
+
+  **Refinement vs. the planning-gate scope note:** the scope note said
+  the guard should require `pricingStatus === 'priced'`. Implementation
+  found this was one state too narrow - `priceItemScan` also enqueues
+  `enrichItemScanPricing` when the waterfall settles on `'unknown'`
+  (no signal found, a legitimate terminal state, not an error - see
+  `PALLETIQ-026`), so a saleability failure can legitimately happen from
+  either settled pricing state. The guard was widened to accept both
+  `'priced'` and `'unknown'`, rejecting only `'not_priced'`/`'pricing'`
+  (pricing hasn't settled - nothing to re-score yet) and `'failed'`
+  (pricing itself needs `priceItemScan`'s retry, not this one). Covered
+  by a dedicated test case for the `'unknown'` path so this doesn't
+  regress silently.
+
+  Governance: no Firestore/rules change (reuses the existing
+  `item_scans` rule from `PALLETIQ-025`, admin-SDK writes bypass rules
+  regardless); Check IV (design-system-auditor) audited
+  `ItemScanPage.tsx`'s diff and passed clean - no new hardcoded styling,
+  no new component/pattern, the `EmptyState`/`Button` markup is
+  byte-identical to before, only the `onClick` handler changed. Not
+  deployed or live-verified against `mrt-pallet-iq` as of this note -
+  unit-tested only (9 new functions tests, 1 updated frontend test)
+  pending the owner's call on whether to deploy this small a change
+  immediately or batch it with the next ticket.

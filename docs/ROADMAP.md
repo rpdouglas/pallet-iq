@@ -35,9 +35,12 @@ analysis" bullet, running as a parallel track alongside the rest of Phase
 other. `PALLETIQ-025`/`026`/`027` (item identification, pricing waterfall
 v1, category-specialist pricing + saleability score) are all **Done** -
 this pull-forward track is complete through Phase 2's slice of the work;
-`028`/`029`/`030` continue it under Phase 4 (see below). See `ADR-0011`
-and `docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
-rationale, and `docs/BACKLOG.md` for scope.
+`028`/`029`/`030` continue it under Phase 4 (see below). `PALLETIQ-033`
+(a small follow-up fixing a wiring gap `027`'s own Check IV audit
+logged — the saleability-failed retry button was re-running the full
+pricing waterfall instead of just re-scoring) is also **Done**. See
+`ADR-0011` and `docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the
+full rationale, and `docs/BACKLOG.md` for scope.
 
 ## ⚪ Phase 3 — Operations (6–8 weeks)
 

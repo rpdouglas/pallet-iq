@@ -36,3 +36,6 @@ export { priceItemScan } from './item-scans/priceItemScan'
 
 // PALLETIQ-027 / ADR-0011.
 export { enrichItemScanPricing } from './item-scans/enrichItemScanPricing'
+
+// PALLETIQ-033 / ADR-0011.
+export { retrySaleabilityScore } from './item-scans/retrySaleabilityScore'
