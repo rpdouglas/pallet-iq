@@ -1,6 +1,6 @@
 # ADR-0013: Pricing research splits into parallel Gemini legs to cut wall-clock latency
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-23
 
 ## Context

@@ -45,11 +45,17 @@ capture), and `PALLETIQ-035` (replaced the deterministic multi-vendor
 pricing waterfall — eBay Browse API/Keepa/PriceCharting/Discogs/Google
 Books — with a single SOP-modeled Gemini live-research call, targeting
 Ontario/Canada instead of the prior US-only vendor stack; see
-`ADR-0012`), and `PALLETIQ-036` (fixed a multi-photo capture hang caused
+`ADR-0012`), `PALLETIQ-036` (fixed a multi-photo capture hang caused
 by uncompressed photo uploads, plus the first real implementation of
-`docs/design/components.md`'s documented-but-unbuilt spinner pattern) are
-also all **Done**. See `ADR-0011` and `docs/projects/PROJ-PALLETIQ.md`'s
-Phase 2 section for the full rationale, and `docs/BACKLOG.md` for scope.
+`docs/design/components.md`'s documented-but-unbuilt spinner pattern), and
+`PALLETIQ-038` (split pricing research's single sequential Gemini call
+into three concurrent legs plus a synthesis call, cutting worst-case
+wall-clock and making a single failed leg degrade gracefully instead of
+failing the whole price; see `ADR-0013`) are also all **Done**.
+`PALLETIQ-037` (verify pricing comps actually resolve before trusting
+them) remains **Planned**. See `ADR-0011` and
+`docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
+rationale, and `docs/BACKLOG.md` for scope.
 
 ## ⚪ Phase 3 — Operations (6–8 weeks)
 
