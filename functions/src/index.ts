@@ -31,11 +31,14 @@ export { scrapeRestockLots } from './restock-scraper/scrapeRestockLots'
 export { enqueueItemScan } from './item-scans/enqueueItemScan'
 export { processItemScan } from './item-scans/processItemScan'
 
-// PALLETIQ-026 / ADR-0011.
+// PALLETIQ-026 / ADR-0011, re-shaped by PALLETIQ-035 / ADR-0012 (enqueue-
+// only now).
 export { priceItemScan } from './item-scans/priceItemScan'
 
-// PALLETIQ-027 / ADR-0011.
-export { enrichItemScanPricing } from './item-scans/enrichItemScanPricing'
+// PALLETIQ-035 / ADR-0012. Replaces PALLETIQ-027's enrichItemScanPricing -
+// one worker now runs pricing AND saleability scoring together.
+export { priceItemScanWorker } from './item-scans/priceItemScanWorker'
 
-// PALLETIQ-033 / ADR-0011.
+// PALLETIQ-033 / ADR-0011, simplified to a synchronous recompute by
+// PALLETIQ-035 / ADR-0012 (no more separate slow data source to re-fetch).
 export { retrySaleabilityScore } from './item-scans/retrySaleabilityScore'

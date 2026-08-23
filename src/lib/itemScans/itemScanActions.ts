@@ -2,7 +2,7 @@ import { collection, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { app, db, storage } from '../firebase'
-import type { ItemScan, PricingResult } from '../../types/itemScan'
+import type { ItemScan } from '../../types/itemScan'
 
 const functions = getFunctions(app)
 
@@ -56,14 +56,13 @@ export async function selectItemScanCandidate(
   })
 }
 
-// PALLETIQ-026 / ADR-0011. Runs the pricing waterfall against a scan's
-// already-confirmed candidate.
-export async function priceItemScan(scanId: string): Promise<{ pricing: PricingResult | null }> {
-  const call = httpsCallable<{ scanId: string }, { pricing: PricingResult | null }>(
-    functions,
-    'priceItemScan',
-  )
-  return (await call({ scanId })).data
+// PALLETIQ-026 / ADR-0011, re-shaped by PALLETIQ-035 / ADR-0012. Enqueue-
+// only now - the pricing result arrives via the item_scans doc once
+// priceItemScanWorker finishes, same polling pattern ItemScanPage.tsx
+// already uses for identification.
+export async function priceItemScan(scanId: string): Promise<void> {
+  const call = httpsCallable<{ scanId: string }, null>(functions, 'priceItemScan')
+  await call({ scanId })
 }
 
 // PALLETIQ-033 / ADR-0011. Re-scores saleability only, without re-running

@@ -1,18 +1,35 @@
 import { ExternalLink } from 'lucide-react'
 import { FactorBreakdownList } from './FactorBreakdownList'
-import type { PricingResult } from '../types/itemScan'
+import type { PricingComp, PricingResult } from '../types/itemScan'
 
 function formatCurrency(value: number | null): string {
   return value === null ? '—' : `$${value.toFixed(2)}`
 }
 
+// PALLETIQ-035 / ADR-0012. Comps now come from mixed sources (eBay sold,
+// Kijiji new/sealed, Kijiji used) instead of the single eBay-Browse-API
+// pool PALLETIQ-026 had - grouped and labeled per source (via
+// PricingComp.source) rather than one flat "eBay listings" block, so each
+// group's honesty note matches what that source actually is (eBay sold =
+// real sold/completed prices; Kijiji = asking prices, not sold data).
+const SOURCE_META: Record<string, { label: string; note: string }> = {
+  ebay_sold: { label: 'eBay sold', note: 'Real sold/completed prices.' },
+  kijiji_new: { label: 'Kijiji – new/sealed', note: 'Asking prices, not sold data.' },
+  kijiji_used: { label: 'Kijiji – used', note: 'Asking prices, not sold data.' },
+}
+
+function groupCompsBySource(comps: PricingComp[]): { key: string; comps: PricingComp[] }[] {
+  const groups = new Map<string, PricingComp[]>()
+  for (const comp of comps) {
+    const key = comp.source ?? 'other'
+    groups.set(key, [...(groups.get(key) ?? []), comp])
+  }
+  return Array.from(groups.entries()).map(([key, comps]) => ({ key, comps }))
+}
+
 // docs/design/explainable-scoring.md's score-badge + factor-breakdown +
 // provenance-labeling pattern, reused directly per ADR-0011 - this is the
-// first real shipped instance of that addendum. The comps panel is
-// deliberately NOT labeled "recent sales" or "sold price" (per the plan's
-// own mockup) - PALLETIQ-026 only has the eBay Browse API's active-listing
-// asking prices, not real sold data (Marketplace Insights is gated, see
-// PALLETIQ-028), so labeling this "sold" would overstate the data.
+// first real shipped instance of that addendum.
 //
 // This is also the scan-result view docs/design/mobile-responsive.md's
 // Buyer-capture-flow addendum names explicitly ("confidence panel, factor
@@ -74,37 +91,42 @@ export function PricingPanel({ pricing }: { pricing: PricingResult }) {
         <FactorBreakdownList factors={pricing.factors} />
       </div>
 
-      {pricing.comps.length > 0 ? (
-        <div className="rounded-xl bg-white p-8 shadow-sm">
-          <h3 className="text-h2 text-ink-navy font-semibold">
-            Active listings (calibrated estimate)
-          </h3>
-          <p className="text-label text-slate-gray">
-            {pricing.sampleSize} active eBay listing(s) found - asking prices, not sold data.
-          </p>
-          <ul className="mt-4 flex flex-col gap-3">
-            {pricing.comps.map((comp, index) => (
-              <li key={index} className="text-body flex items-center justify-between gap-2">
-                <span className="text-ink-navy truncate">{comp.title}</span>
-                <span className="flex shrink-0 items-center gap-1">
-                  <span className="text-ink-navy font-medium">{formatCurrency(comp.price)}</span>
-                  {comp.url ? (
-                    <a
-                      href={comp.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`View ${comp.title} on eBay`}
-                      className="text-brand-blue flex h-11 w-11 items-center justify-center"
-                    >
-                      <ExternalLink size={14} />
-                    </a>
-                  ) : null}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
+      {pricing.comps.length > 0
+        ? groupCompsBySource(pricing.comps).map((group) => {
+            const meta = SOURCE_META[group.key] ?? { label: 'Comps', note: '' }
+            return (
+              <div key={group.key} className="rounded-xl bg-white p-8 shadow-sm">
+                <h3 className="text-h2 text-ink-navy font-semibold">{meta.label}</h3>
+                <p className="text-label text-slate-gray">
+                  {group.comps.length} comp(s) found{meta.note ? ` - ${meta.note}` : ''}
+                </p>
+                <ul className="mt-4 flex flex-col gap-3">
+                  {group.comps.map((comp, index) => (
+                    <li key={index} className="text-body flex items-center justify-between gap-2">
+                      <span className="text-ink-navy truncate">{comp.title}</span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        <span className="text-ink-navy font-medium">
+                          {formatCurrency(comp.price)}
+                        </span>
+                        {comp.url ? (
+                          <a
+                            href={comp.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`View ${comp.title}`}
+                            className="text-brand-blue flex h-11 w-11 items-center justify-center"
+                          >
+                            <ExternalLink size={14} />
+                          </a>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })
+        : null}
     </div>
   )
 }

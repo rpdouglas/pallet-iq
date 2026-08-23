@@ -37,13 +37,16 @@ export interface PricingFactor {
   explanation: string | null
 }
 
-// An active-listing comp from the eBay Browse API, scaled by the
-// calibration ratio - never labeled "sold" anywhere in the UI, since eBay
-// Browse API only ever returns active asking prices, not real sold data.
+// PALLETIQ-026/035. A comp found during price research. `source` (added in
+// PALLETIQ-035/ADR-0012) tags which part of the SOP-modeled research
+// produced it - lets the UI group/label comps honestly (e.g. "eBay sold"
+// vs "Kijiji - used") instead of the single flat eBay-only assumption the
+// original eBay-Browse-API-only waterfall made.
 export interface PricingComp {
   title: string
   price: number
   url: string | null
+  source?: 'kijiji_new' | 'kijiji_used' | 'ebay_sold'
 }
 
 export interface PricingResult {

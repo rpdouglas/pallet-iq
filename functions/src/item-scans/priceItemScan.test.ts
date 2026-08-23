@@ -9,14 +9,6 @@ vi.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
 }))
 
-vi.mock('../pricing/params', () => ({
-  ebayAppId: { value: () => 'app-id' },
-  ebayCertId: { value: () => 'cert-id' },
-}))
-
-const mockRunWaterfall = vi.fn()
-vi.mock('../pricing/waterfall', () => ({ runWaterfall: mockRunWaterfall }))
-
 const mockEnqueue = vi.fn()
 const mockTaskQueue = vi.fn(() => ({ enqueue: mockEnqueue }))
 vi.mock('firebase-admin/functions', () => ({
@@ -33,24 +25,9 @@ function auth(role: string) {
   return { uid: 'u1', token: { tenantId: 'tenant-a', role } } as CallableRequest['auth']
 }
 
-const CANDIDATE = {
-  itemName: 'Instant Pot',
-  brand: 'Instant Pot',
-  model: 'Duo60',
-  category: 'Kitchen',
-  dimensions: null,
-  notableFeatures: null,
-  condition: 'good',
-  conditionJustification: 'Fine.',
-  confidence: 0.9,
-  barcodeNumber: null,
-  groundedRetailPrice: null,
-  groundedRetailSource: null,
-}
-
 const COMPLETED_SCAN = {
   status: 'completed',
-  candidates: [CANDIDATE],
+  candidates: [{ itemName: 'Instant Pot' }],
   selectedCandidateIndex: 0,
 }
 
@@ -58,7 +35,6 @@ function resetMocks() {
   mockUpdate.mockReset()
   mockGet.mockReset()
   mockDoc.mockClear()
-  mockRunWaterfall.mockReset()
   mockEnqueue.mockReset()
   mockTaskQueue.mockClear()
 }
@@ -112,86 +88,31 @@ describe('priceItemScan', () => {
   it('rejects a scan with no selected candidate (low-confidence, not yet picked)', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({
-      data: () => ({ status: 'completed', selectedCandidateIndex: null, candidates: [CANDIDATE] }),
+      data: () => ({ status: 'completed', selectedCandidateIndex: null, candidates: [] }),
     })
     await expect(priceItemScan.run(request({ scanId: 's1' }, auth('buyer')))).rejects.toThrow(
       /confirmed identification/i,
     )
   })
 
-  it('marks pricing, runs the waterfall, and writes a priced result', async () => {
+  it('marks pricingStatus "pricing" and enqueues the worker for a valid scan', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
-    const pricingResult = {
-      msrp: 100,
-      salePrice: 70,
-      salePriceLow: 60,
-      salePriceHigh: 80,
-      liquidationPrice: 30,
-      confidence: 0.7,
-      sampleSize: 5,
-      factors: [],
-      comps: [],
-      waterfallStepsUsed: ['ebay'],
-    }
-    mockRunWaterfall.mockResolvedValueOnce(pricingResult)
 
-    const result = await priceItemScan.run(request({ scanId: 's1' }, auth('buyer')))
+    await priceItemScan.run(request({ scanId: 's1' }, auth('buyer')))
 
     expect(mockDoc).toHaveBeenCalledWith('tenants/tenant-a/item_scans/s1')
-    expect(mockUpdate).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({ pricingStatus: 'pricing' }),
-    )
-    expect(mockRunWaterfall).toHaveBeenCalledWith(CANDIDATE, {
-      ebayAppId: 'app-id',
-      ebayCertId: 'cert-id',
-    })
-    expect(mockUpdate).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        pricingStatus: 'priced',
-        pricing: pricingResult,
-        saleabilityStatus: 'scoring',
-      }),
-    )
-    expect(result).toEqual({ pricing: pricingResult })
-    expect(mockTaskQueue).toHaveBeenCalledWith('enrichItemScanPricing')
+    expect(mockUpdate).toHaveBeenCalledWith(expect.objectContaining({ pricingStatus: 'pricing' }))
+    expect(mockTaskQueue).toHaveBeenCalledWith('priceItemScanWorker')
     expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
   })
 
-  it('writes pricingStatus "unknown" when the waterfall finds no signal, and still enqueues enrichment', async () => {
+  it('allows an owner to price a scan too', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
-    mockRunWaterfall.mockResolvedValueOnce(null)
 
-    const result = await priceItemScan.run(request({ scanId: 's1' }, auth('buyer')))
+    await priceItemScan.run(request({ scanId: 's1' }, auth('owner')))
 
-    expect(mockUpdate).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        pricingStatus: 'unknown',
-        pricing: null,
-        saleabilityStatus: 'scoring',
-      }),
-    )
-    expect(result).toEqual({ pricing: null })
     expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
-  })
-
-  it('marks pricingStatus failed and rethrows if the waterfall throws', async () => {
-    resetMocks()
-    mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
-    mockRunWaterfall.mockRejectedValueOnce(new Error('boom'))
-
-    await expect(priceItemScan.run(request({ scanId: 's1' }, auth('buyer')))).rejects.toThrow(
-      /pricing failed/i,
-    )
-
-    expect(mockUpdate).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({ pricingStatus: 'failed', pricingError: 'boom' }),
-    )
-    expect(mockEnqueue).not.toHaveBeenCalled()
   })
 })

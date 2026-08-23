@@ -1,19 +1,22 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { getFunctions } from 'firebase-admin/functions'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import { deriveSaleabilityInputsFromPricing } from '../pricing/mapPriceResearch'
+import { computeSaleability } from '../saleability/computeSaleability'
 import type { ItemScanDoc } from './types'
 
 interface RetrySaleabilityScoreRequest {
   scanId?: unknown
 }
 
-// PALLETIQ-033 / ADR-0011. A dedicated saleability-only retry - re-enqueues
-// the same enrichItemScanPricing worker PALLETIQ-027 built, without
-// re-running priceItemScan's synchronous waterfall (cache/UPC/grounding/
-// eBay). Fixes the wiring gap PALLETIQ-027's Check IV audit logged: the
-// saleability-failed retry button previously had no dedicated action to
-// call, so it reused priceItemScan (a full re-price) even though pricing
-// itself hadn't failed.
+// PALLETIQ-033 / ADR-0011, simplified by PALLETIQ-035 / ADR-0012. Used to
+// re-enqueue a background worker (enrichItemScanPricing) to re-fetch a
+// separate slow data source (Keepa's sales rank). That source is gone -
+// saleability's inputs now all come from the same pricing.comps already
+// stored on the scan, so re-scoring is a cheap, synchronous recompute with
+// no Gemini call and no task enqueue needed at all. Still fixes the
+// original PALLETIQ-027 wiring gap this ticket was opened for: the
+// saleability-failed retry button has its own dedicated action rather than
+// reusing priceItemScan (a full re-price).
 export const retrySaleabilityScore = onCall<RetrySaleabilityScoreRequest, Promise<void>>(
   async (request) => {
     if (!request.auth) {
@@ -39,24 +42,29 @@ export const retrySaleabilityScore = onCall<RetrySaleabilityScoreRequest, Promis
     if (!scanData) {
       throw new HttpsError('not-found', 'Item scan not found.')
     }
-    // 'priced' and 'unknown' are both legitimate settled states for the
-    // synchronous waterfall (see priceItemScan.ts) - either is a valid
-    // starting point to re-run enrichment against. 'not_priced'/'pricing'
-    // means pricing hasn't settled yet (nothing to re-score); 'failed'
-    // means pricing itself is what needs retrying, via priceItemScan.
-    if (scanData.pricingStatus !== 'priced' && scanData.pricingStatus !== 'unknown') {
+    if (scanData.pricingStatus !== 'priced' || !scanData.pricing) {
       throw new HttpsError(
         'failed-precondition',
         'This scan needs to be priced before saleability can be scored.',
       )
     }
+    const candidateIndex = scanData.selectedCandidateIndex
+    if (candidateIndex === null) {
+      throw new HttpsError('failed-precondition', 'This scan has no confirmed candidate.')
+    }
+    const candidate = scanData.candidates[candidateIndex]
+
+    const saleabilityInputs = deriveSaleabilityInputsFromPricing(
+      scanData.pricing,
+      candidate.condition,
+    )
+    const saleability = computeSaleability(saleabilityInputs)
 
     await scanRef.update({
-      saleabilityStatus: 'scoring',
+      saleabilityStatus: 'scored',
+      saleabilityScore: saleability,
       saleabilityError: null,
       updatedAt: FieldValue.serverTimestamp(),
     } satisfies Partial<ItemScanDoc>)
-
-    await getFunctions().taskQueue('enrichItemScanPricing').enqueue({ tenantId, scanId })
   },
 )

@@ -1,8 +1,24 @@
 import type { ConditionGrade } from '../item-scans/types'
-import { CONDITION_SALE_MULTIPLIERS } from '../pricing/computePrices'
 import type { PricingFactor } from '../pricing/types'
 
 type Term = 'priceVariance' | 'condition' | 'listingSaturation' | 'salesRank' | 'sampleConfidence'
+
+// PALLETIQ-026, relocated unchanged from the deleted computePrices.ts by
+// PALLETIQ-035/ADR-0012 (this saleability formula was its only remaining
+// consumer once the pricing-side sale-price/liquidation-price math that
+// also used it was replaced by SOP-modeled LLM research) - midpoints of
+// docs/projects/treasure-hunter-plan.md section 5's ranges (Like New
+// 90-100%, Good 70-85%, Fair/Damaged 40-60%). The plan's scale only names
+// 4 buckets (New/Like New/Good/Fair-or-Damaged) where ItemScanCandidate's
+// ConditionGrade has 5 - "new" and "damaged_for_parts" are documented
+// extrapolations, not values stated in the plan.
+export const CONDITION_SALE_MULTIPLIERS: Record<ConditionGrade, number> = {
+  new: 1.0,
+  like_new: 0.95,
+  good: 0.775,
+  fair: 0.5,
+  damaged_for_parts: 0.3,
+}
 
 // docs/projects/treasure-hunter-plan.md section 7's formula:
 //   saleability = 0.30*sell_through + 0.20*(1-price_variance) + 0.20*condition
@@ -16,7 +32,10 @@ type Term = 'priceVariance' | 'condition' | 'listingSaturation' | 'salesRank' | 
 // redistributes proportionally across the others rather than zeroing out
 // the score") - confirmed with the owner during this ticket's planning
 // rather than assumed silently. sales_rank uses the same redistribution
-// when no Keepa match exists.
+// mechanism, now permanently (not just occasionally) - PALLETIQ-035/
+// ADR-0012 removed Keepa (the only source this term ever had) entirely in
+// favor of SOP-modeled LLM research, which has no Amazon-sales-rank
+// equivalent. The formula itself needed no change to absorb this.
 const BASE_WEIGHTS: Record<Term, number> = {
   priceVariance: 0.2,
   condition: 0.2,
@@ -31,7 +50,7 @@ export interface SaleabilityInputs {
   condition: ConditionGrade
   /** Count of active competing listings (the pricing waterfall's eBay sampleSize). */
   listingCount: number
-  /** Amazon sales rank via Keepa, when a match was found. */
+  /** Always null since PALLETIQ-035/ADR-0012 removed Keepa (this term's only source) - kept as an input rather than deleted so the formula's redistribution mechanism doesn't need special-casing, and so a future specialist sales-rank source could be reintroduced without a formula change. */
   salesRank: number | null
   /** Comp sample size backing priceVariance/listingCount. */
   sampleSize: number
@@ -102,12 +121,16 @@ function buildFactors(
   const salesRankTerm = terms.salesRank
   if (inputs.salesRank !== null && salesRankTerm !== undefined) {
     factors.push({
-      label: `Amazon sales rank #${inputs.salesRank.toLocaleString()}`,
+      label: `Sales rank #${inputs.salesRank.toLocaleString()}`,
       direction: salesRankTerm >= 0.6 ? 'up' : salesRankTerm <= 0.3 ? 'down' : 'neutral',
       explanation: null,
     })
   } else {
-    factors.push({ label: 'No Amazon sales rank data', direction: 'neutral', explanation: null })
+    factors.push({
+      label: 'No specialist sales-rank signal available',
+      direction: 'neutral',
+      explanation: null,
+    })
   }
 
   if (inputs.sampleSize < 5) {

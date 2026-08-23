@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { CallableRequest } from 'firebase-functions/v2/https'
+import type { ItemScanDoc } from './types'
 
 const mockUpdate = vi.fn()
 const mockGet = vi.fn()
@@ -7,12 +8,6 @@ const mockDoc = vi.fn(() => ({ get: mockGet, update: mockUpdate }))
 vi.mock('firebase-admin/firestore', () => ({
   getFirestore: () => ({ doc: mockDoc }),
   FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
-}))
-
-const mockEnqueue = vi.fn()
-const mockTaskQueue = vi.fn(() => ({ enqueue: mockEnqueue }))
-vi.mock('firebase-admin/functions', () => ({
-  getFunctions: () => ({ taskQueue: mockTaskQueue }),
 }))
 
 const { retrySaleabilityScore } = await import('./retrySaleabilityScore')
@@ -25,12 +20,46 @@ function auth(role: string) {
   return { uid: 'u1', token: { tenantId: 'tenant-a', role } } as CallableRequest['auth']
 }
 
+const CANDIDATE = {
+  itemName: 'DeWalt Drill',
+  brand: 'DeWalt',
+  model: 'DCD777',
+  category: 'Tools',
+  dimensions: null,
+  notableFeatures: null,
+  condition: 'good',
+  conditionJustification: 'Light wear.',
+  confidence: 0.9,
+  barcodeNumber: null,
+  groundedRetailPrice: null,
+  groundedRetailSource: null,
+}
+
+const PRICED_SCAN = {
+  pricingStatus: 'priced',
+  selectedCandidateIndex: 0,
+  candidates: [CANDIDATE],
+  pricing: {
+    msrp: 180,
+    salePrice: 100,
+    salePriceLow: 85,
+    salePriceHigh: 115,
+    liquidationPrice: 145,
+    confidence: 0.65,
+    sampleSize: 2,
+    factors: [],
+    comps: [
+      { title: 'a', price: 95, url: null, source: 'kijiji_used' },
+      { title: 'b', price: 105, url: null, source: 'ebay_sold' },
+    ],
+    waterfallStepsUsed: ['kijiji_used', 'ebay_sold'],
+  },
+}
+
 function resetMocks() {
   mockUpdate.mockReset()
   mockGet.mockReset()
   mockDoc.mockClear()
-  mockEnqueue.mockReset()
-  mockTaskQueue.mockClear()
 }
 
 describe('retrySaleabilityScore', () => {
@@ -75,7 +104,6 @@ describe('retrySaleabilityScore', () => {
     await expect(
       retrySaleabilityScore.run(request({ scanId: 's1' }, auth('buyer'))),
     ).rejects.toThrow(/needs to be priced/i)
-    expect(mockEnqueue).not.toHaveBeenCalled()
   })
 
   it('rejects a scan whose pricing itself is still in flight or failed', async () => {
@@ -92,26 +120,27 @@ describe('retrySaleabilityScore', () => {
     ).rejects.toThrow(/needs to be priced/i)
   })
 
-  it('resets saleability state and re-enqueues enrichment for a priced scan', async () => {
+  it('recomputes saleability synchronously from the stored comps for a priced scan, no task enqueue', async () => {
     resetMocks()
-    mockGet.mockResolvedValueOnce({ data: () => ({ pricingStatus: 'priced' }) })
+    mockGet.mockResolvedValueOnce({ data: () => PRICED_SCAN })
 
     await retrySaleabilityScore.run(request({ scanId: 's1' }, auth('buyer')))
 
     expect(mockDoc).toHaveBeenCalledWith('tenants/tenant-a/item_scans/s1')
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({ saleabilityStatus: 'scoring', saleabilityError: null }),
-    )
-    expect(mockTaskQueue).toHaveBeenCalledWith('enrichItemScanPricing')
-    expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
+    const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    expect(updateArg.saleabilityStatus).toBe('scored')
+    expect(updateArg.saleabilityError).toBeNull()
+    expect(typeof updateArg.saleabilityScore?.score).toBe('number')
   })
 
-  it('also allows retrying a scan whose waterfall found no signal ("unknown")', async () => {
+  it('allows an owner to retry too', async () => {
     resetMocks()
-    mockGet.mockResolvedValueOnce({ data: () => ({ pricingStatus: 'unknown' }) })
+    mockGet.mockResolvedValueOnce({ data: () => PRICED_SCAN })
 
     await retrySaleabilityScore.run(request({ scanId: 's1' }, auth('owner')))
 
-    expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ saleabilityStatus: 'scored' }),
+    )
   })
 })
