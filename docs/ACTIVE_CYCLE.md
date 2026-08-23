@@ -1521,8 +1521,30 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   regardless); Check IV (design-system-auditor) audited
   `ItemScanPage.tsx`'s diff and passed clean - no new hardcoded styling,
   no new component/pattern, the `EmptyState`/`Button` markup is
-  byte-identical to before, only the `onClick` handler changed. Not
-  deployed or live-verified against `mrt-pallet-iq` as of this note -
-  unit-tested only (9 new functions tests, 1 updated frontend test)
-  pending the owner's call on whether to deploy this small a change
-  immediately or batch it with the next ticket.
+  byte-identical to before, only the `onClick` handler changed.
+
+  **Deployed and live-verified against `mrt-pallet-iq` post-merge.**
+  `retrySaleabilityScore` deployed as a new function; its Cloud Run
+  invoker IAM policy was confirmed to correctly match `priceItemScan`'s
+  (public `allUsers`, since this is a Buyer-invoked callable, not a
+  Cloud-Tasks-only worker like `enrichItemScanPricing`) - no IAM gap.
+  One transient finding: immediately after deploy, calls returned a raw
+  GFE-level `401` HTML error page rather than reaching the function code
+  at all, despite the IAM policy already showing `allUsers` via the
+  Cloud Run Admin API - a propagation-lag artifact, not a real gap; it
+  resolved on its own within ~20 seconds (confirmed by re-querying an
+  unauthenticated call, which then correctly returned the function's own
+  JSON `{"error":{"status":"UNAUTHENTICATED"}}` instead of the HTML
+  page). Worth remembering for future tickets: a `401` right after a
+  fresh function create can be this lag, not a misconfiguration - wait
+  and retry before troubleshooting IAM further.
+
+  A scripted round-trip against real (not mocked) infra confirmed both
+  ends of the guard: a not-yet-priced scan correctly rejects with
+  `FAILED_PRECONDITION`, and a priced scan with a simulated prior
+  `saleabilityStatus: 'failed'` correctly re-enqueues
+  `enrichItemScanPricing`, which re-settled it to `'scored'` with a real
+  computed score - while `pricing`/`pricingStatus` were left completely
+  untouched (identical `msrp`/`waterfallStepsUsed` before and after),
+  proving the fix actually skips the full waterfall re-run rather than
+  just relabeling it.
