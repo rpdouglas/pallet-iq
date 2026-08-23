@@ -20,6 +20,9 @@ vi.mock('firebase-admin/firestore', () => ({
 const mockResearchPrice = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 vi.mock('../pricing/priceResearch', () => ({ researchPrice: mockResearchPrice }))
 
+const mockVerifyPricingComps = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+vi.mock('../pricing/verifyComps', () => ({ verifyPricingComps: mockVerifyPricingComps }))
+
 vi.mock('../gemini/params', () => ({ geminiApiKey: { value: () => 'fake-key' } }))
 
 const { priceItemScanWorker } = await import('./priceItemScanWorker')
@@ -67,6 +70,10 @@ function resetMocks() {
   mockCacheSet.mockReset()
   mockDoc.mockClear()
   mockResearchPrice.mockReset()
+  mockVerifyPricingComps.mockReset()
+  // Passthrough default - most tests don't care about comp verification
+  // specifically; the dedicated test below overrides this per-case.
+  mockVerifyPricingComps.mockImplementation((pricing: unknown) => Promise.resolve(pricing))
 }
 
 describe('priceItemScanWorker', () => {
@@ -107,6 +114,41 @@ describe('priceItemScanWorker', () => {
     expect(updateArg.pricing?.msrp).toBe(180)
     expect(updateArg.saleabilityStatus).toBe('scored')
     expect(typeof updateArg.saleabilityScore?.score).toBe('number')
+
+    // PALLETIQ-037: comp URLs are verified before being cached or stored.
+    expect(mockVerifyPricingComps).toHaveBeenCalledWith(
+      expect.objectContaining({ msrp: 180, salePrice: 100 }),
+    )
+  })
+
+  it('caches and stores the verified pricing, not the pre-verification mapped result', async () => {
+    resetMocks()
+    mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
+    mockCacheGet.mockResolvedValueOnce({ exists: false })
+    mockResearchPrice.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
+    mockVerifyPricingComps.mockResolvedValueOnce({
+      msrp: 180,
+      salePrice: 100,
+      salePriceLow: 85,
+      salePriceHigh: 115,
+      liquidationPrice: 145,
+      confidence: 0.65,
+      sampleSize: 0,
+      factors: [
+        { label: '1 comp link(s) could not be verified', direction: 'down', explanation: null },
+      ],
+      comps: [],
+      waterfallStepsUsed: ['retail'],
+    })
+
+    await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
+
+    const cacheSetArg = mockCacheSet.mock.calls[0][0] as ProductPriceCacheDoc
+    const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    expect(cacheSetArg.pricing.factors).toEqual([
+      { label: '1 comp link(s) could not be verified', direction: 'down', explanation: null },
+    ])
+    expect(updateArg.pricing?.factors).toEqual(cacheSetArg.pricing.factors)
   })
 
   it('skips the research call on a fresh cache hit', async () => {
@@ -133,6 +175,9 @@ describe('priceItemScanWorker', () => {
 
     expect(mockResearchPrice).not.toHaveBeenCalled()
     expect(mockCacheSet).not.toHaveBeenCalled()
+    // PALLETIQ-037: a cache hit's comps were already verified at write
+    // time - no need to re-verify (and re-fetch) on every hit.
+    expect(mockVerifyPricingComps).not.toHaveBeenCalled()
     const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
     expect(updateArg.pricingStatus).toBe('priced')
     expect(updateArg.pricing?.waterfallStepsUsed).toEqual(['cache'])

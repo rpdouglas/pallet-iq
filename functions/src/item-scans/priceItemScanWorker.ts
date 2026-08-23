@@ -10,6 +10,7 @@ import {
 } from '../pricing/mapPriceResearch'
 import { researchPrice } from '../pricing/priceResearch'
 import type { PricingResult, ProductPriceCacheDoc } from '../pricing/types'
+import { verifyPricingComps } from '../pricing/verifyComps'
 import { computeSaleability } from '../saleability/computeSaleability'
 import type { SaleabilityInputs } from '../saleability/computeSaleability'
 import type { ItemScanDoc } from './types'
@@ -87,7 +88,12 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
         saleabilityInputs = deriveSaleabilityInputsFromPricing(pricing, candidate.condition)
       } else {
         const research = await researchPrice(geminiApiKey.value(), candidate)
-        pricing = mapPriceResearchToPricingResult(research, candidate)
+        const mapped = mapPriceResearchToPricingResult(research, candidate)
+        // PALLETIQ-037. Verify comp URLs before caching/storing - a
+        // cache write should never persist an unverified link, since
+        // every future cache hit would then serve it as-is (see
+        // verifyComps.ts's own header comment for why this matters).
+        pricing = await verifyPricingComps(mapped)
         saleabilityInputs = buildSaleabilityInputs(research, candidate)
 
         await cacheRef.set({
