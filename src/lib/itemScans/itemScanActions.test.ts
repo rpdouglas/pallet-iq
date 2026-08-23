@@ -102,25 +102,12 @@ describe('itemScanActions', () => {
     )
   })
 
-  it('priceItemScan calls the callable with the given scanId', async () => {
-    const pricing = {
-      msrp: 100,
-      salePrice: 70,
-      salePriceLow: 60,
-      salePriceHigh: 80,
-      liquidationPrice: 30,
-      confidence: 0.7,
-      sampleSize: 5,
-      factors: [],
-      comps: [],
-      waterfallStepsUsed: ['ebay'],
-    }
-    httpsCallableFn.mockResolvedValueOnce({ data: { pricing } })
+  it('priceItemScan calls the callable with the given scanId (enqueue-only, PALLETIQ-035)', async () => {
+    httpsCallableFn.mockResolvedValueOnce({ data: null })
 
-    const result = await priceItemScan('scan-1')
+    await priceItemScan('scan-1')
 
     expect(httpsCallable).toHaveBeenCalledWith(undefined, 'priceItemScan')
     expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
-    expect(result).toEqual({ pricing })
   })
 })

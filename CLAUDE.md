@@ -25,7 +25,13 @@ Three standing checks apply across every phase:
   `product_intelligence`) — most collections don't have their own pair yet.
 - **Check II — Async AI boundary.** No Gemini/Vertex call happens inline on a
   user-facing request path; AI work is queued (Cloud Tasks/Pub-Sub) and polled/pushed
-  back. Not yet applicable — no AI SDK calls exist in the codebase (pre PALLETIQ-005).
+  back. Applicable and enforced since `PALLETIQ-025`: both real Gemini call sites
+  (`functions/src/gemini/identifyItem.ts`, item identification; `functions/src/
+pricing/priceResearch.ts`, `PALLETIQ-035`'s SOP-modeled pricing research) only ever
+  run inside `onTaskDispatched` Cloud Tasks workers (`processItemScan.ts`,
+  `priceItemScanWorker.ts`) — never inline in an `onCall`. This note went stale for
+  a few tickets after `PALLETIQ-025` first shipped a real Gemini call; corrected
+  during `PALLETIQ-035`'s close-out rather than left inaccurate.
 - **Check III — RBAC in UI and rules.** A permission boundary enforced only in
   Firestore rules and not reflected in the UI (or vice versa) is incomplete. Not yet
   applicable — no role-gated UI exists yet (pre PALLETIQ-002/006).
@@ -84,6 +90,9 @@ push` to `main`/`master` as a guardrail, but don't rely on it — branch
   after any change under `src/` touching components, pages, or styles.
 
 `rbac-parity-auditor` (Check III) and `async-ai-boundary-auditor` (Check II) are
-intentionally not built yet — there's no role-gated UI or AI SDK usage in the
-codebase for them to check. Add them once PALLETIQ-002/006 and PALLETIQ-005 land,
-respectively.
+not built yet. `rbac-parity-auditor` still has nothing to check — no role-gated
+UI exists (pre `PALLETIQ-002`/`006`). `async-ai-boundary-auditor` now has a real
+trigger condition (two Gemini call sites since `PALLETIQ-025`/`035`, see Check II
+above) but hasn't been built - manual review has been sufficient so far since both
+call sites already follow the same `onTaskDispatched`-worker pattern; worth
+building once a third AI call site lands or manual review starts missing things.

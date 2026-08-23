@@ -1597,3 +1597,114 @@ multiple`, no `capture` attribute, opens the OS's normal picker/
   repeat-capture path as fully proven, same posture this track has taken
   on every other device/vendor-credential gap it couldn't verify
   in-sandbox.
+
+- **2026-08-23 — PALLETIQ-035 closed.** Owner-reported: scanned items only
+  ever showed an MSRP, with `salePrice`/`salePriceLow`/`salePriceHigh`/
+  `liquidationPrice`/`comps` staying empty. Traced to `EBAY_APP_ID`/
+  `EBAY_CERT_ID`/`KEEPA_API_KEY`/`PRICECHARTING_API_KEY` still being the
+  inert placeholder values from `PALLETIQ-026`/`027` - not a code bug,
+  `waterfall.ts`'s `try/catch` gracefully degraded to MSRP-only exactly
+  as designed. Investigating this surfaced two bigger problems that a
+  simple credential swap wouldn't fix: the vendor stack was hardcoded to
+  the US marketplace (`X-EBAY-C-MARKETPLACE-ID: EBAY_US`, Keepa/Amazon
+  US) while the owner's actual market is Ontario, Canada; and eBay
+  Browse API only ever returns active asking prices, never real sold
+  data. The owner has a proven pricing SOP
+  (`docs/projects/SOP-Pricing-Research-v1.4.docx`) used for months in a
+  separate pawn shop business - an LLM session with live web
+  search+fetch tools, researching Canadian retail/Kijiji Ontario/eBay
+  sold comps and synthesizing one bottom-line price. Confirmed with the
+  owner via `AskUserQuestion`: re-architect to match this SOP rather
+  than patch the old waterfall with real credentials. `ADR-0012` records
+  the full decision, superseding `ADR-0011`'s waterfall/vendor-list
+  section.
+
+  **Shipped as planned:** `priceResearch.ts` (Gemini with `googleSearch`
+  - `urlContext` tools together, confirmed available in the installed
+    `@google/genai` v2.18.0 SDK, and a prompt encoding the SOP's §4-8
+    rules) and `mapPriceResearch.ts` (pure SOP-response → `PricingResult`/
+    `SaleabilityInputs` mapping) replace the entire deterministic vendor
+    waterfall. `priceItemScan.ts` + `enrichItemScanPricing.ts`'s old
+    two-stage fast/slow split collapsed into one async worker
+    (`priceItemScanWorker.ts`) since pricing is now entirely one
+    inherently-slow research call, with saleability computed in the same
+    invocation. `retrySaleabilityScore.ts` (`PALLETIQ-033`) simplified
+    from an async worker-retry to a synchronous recompute against stored
+    comps - a forced, documented consequence of Keepa going away, not
+    scope creep. `ebayBrowseApi.ts`/`upcLookup.ts`/`keepa.ts`/
+    `priceCharting.ts`/`discogs.ts`/`googleBooks.ts`/`enrichment.ts`/
+    `waterfall.ts`/`computePrices.ts`/`params.ts` (the four vendor
+    secrets) all deleted. `PricingResult`'s shape stayed unchanged (only
+    an additive `source` tag on `PricingComp`), so the entire UI layer
+    needed only copy changes - `PricingPanel.tsx` now groups comps by
+    source ("eBay sold" / "Kijiji – new/sealed" / "Kijiji – used") with an
+    honest per-group note instead of one flat eBay-only sentence.
+    `computeSaleability.ts`'s formula needed no change - its existing
+    weight-redistribution mechanism (built for the already-missing
+    `sell_through` term) cleanly absorbed `salesRank` going permanently
+    null now that Keepa is gone.
+
+  **A real, forced behavior change worth naming explicitly:** the SOP
+  instructs the model to "always state the recommended price as a
+  specific number... never omit it even when data is thin" - so
+  `pricingStatus` will essentially never settle on `'unknown'` anymore
+  (a legitimate terminal state under the old waterfall when no signal
+  was found at all). `ItemScanPage.tsx`'s `'unknown'`-state UI branch
+  and the `PricingStatus` type's `'unknown'` value are both left in
+  place (harmless, not dead code by contract - just not expected to
+  fire in practice) rather than removed, since removing them wasn't
+  part of this ticket's scope and a genuinely-impossible edge case
+  (e.g. a malformed `bottomLine.priceCad` of exactly the sentinel the
+  code would need to trigger it) isn't worth ruling out by contract.
+
+  **Governance:** `ADR-0012` written before implementation, per the
+  Planning gate. Check IV (design-system-auditor) audited
+  `PricingPanel.tsx`'s diff twice (once mid-design, once post-
+  implementation) and passed clean both times - no new hardcoded
+  styling, the per-source comp grouping is confirmed to be the same
+  `explainable-scoring.md` provenance-labeling pattern repeated, not a
+  new one, `p-8`/44×44px mobile density preserved. No Check I impact
+  (no new Firestore collections/rules - `product_price_cache`'s
+  existing shape/rules are unchanged, now implicitly Ontario/CAD-scoped
+  per `ADR-0012`'s noted limitation). Also fixed two stale governance
+  notes discovered while touching Check II's own description in
+  `CLAUDE.md`: it still said Check II was "not yet applicable," dating
+  from before `PALLETIQ-025` shipped the first real Gemini call
+  (`identifyItem.ts`) - corrected to name both real call sites
+  (`identifyItem.ts`, `priceResearch.ts`) and confirm both already
+  follow the required Cloud-Tasks-worker pattern. Also cleaned up
+  `functions/lib/`'s stale compiled output (orphaned `.js` files from
+  deleted `.ts` sources, left behind by `tsc`'s non-deleting incremental
+  build) before the pre-flight spike, so nothing dead risked bundling
+  into a deploy.
+
+  **Required pre-flight spike, run live against the real
+  `mrt-pallet-iq` `GEMINI_API_KEY` before considering the design
+  validated** (not a deploy - a direct Node script invoking
+  `researchPrice()` against the compiled `functions/lib` output):
+  tested two real, well-known items (a DeWalt cordless drill kit, an
+  Instant Pot Duo). Confirmed the exact risk `ADR-0012`/`treasure-
+hunter-plan.md` §12 flagged is real but **not absolute**: for the
+  drill, `urlContext` successfully fetched real eBay.ca sold-listing
+  pages (5 comps, working URLs); for the Instant Pot, eBay's
+  sold-listings pages were not accessible, and the model correctly set
+  `ebaySold.thin = true` with an explicit `dataQuality` flag rather than
+  fabricating a number, falling back to Kijiji as the primary anchor -
+  exactly the SOP's own designed degradation path, working as intended
+  under real conditions, not just in the schema. Output quality read as
+  genuinely reasonable on both items (plausible CAD prices, rationale
+  sentences that mirror the SOP's own synthesis language). Latency was
+  ~32-38 seconds per call - well inside the worker's 300s timeout, but
+  confirms this is correctly a fully-async operation with no fast path
+  left, consistent with this ticket's worker-collapse decision. Real
+  per-call cost wasn't measured (no billing API access in this
+  sandbox) - still an open, not-blocking item per `ADR-0011`'s existing
+  "no usage-metering enforcement yet" flag.
+
+  **Not yet done:** deploying `priceItemScanWorker`/the shrunk
+  `priceItemScan`/simplified `retrySaleabilityScore` to `mrt-pallet-iq`
+  and a full end-to-end live round-trip through the real Cloud
+  Functions/Cloud Tasks path (the pre-flight spike above called
+  `researchPrice()` directly, not through the deployed worker) - pending
+  the owner's go-ahead to push/deploy, same pattern as every other
+  ticket in this track.

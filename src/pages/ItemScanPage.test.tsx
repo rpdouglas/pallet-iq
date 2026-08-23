@@ -27,7 +27,7 @@ const enqueueItemScan =
 const getItemScan = vi.fn<(tenantId: string, scanId: string) => Promise<ItemScan | null>>()
 const selectItemScanCandidate =
   vi.fn<(tenantId: string, scanId: string, candidateIndex: number) => Promise<void>>()
-const priceItemScan = vi.fn<(scanId: string) => Promise<{ pricing: PricingResult | null }>>()
+const priceItemScan = vi.fn<(scanId: string) => Promise<void>>()
 const retrySaleabilityScore = vi.fn<(scanId: string) => Promise<void>>()
 vi.mock('../lib/itemScans/itemScanActions', () => ({
   newScanId,
@@ -136,7 +136,7 @@ function baseScan(overrides: Partial<ItemScan> = {}): ItemScan {
 describe('ItemScanPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    priceItemScan.mockResolvedValue({ pricing: null })
+    priceItemScan.mockResolvedValue(undefined)
     retrySaleabilityScore.mockResolvedValue(undefined)
   })
 
@@ -192,7 +192,7 @@ describe('ItemScanPage', () => {
     getItemScan.mockResolvedValueOnce(
       baseScan({ pricingStatus: 'priced', pricing: PRICING, saleabilityStatus: 'scoring' }),
     )
-    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    priceItemScan.mockResolvedValueOnce(undefined)
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])
@@ -215,7 +215,7 @@ describe('ItemScanPage', () => {
     getItemScan.mockResolvedValueOnce(
       baseScan({ pricingStatus: 'unknown', saleabilityStatus: 'scoring' }),
     )
-    priceItemScan.mockResolvedValueOnce({ pricing: null })
+    priceItemScan.mockResolvedValueOnce(undefined)
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])
@@ -234,7 +234,7 @@ describe('ItemScanPage', () => {
     getItemScan.mockResolvedValueOnce(
       baseScan({ pricingStatus: 'failed', pricingError: 'eBay is down' }),
     )
-    priceItemScan.mockResolvedValueOnce({ pricing: null })
+    priceItemScan.mockResolvedValueOnce(undefined)
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])
@@ -263,7 +263,7 @@ describe('ItemScanPage', () => {
         saleabilityScore: SALEABILITY,
       }),
     )
-    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    priceItemScan.mockResolvedValueOnce(undefined)
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])
@@ -293,7 +293,7 @@ describe('ItemScanPage', () => {
     getItemScan.mockResolvedValueOnce(
       baseScan({ pricingStatus: 'priced', pricing: PRICING, saleabilityStatus: 'scoring' }),
     )
-    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    priceItemScan.mockResolvedValueOnce(undefined)
     renderPage()
 
     selectFiles(fileInput(), [photoFile()])

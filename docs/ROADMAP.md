@@ -38,10 +38,14 @@ this pull-forward track is complete through Phase 2's slice of the work;
 `028`/`029`/`030` continue it under Phase 4 (see below). `PALLETIQ-033`
 (a small follow-up fixing a wiring gap `027`'s own Check IV audit
 logged — the saleability-failed retry button was re-running the full
-pricing waterfall instead of just re-scoring) and `PALLETIQ-034` (an
+pricing waterfall instead of just re-scoring), `PALLETIQ-034` (an
 owner-reported bug fix — a second capture photo silently failed to add
 — plus a "choose from device" picker alongside the existing camera-only
-capture) are also both **Done**. See `ADR-0011` and
+capture), and `PALLETIQ-035` (replaced the deterministic multi-vendor
+pricing waterfall — eBay Browse API/Keepa/PriceCharting/Discogs/Google
+Books — with a single SOP-modeled Gemini live-research call, targeting
+Ontario/Canada instead of the prior US-only vendor stack; see
+`ADR-0012`) are also all **Done**. See `ADR-0011` and
 `docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
 rationale, and `docs/BACKLOG.md` for scope.
 

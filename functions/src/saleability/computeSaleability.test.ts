@@ -45,16 +45,18 @@ describe('computeSaleability', () => {
     expect(low.score).toBeGreaterThan(high.score)
   })
 
-  it('scores a better (lower) Amazon sales rank higher when present', () => {
+  it('scores a better (lower) sales rank higher when present', () => {
     const bestseller = computeSaleability({ ...BASE_INPUTS, salesRank: 100 })
     const obscure = computeSaleability({ ...BASE_INPUTS, salesRank: 900_000 })
     expect(bestseller.score).toBeGreaterThan(obscure.score)
   })
 
-  it('redistributes the salesRank weight when no Keepa match exists, without crashing', () => {
+  it('redistributes the salesRank weight since no specialist source exists (PALLETIQ-035 removed Keepa), without crashing', () => {
     const result = computeSaleability({ ...BASE_INPUTS, salesRank: null })
     expect(result.score).toBeGreaterThan(0)
-    expect(result.factors.some((f) => f.label === 'No Amazon sales rank data')).toBe(true)
+    expect(
+      result.factors.some((f) => f.label === 'No specialist sales-rank signal available'),
+    ).toBe(true)
   })
 
   it('redistributes the priceVariance weight when there is no comp sample', () => {
