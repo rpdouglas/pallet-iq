@@ -44,6 +44,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators              | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -2112,3 +2113,79 @@ unaffected; the merged response still maps onto the existing, unchanged
 `PricingResult` shape.
 
 _ADR:_ written - [`ADR-0013`](../adr/0013-pricing-research-parallel-legs.md).
+
+## PALLETIQ-039: Browse discovered lots UI (restock.ca scraper results)
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ `PALLETIQ-020`
+(Track A, `ADR-0009`) shipped a scheduled scraper that keeps a global
+`restock_lots` collection in sync with restock.ca's public listings, but
+explicitly deferred the UI: "no 'browse discovered lots' page exists yet -
+a natural follow-on ticket once this ticket's data exists." That data has
+existed and been running live in `mrt-pallet-iq` since `PALLETIQ-020`/
+`031`/`032` closed - this ticket is that follow-on, requested directly by
+the owner.
+
+_Pulled forward from Phase 4, same track as `PALLETIQ-020`/`021`/`031`/
+`032`:_ a UI on top of the same "automated vendor ingestion" slice, running
+as a parallel track alongside Phase 2, not gated by it - see `ADR-0009` and
+`docs/ROADMAP.md`'s Phase 4 pull-forward note.
+
+_In scope:_ a new Buyer-facing page (route + nav entry, e.g. `/discovered-lots`)
+listing `restock_lots` documents (`functions/src/restock-scraper/types.ts`'s
+`RestockLotDoc`: `title`, `category`, `units`, `condition`, `msrp`, `price`,
+`costPerUnit`, `vendor`, `warehouse`, `productUrl`, `imageUrl`,
+`manifestUrl`, `status`). A `status: 'active'` filter by default (closed
+lots hidden, not deleted - `scrapeRestockLots.ts` marks rather than removes
+them). Sort/filter by category and by `firstSeenAt`/`lastSeenAt`
+(newest-discovered-first as the default, not a "closes soon" sort -
+restock.ca lots are fixed-price, not auctions, so they have no closing
+time; that concept is specific to `watchlist_lots`'/`PALLETIQ-021`'s
+auction sources and doesn't apply here). Each row links out to
+`productUrl` (and `manifestUrl` when present) exactly like `PricingPanel.tsx`'s
+existing external-comp-link pattern. Nav entry added to `AppShell.tsx`'s
+base `NAV_ITEMS` (visible to every role, unrestricted, matching Watchlist's
+own treatment) - correct per `firestore.rules`' existing `restock_lots`
+read rule (`isSignedIn()`, any authenticated user/tenant/role, not
+Buyer-specific), even though the ticket's Persona is Buyer as the primary
+day-to-day user.
+
+_Out of scope, explicitly deferred:_ a unified "all sourcing opportunities"
+view merging `restock_lots` (global, read-only) with `watchlist_lots`
+(tenant-scoped, manually-edited) into one list/collection - `ADR-0009`'s
+own Alternatives section left this open on purpose ("revisit if/when a
+real 'all opportunities' UI is scoped - not a speculative abstraction
+today"). This ticket is that revisit trigger in the sense that a second
+list UI now exists, but building the unification itself is a separate,
+larger architectural decision (a merged read model across two different
+security domains) that this ticket does not make - flagged here so a
+future ticket can pick it up deliberately rather than by surprise. Any
+action beyond viewing/linking out (e.g. "convert a discovered lot into a
+watchlist entry" or into a real purchase/import) - a plausible future
+bridge, not this ticket's scope, same relationship `PALLETIQ-020` already
+named for "convert to a real vendors/imports flow." Search/full-text
+filtering beyond category - a plain category dropdown + newest-first sort
+is enough for a first pass at ~500-1000 active lots; revisit if that proves
+insufficient in practice. Any change to `scrapeRestockLots.ts` or the
+scraper's own data quality (`PALLETIQ-031`'s ~2% residual unparsed-card
+rate) - this ticket only reads what's already stored.
+
+_Firestore/RBAC impact:_ none new - `restock_lots`' existing
+`firestore.rules` (`read: isSignedIn()`, `write: if false`) already covers
+this read-only page; no new collection, no rules change. `docs/personas/
+buyer.md` already lists `restock_lots` (read) from `ADR-0009`'s close-out,
+no persona-doc update needed either.
+
+_UI pattern notes:_ `docs/design/components.md`'s Data table pattern
+(same one `PALLETIQ-021`'s closes-soon `/watchlist` view already
+established, and `VendorsPage`/`ManifestsPage`/`InventoryPage` all use) -
+no new pattern. First read-only external-link-out list sourced from a
+global (not tenant-scoped) collection in the UI layer - `product_intelligence`
+predates any UI, so this is a new-but-not-novel combination of two
+existing patterns (Data table + `PricingPanel.tsx`'s external-comp-link
+treatment), not a new one to invent.
+
+_ADR:_ not needed - no new collection, no rules change, no new
+architectural tradeoff; reuses `ADR-0009`'s existing `restock_lots` design
+and `docs/design/components.md`'s existing Data table pattern. The
+"unified sourcing view" question flagged above as deferred would need one
+if it's ever picked up, per `ADR-0009`'s own note - not this ticket.
