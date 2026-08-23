@@ -41,6 +41,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)      | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators              | Buyer         | 2     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -1922,3 +1923,86 @@ list" paragraph and its secrets list; explicitly confirms what's NOT
 superseded (the four-stage shape, the async AI boundary treatment, the
 Firestore collections/rules, the explainable-scoring UI reuse pattern,
 the persona/RBAC/mobile-design decisions).
+
+_Scope note on `PALLETIQ-036` (2026-08-23) — Planning gate only, not started:_
+
+_Reported directly by the owner:_ uploading 2+ photos on the item-scan
+capture screen "takes too long and never finished"; 1 photo "still took
+a long time but did finish"; pricing afterward "took a very long time."
+Asked to reduce friction/wait times generally and add a spinning
+indicator wherever the app is waiting.
+
+_Root cause, confirmed via code investigation:_ no photo compression
+exists anywhere, client or server. `ItemScanCapture.tsx` uploads raw
+camera files as-is; `processItemScan.ts` downloads each from Storage
+and `identifyItem.ts` base64s every one into a single Gemini
+`generateContent` call. Real phone photos run 3-8MB each - 5 photos can
+total ~50MB raw, ~66MB once base64-inflated, all sent inline in one
+request. Worse: `processItemScan.ts`'s 300s `onTaskDispatched` timeout,
+when actually hit, is a platform-enforced kill that never reaches the
+function's own `catch` block - `item_scans.status` stays stuck at
+`'processing'` while Cloud Tasks silently retries (up to 3 attempts, up
+to ~15 minutes) with no visible change to the client, which polls
+indefinitely with no give-up logic. This is exactly "never finishes."
+Pricing's separate ~30-50s latency is expected and inherent
+(`PALLETIQ-035`'s live multi-step web research), not a bug to
+eliminate, but something to set honest expectations around.
+
+Separately: `docs/design/components.md` already documents a
+spinner-vs-skeleton rule ("skeletons for long waits with real layout to
+preview... spinners for short indeterminate waits like a button
+mid-submit") that has never been implemented - zero
+`Spinner`/`animate-spin` instances exist anywhere in `src/`. The three
+item-scan wait states (identify/price/score) already correctly use
+skeletons per that rule; the actual gap is `ItemScanCapture.tsx`'s
+submit button, a textbook "button mid-submit" case, which today just
+swaps text with no indicator at all.
+
+_In scope:_ new `src/lib/itemScans/compressPhoto.ts` (client-side
+`createImageBitmap`+canvas resize to 1600px longest-edge / 0.8 JPEG
+quality, with graceful fallback to the original file on any decode/
+encode failure - e.g. undecodable HEIC - so compression can never block
+or fail an upload), wired into `ItemScanPage.tsx`'s `scanMutation`
+immediately before the existing `uploadScanPhoto` call, still inside
+the same `Promise.all`; new `src/components/Spinner.tsx` (a `lucide-
+react` `Loader2` + Tailwind `animate-spin` wrapper, `role="status"`) -
+the first real implementation of `components.md`'s documented pattern,
+used only in `ItemScanCapture.tsx`'s submit button; expectation-setting
+second-line captions added to the identify/pricing skeletons in
+`ItemScanPage.tsx` ("Usually takes under a minute." / "This can take
+up to a minute — we're checking retail, Kijiji, and eBay listings
+live."); `processItemScan.ts`'s `timeoutSeconds` reduced 300→120 now
+that payloads will be small (shrinks the worst-case silent-retry window
+from ~15 min to ~6 min); a soft 90-second "Still working — this is
+taking longer than usual." reassurance line appended to the identify/
+pricing skeletons without stopping polling or swapping to a failed UI.
+
+_Out of scope:_ changing `priceItemScanWorker.ts`'s 300s timeout
+(pricing's latency is inherent to live web research, unrelated to this
+bug - its ceiling stays as-is); any heartbeat/progress-write mechanism
+(would need a second scheduled function or client-side staleness
+detection - meaningfully bigger scope than this bug calls for, given
+the root cause is being fixed directly); any hard client-side give-up/
+stop-polling logic (identification's and pricing's legitimate worst-
+case durations differ too much post-tuning - ~6 min vs. ~15 min - for
+one threshold to be both safe and useful; a hard "failed" swap risks
+firing while a real, still-working pricing retry is in flight); any
+change to the pricing research prompt/architecture itself; swapping the
+three existing correct skeletons for spinners (would regress against
+`components.md`'s own rule and the rest of the app's convention).
+
+_Firestore/RBAC impact:_ none new - no schema change.
+
+_UI pattern notes:_ `Spinner.tsx` is the first real instance of
+`components.md`'s already-documented spinner-for-short-waits pattern;
+the three existing skeletons stay skeletons, already correct per that
+same rule. `storage.rules`' existing 10MB-per-file cap on item-scan
+photo uploads stays as-is - a generous upper bound above the compressed
+target, and still needed as the ceiling for the HEIC-decode-failure
+fallback path that uploads the original file unmodified.
+
+_ADR:_ not needed - a bug fix plus the first real implementation of an
+already-decided, already-documented UI pattern (`components.md`'s
+spinner rule, decided under `ADR-0002`'s design-system-adherence
+umbrella), not a new architectural decision. Same reasoning class
+`PALLETIQ-033`/`034` used.

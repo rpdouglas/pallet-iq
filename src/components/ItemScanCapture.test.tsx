@@ -121,4 +121,28 @@ describe('ItemScanCapture', () => {
 
     expect(await screen.findByText('Upload failed')).toBeInTheDocument()
   })
+
+  it('shows a spinner while the upload is in flight', async () => {
+    let resolveSubmit: () => void = () => {
+      // reassigned below before use
+    }
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSubmit = resolve
+        }),
+    )
+    render(<ItemScanCapture onSubmit={onSubmit} />)
+
+    selectFiles(libraryInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByRole('status')).toBeInTheDocument()
+    expect(screen.getByText('Uploading…')).toBeInTheDocument()
+
+    resolveSubmit()
+    await vi.waitFor(() => {
+      expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    })
+  })
 })

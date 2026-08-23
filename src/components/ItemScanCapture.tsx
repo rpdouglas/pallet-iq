@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
+import { Spinner } from './Spinner'
 
 const MIN_PHOTOS = 1
 const MAX_PHOTOS = 5
@@ -137,7 +138,14 @@ export function ItemScanCapture({ onSubmit }: ItemScanCaptureProps) {
         disabled={submitting || photos.length < MIN_PHOTOS}
         className="min-h-11"
       >
-        {submitting ? 'Uploading…' : 'Identify item'}
+        {submitting ? (
+          <span className="inline-flex items-center gap-2">
+            <Spinner className="h-4 w-4" />
+            Uploading…
+          </span>
+        ) : (
+          'Identify item'
+        )}
       </Button>
     </div>
   )

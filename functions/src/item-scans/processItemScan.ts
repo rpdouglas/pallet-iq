@@ -36,11 +36,17 @@ export const processItemScan = onTaskDispatched<ProcessItemScanPayload>(
     retryConfig: { maxAttempts: 3, minBackoffSeconds: 10 },
     rateLimits: { maxConcurrentDispatches: 5 },
     // Vision + Google Search grounding over up to 5 photos runs noticeably
-    // longer than a plain text call - generous headroom over
-    // processManifestImport's 120s, same 512MiB ceiling (a handful of
-    // photo downloads, not a 50k-row parse).
+    // longer than a plain text call, same 512MiB ceiling as
+    // processManifestImport (a handful of photo downloads, not a 50k-row
+    // parse). PALLETIQ-036 lowered this from 300s: photos are now
+    // client-compressed before upload (compressPhoto.ts), so the payload
+    // this call actually handles is far smaller than the 300s ceiling was
+    // originally sized for - and a real platform-enforced timeout doesn't
+    // reach this function's own catch block, so a lower ceiling also
+    // shrinks the worst-case silent-retry window (maxAttempts x this) from
+    // ~15 minutes to ~6 minutes if a pathological case still occurs.
     memory: '512MiB',
-    timeoutSeconds: 300,
+    timeoutSeconds: 120,
     secrets: [geminiApiKey],
   },
   async (request) => {
