@@ -290,7 +290,7 @@ describe.each(['pallets', 'sales', 'locations', 'bids', 'claims'])(
   },
 )
 
-describe.each(['imports', 'manifests', 'watchlist_lots'])(
+describe.each(['imports', 'manifests', 'watchlist_lots', 'item_scans'])(
   '%s (tenant member read, owner/buyer write - PALLETIQ-008)',
   (collection) => {
     it('allows a tenant member to read a doc in their own tenant', async () => {

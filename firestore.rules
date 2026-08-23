@@ -159,6 +159,17 @@ service cloud.firestore {
         allow write: if isOwnerOrBuyer(tenantId);
       }
 
+      // PALLETIQ-025 / ADR-0011. Buyer's pre-purchase field-scan captures -
+      // full Gemini identification record, not just pricing-relevant
+      // fields. Same isOwnerOrBuyer write policy as manifests/
+      // watchlist_lots (ADR-0006) - this is a Buyer-facing capture flow,
+      // not an admin task. Warehouse/Manager read access is deferred, see
+      // this ticket's scope note.
+      match /item_scans/{docId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrBuyer(tenantId);
+      }
+
       match /notes/{docId} {
         allow read, write: if isTenantMember(tenantId);
       }

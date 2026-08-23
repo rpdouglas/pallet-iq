@@ -54,14 +54,29 @@ service firebase.storage {
       allow delete: if isTenantMember(tenantId) && tokenRole() in ['owner', 'buyer'];
     }
 
-    // Excludes manifests/ (handled above with a tighter policy) - see that
-    // block's comment for why this exclusion is required, not optional.
-    // Storage Rules has no string .matches()/regex support (unlike
-    // Firestore rules), so the exclusion is done structurally: capture the
-    // first path segment on its own and compare it directly, rather than
-    // pattern-match the full remaining path.
+    // PALLETIQ-025 / ADR-0011. Buyer's pre-purchase capture photos - unlike
+    // manifests (raw cost data), a photo of an item isn't cost-sensitive,
+    // so every tenant member can read it; write (create/update/delete) is
+    // Owner/Buyer only, matching firestore.rules' isOwnerOrBuyer for
+    // item_scans. Same 10 MB per-file size-limit posture as ADR-0008.
+    match /tenants/{tenantId}/item_scans/{scanId}/{fileName} {
+      allow read: if isTenantMember(tenantId);
+      allow create, update: if isTenantMember(tenantId) &&
+        tokenRole() in ['owner', 'buyer'] &&
+        request.resource.size < 10 * 1024 * 1024;
+      allow delete: if isTenantMember(tenantId) && tokenRole() in ['owner', 'buyer'];
+    }
+
+    // Excludes manifests/ and item_scans/ (each handled above with its own
+    // tighter policy) - see those blocks' comments for why this exclusion
+    // is required, not optional. Storage Rules has no string .matches()/
+    // regex support (unlike Firestore rules), so the exclusion is done
+    // structurally: capture the first path segment on its own and compare
+    // it directly, rather than pattern-match the full remaining path.
     match /tenants/{tenantId}/{firstSegment}/{rest=**} {
-      allow read, write: if isTenantMember(tenantId) && firstSegment != 'manifests';
+      allow read, write: if isTenantMember(tenantId) &&
+        firstSegment != 'manifests' &&
+        firstSegment != 'item_scans';
     }
 
     // Deny-by-default for anything not explicitly matched above.

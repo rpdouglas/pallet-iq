@@ -210,3 +210,96 @@ describe('manifests/{importId}/{fileName} size limit (PALLETIQ-012)', () => {
     )
   })
 })
+
+// PALLETIQ-025 / ADR-0011. Unlike manifests, a capture photo isn't
+// cost-sensitive, so read is every tenant member (not just Owner/Manager/
+// Buyer) - write stays Owner/Buyer only, matching firestore.rules'
+// isOwnerOrBuyer for item_scans.
+describe('item_scans/{scanId}/{fileName} (role-restricted, not the general blanket rule)', () => {
+  const PATH = `tenants/${TENANT_A}/item_scans/scan-1/photo-0.jpg`
+
+  it('allows a buyer to upload a scan photo', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', { tenantId: TENANT_A, role: 'buyer' })
+
+    await assertSucceeds(uploadBytes(ref(buyerOfA.storage(), PATH), new Uint8Array([1, 2, 3])))
+  })
+
+  it('allows an owner to upload a scan photo', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', { tenantId: TENANT_A, role: 'owner' })
+
+    await assertSucceeds(uploadBytes(ref(ownerOfA.storage(), PATH), new Uint8Array([1, 2, 3])))
+  })
+
+  it('denies a manager uploading a scan photo', async () => {
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertFails(uploadBytes(ref(managerOfA.storage(), PATH), new Uint8Array([1, 2, 3])))
+  })
+
+  it('denies a warehouse-role user uploading a scan photo', async () => {
+    const warehouseOfA = testEnv.authenticatedContext('warehouse-a', {
+      tenantId: TENANT_A,
+      role: 'warehouse',
+    })
+
+    await assertFails(uploadBytes(ref(warehouseOfA.storage(), PATH), new Uint8Array([1, 2, 3])))
+  })
+
+  it('allows a manager to read a scan photo (unlike manifests, photos are not cost-sensitive)', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), PATH), new Uint8Array([1, 2, 3]))
+    })
+    const managerOfA = testEnv.authenticatedContext('manager-a', {
+      tenantId: TENANT_A,
+      role: 'manager',
+    })
+
+    await assertSucceeds(getBytes(ref(managerOfA.storage(), PATH)))
+  })
+
+  it('allows a warehouse-role user to read a scan photo', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), PATH), new Uint8Array([1, 2, 3]))
+    })
+    const warehouseOfA = testEnv.authenticatedContext('warehouse-a', {
+      tenantId: TENANT_A,
+      role: 'warehouse',
+    })
+
+    await assertSucceeds(getBytes(ref(warehouseOfA.storage(), PATH)))
+  })
+
+  it("denies a tenant member reading another tenant's scan photo", async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(
+        ref(context.storage(), `tenants/${TENANT_B}/item_scans/scan-1/photo-0.jpg`),
+        new Uint8Array([1, 2, 3]),
+      )
+    })
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', { tenantId: TENANT_A, role: 'buyer' })
+
+    await assertFails(
+      getBytes(ref(buyerOfA.storage(), `tenants/${TENANT_B}/item_scans/scan-1/photo-0.jpg`)),
+    )
+  })
+
+  it('denies an upload over the 10 MB limit', async () => {
+    const buyerOfA = testEnv.authenticatedContext('buyer-a', { tenantId: TENANT_A, role: 'buyer' })
+
+    await assertFails(
+      uploadBytes(ref(buyerOfA.storage(), PATH), new Uint8Array(10 * 1024 * 1024 + 1)),
+    )
+  })
+
+  it('allows an owner to delete a scan photo', async () => {
+    await testEnv.withSecurityRulesDisabled(async (context) => {
+      await uploadBytes(ref(context.storage(), PATH), new Uint8Array([1, 2, 3]))
+    })
+    const ownerOfA = testEnv.authenticatedContext('owner-a', { tenantId: TENANT_A, role: 'owner' })
+
+    await assertSucceeds(deleteObject(ref(ownerOfA.storage(), PATH)))
+  })
+})

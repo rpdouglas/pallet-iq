@@ -26,3 +26,7 @@ export { processManifestImport } from './manifests/processManifestImport'
 // Direct Liquidation are never scraped anywhere in this codebase, both
 // explicitly prohibit it - see PALLETIQ-021's manual watchlist instead.
 export { scrapeRestockLots } from './restock-scraper/scrapeRestockLots'
+
+// PALLETIQ-025 / ADR-0011.
+export { enqueueItemScan } from './item-scans/enqueueItemScan'
+export { processItemScan } from './item-scans/processItemScan'
