@@ -11,6 +11,7 @@ import {
   getItemScan,
   newScanId,
   priceItemScan,
+  retrySaleabilityScore,
   selectItemScanCandidate,
   uploadScanPhoto,
 } from '../lib/itemScans/itemScanActions'
@@ -111,6 +112,13 @@ export function ItemScanPage() {
     },
   })
 
+  const retrySaleabilityMutation = useMutation({
+    mutationFn: (scanId: string) => retrySaleabilityScore(scanId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['itemScan', tenantId] })
+    },
+  })
+
   const scan = scanQuery.data
   const selectedCandidate =
     scan?.selectedCandidateIndex !== null && scan?.selectedCandidateIndex !== undefined
@@ -120,6 +128,7 @@ export function ItemScanPage() {
   const hasSelectedCandidate = !!selectedCandidate
   const pricingStatus = scan?.pricingStatus
   const { mutate: startPricing, isPending: isPricingPending } = priceMutation
+  const { mutate: retryScoring } = retrySaleabilityMutation
 
   // PALLETIQ-026 / ADR-0011. "Confidence and explanation panels ship
   // alongside the first price, not after" (plan section 10) - pricing
@@ -265,7 +274,7 @@ export function ItemScanPage() {
                     <Button
                       className="min-h-11"
                       onClick={() => {
-                        if (resultScanId) startPricing(resultScanId)
+                        if (resultScanId) retryScoring(resultScanId)
                       }}
                     >
                       Try again
