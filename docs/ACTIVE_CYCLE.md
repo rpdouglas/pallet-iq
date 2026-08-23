@@ -1701,10 +1701,39 @@ hunter-plan.md` §12 flagged is real but **not absolute**: for the
   sandbox) - still an open, not-blocking item per `ADR-0011`'s existing
   "no usage-metering enforcement yet" flag.
 
-  **Not yet done:** deploying `priceItemScanWorker`/the shrunk
-  `priceItemScan`/simplified `retrySaleabilityScore` to `mrt-pallet-iq`
-  and a full end-to-end live round-trip through the real Cloud
-  Functions/Cloud Tasks path (the pre-flight spike above called
-  `researchPrice()` directly, not through the deployed worker) - pending
-  the owner's go-ahead to push/deploy, same pattern as every other
-  ticket in this track.
+  **Deployed and live-verified end-to-end against `mrt-pallet-iq`
+  post-merge.** `firebase deploy` initially aborted because
+  `enrichItemScanPricing` (deleted this ticket) still existed as a live
+  function with no matching local source - deleted it explicitly
+  (`firebase functions:delete enrichItemScanPricing --force`) before
+  redeploying cleanly. `priceItemScanWorker` created;
+  `priceItemScan`/`retrySaleabilityScore` updated to their shrunk/
+  simplified shapes. IAM confirmed correct on both: `priceItemScanWorker`
+  has an empty invoker policy (non-public, Cloud-Tasks-only, matching
+  `processItemScan`'s precedent), `priceItemScan` correctly kept its
+  public `allUsers` binding (Buyer-invoked callable) - no crash-
+  interrupted-deploy IAM gap this time either.
+
+  A scripted round-trip against real `mrt-pallet-iq` infra (test
+  tenant/user/item_scan, cleaned up after) drove a real item (a
+  Milwaukee M18 FUEL impact wrench) through the actual deployed path:
+  `priceItemScan` (enqueue-only `onCall`) → Cloud Tasks →
+  `priceItemScanWorker` (real Gemini research, not mocked) → Firestore.
+  Took ~35s end-to-end, consistent with the pre-flight spike's ~32-38s
+  per-call timing. Real research found a $389 CAD retail price (Home
+  Depot Canada), 5 Kijiji comps (2 new/sealed, 3 used, correctly
+  source-tagged), correctly flagged eBay sold listings as inaccessible
+  for this item with an honest factor rather than fabricating a number,
+  and landed a sensible $185 CAD bottom-line price ($165-210 band) with
+  a coherent rationale. Saleability computed correctly in the same
+  worker invocation (score 0.63, factors using the corrected
+  vendor-neutral copy - "No specialist sales-rank signal available",
+  not "Amazon"). Checked Cloud Logging directly for the invocation:
+  zero warning/error-severity entries - a fully clean run, not just a
+  "didn't crash" one.
+
+  This closes out the one open item from ticket close: the pre-flight
+  spike (run before merge) had only exercised `researchPrice()` via a
+  direct script, not the deployed `priceItemScanWorker`/Cloud Tasks
+  path - now confirmed working end-to-end for real, not just in
+  isolation.
