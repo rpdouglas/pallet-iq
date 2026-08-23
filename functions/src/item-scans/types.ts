@@ -1,5 +1,8 @@
 import type { FieldValue, Timestamp } from 'firebase-admin/firestore'
 import type { PricingResult, PricingStatus } from '../pricing/types'
+import type { SaleabilityResult } from '../saleability/computeSaleability'
+
+export type SaleabilityStatus = 'not_scored' | 'scoring' | 'scored' | 'failed'
 
 export type ItemScanStatus = 'queued' | 'processing' | 'completed' | 'failed'
 
@@ -59,6 +62,15 @@ export interface ItemScanDoc {
   pricingStatus: PricingStatus
   pricing: PricingResult | null
   pricingError: string | null
+  // PALLETIQ-027 / ADR-0011. Computed once background enrichment settles
+  // (see enrichItemScanPricing.ts) - a separate status lifecycle from
+  // pricingStatus above, since the "instant" pricing result and the
+  // saleability score (which can depend on slower category-specialist
+  // data) resolve at different times per the plan's own "instant estimate
+  // now, refine over the next minute" design.
+  saleabilityStatus: SaleabilityStatus
+  saleabilityScore: SaleabilityResult | null
+  saleabilityError: string | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

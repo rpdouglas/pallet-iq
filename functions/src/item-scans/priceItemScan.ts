@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
+import { getFunctions } from 'firebase-admin/functions'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { ebayAppId, ebayCertId } from '../pricing/params'
 import { runWaterfall } from '../pricing/waterfall'
@@ -9,13 +10,17 @@ interface PriceItemScanRequest {
   scanId?: unknown
 }
 
-// PALLETIQ-026 / ADR-0011. Runs the pricing waterfall against an existing,
-// already-identified item_scans doc. No Cloud Tasks queue - none of this
-// ticket's waterfall steps call Gemini (grounding data is reused from the
-// PALLETIQ-025 identification response, not a fresh call), so there's
-// nothing for Governance Check II to gate here; cache/UPC/eBay are plain
-// deterministic/network-IO work, cheap enough to resolve inline in the
-// callable's own response per ADR-0011's async-boundary note.
+// PALLETIQ-026 / ADR-0011. Runs the synchronous half of the pricing
+// waterfall (cache/UPC/grounding/eBay) against an existing, already-
+// identified item_scans doc, resolved inline in this callable's own
+// response - none of these steps call Gemini (grounding data is reused
+// from the PALLETIQ-025 identification response, not a fresh call), so
+// there's nothing for Governance Check II to gate here; cache/UPC/eBay
+// are plain deterministic/network-IO work, cheap enough to resolve inline
+// per ADR-0011's async-boundary note. Category-specialist enrichment
+// (PALLETIQ-027 - Keepa/PriceCharting/Discogs/Google Books, plus the
+// saleability score) is slower/paid and runs afterward via Cloud Tasks -
+// see enrichItemScanPricing.ts.
 export const priceItemScan = onCall<
   PriceItemScanRequest,
   Promise<{ pricing: PricingResult | null }>
@@ -65,8 +70,16 @@ export const priceItemScan = onCall<
     await scanRef.update({
       pricingStatus: pricing ? 'priced' : 'unknown',
       pricing,
+      saleabilityStatus: 'scoring',
       updatedAt: FieldValue.serverTimestamp(),
     } satisfies Partial<ItemScanDoc>)
+
+    // PALLETIQ-027. Category-specialist enrichment (Keepa/PriceCharting/
+    // Discogs/Google Books) and the saleability score both run in the
+    // background - "slow/paid steps move to background enrichment," per
+    // this ticket's scope note - rather than blocking this callable's
+    // response further.
+    await getFunctions().taskQueue('enrichItemScanPricing').enqueue({ tenantId, scanId })
 
     return { pricing }
   } catch (err) {

@@ -40,11 +40,6 @@ function percentile(values: number[], p: number): number | null {
   return sorted[index] ?? null
 }
 
-export interface MsrpSignals {
-  groundedRetailPrice: number | null
-  upcMedianOfferPrice: number | null
-}
-
 export interface MsrpResult {
   msrp: number | null
   /** true when 2+ independent sources agreed within 20% of each other. */
@@ -52,24 +47,25 @@ export interface MsrpResult {
 }
 
 // "Take the consensus; flag as estimated when sources disagree or none
-// exist" (plan section 5). With only 2 possible sources in this ticket
-// (UPC lookup, grounding - Keepa is PALLETIQ-027), consensus is a simple
-// average when both exist.
-export function computeMsrp(signals: MsrpSignals): MsrpResult {
-  const values = [signals.groundedRetailPrice, signals.upcMedianOfferPrice].filter(
-    (v): v is number => v !== null,
-  )
+// exist" (plan section 5). Takes a plain array rather than named fields -
+// PALLETIQ-026 only had 2 possible retail-price sources (grounding, UPC
+// lookup); PALLETIQ-027 adds more (Keepa, PriceCharting, Google Books),
+// including re-blending an already-computed msrp as one more input signal
+// during background enrichment (see enrichment.ts) - a fixed 2-argument
+// shape stopped fitting.
+export function computeMsrp(prices: (number | null)[]): MsrpResult {
+  const values = prices.filter((v): v is number => v !== null)
   if (values.length === 0) {
     return { msrp: null, sourcesAgree: null }
   }
   if (values.length === 1) {
     return { msrp: values[0] ?? null, sourcesAgree: null }
   }
-  const [a, b] = values as [number, number]
-  const larger = Math.max(a, b)
-  const smaller = Math.min(a, b)
+  const larger = Math.max(...values)
+  const smaller = Math.min(...values)
   const sourcesAgree = larger === 0 ? true : (larger - smaller) / larger <= 0.2
-  return { msrp: (a + b) / 2, sourcesAgree }
+  const msrp = values.reduce((sum, v) => sum + v, 0) / values.length
+  return { msrp, sourcesAgree }
 }
 
 export interface SalePriceResult {
@@ -101,4 +97,17 @@ export function computeLiquidationPrice(
   const p = percentile(compPrices, LIQUIDATION_PERCENTILE)
   if (p === null) return null
   return p * CONDITION_SALE_MULTIPLIERS[condition] * ASKING_TO_SOLD_DISCOUNT_RATIO
+}
+
+// PALLETIQ-027. The saleability formula's price_variance term - a 0-1
+// normalized spread of the comp distribution (0 = tightly clustered,
+// predictable price; 1 = wildly scattered). Uses the 10th-90th percentile
+// range relative to the median, the same percentile helper already used
+// for sale-price low/high above.
+export function computePriceVariance(compPrices: number[]): number | null {
+  const medianPrice = median(compPrices)
+  if (medianPrice === null || medianPrice === 0) return null
+  const low = percentile(compPrices, 10) ?? medianPrice
+  const high = percentile(compPrices, 90) ?? medianPrice
+  return Math.min(1, Math.max(0, (high - low) / medianPrice))
 }

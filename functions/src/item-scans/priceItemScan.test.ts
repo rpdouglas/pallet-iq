@@ -17,6 +17,12 @@ vi.mock('../pricing/params', () => ({
 const mockRunWaterfall = vi.fn()
 vi.mock('../pricing/waterfall', () => ({ runWaterfall: mockRunWaterfall }))
 
+const mockEnqueue = vi.fn()
+const mockTaskQueue = vi.fn(() => ({ enqueue: mockEnqueue }))
+vi.mock('firebase-admin/functions', () => ({
+  getFunctions: () => ({ taskQueue: mockTaskQueue }),
+}))
+
 const { priceItemScan } = await import('./priceItemScan')
 
 function request<T>(data: T, auth: CallableRequest['auth']): CallableRequest<T> {
@@ -53,6 +59,8 @@ function resetMocks() {
   mockGet.mockReset()
   mockDoc.mockClear()
   mockRunWaterfall.mockReset()
+  mockEnqueue.mockReset()
+  mockTaskQueue.mockClear()
 }
 
 describe('priceItemScan', () => {
@@ -141,12 +149,18 @@ describe('priceItemScan', () => {
     })
     expect(mockUpdate).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ pricingStatus: 'priced', pricing: pricingResult }),
+      expect.objectContaining({
+        pricingStatus: 'priced',
+        pricing: pricingResult,
+        saleabilityStatus: 'scoring',
+      }),
     )
     expect(result).toEqual({ pricing: pricingResult })
+    expect(mockTaskQueue).toHaveBeenCalledWith('enrichItemScanPricing')
+    expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
   })
 
-  it('writes pricingStatus "unknown" when the waterfall finds no signal', async () => {
+  it('writes pricingStatus "unknown" when the waterfall finds no signal, and still enqueues enrichment', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
     mockRunWaterfall.mockResolvedValueOnce(null)
@@ -155,9 +169,14 @@ describe('priceItemScan', () => {
 
     expect(mockUpdate).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ pricingStatus: 'unknown', pricing: null }),
+      expect.objectContaining({
+        pricingStatus: 'unknown',
+        pricing: null,
+        saleabilityStatus: 'scoring',
+      }),
     )
     expect(result).toEqual({ pricing: null })
+    expect(mockEnqueue).toHaveBeenCalledWith({ tenantId: 'tenant-a', scanId: 's1' })
   })
 
   it('marks pricingStatus failed and rethrows if the waterfall throws', async () => {
@@ -173,5 +192,6 @@ describe('priceItemScan', () => {
       2,
       expect.objectContaining({ pricingStatus: 'failed', pricingError: 'boom' }),
     )
+    expect(mockEnqueue).not.toHaveBeenCalled()
   })
 })

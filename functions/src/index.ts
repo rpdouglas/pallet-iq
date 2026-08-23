@@ -33,3 +33,6 @@ export { processItemScan } from './item-scans/processItemScan'
 
 // PALLETIQ-026 / ADR-0011.
 export { priceItemScan } from './item-scans/priceItemScan'
+
+// PALLETIQ-027 / ADR-0011.
+export { enrichItemScanPricing } from './item-scans/enrichItemScanPricing'
