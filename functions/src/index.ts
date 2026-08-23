@@ -30,3 +30,6 @@ export { scrapeRestockLots } from './restock-scraper/scrapeRestockLots'
 // PALLETIQ-025 / ADR-0011.
 export { enqueueItemScan } from './item-scans/enqueueItemScan'
 export { processItemScan } from './item-scans/processItemScan'
+
+// PALLETIQ-026 / ADR-0011.
+export { priceItemScan } from './item-scans/priceItemScan'

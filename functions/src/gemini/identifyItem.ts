@@ -21,6 +21,9 @@ const candidateSchema = z.object({
   condition: z.enum(CONDITION_GRADES),
   conditionJustification: z.string().min(1),
   confidence: z.number().min(0).max(1),
+  barcodeNumber: z.string().nullable(),
+  groundedRetailPrice: z.number().nullable(),
+  groundedRetailSource: z.string().nullable(),
 })
 const responseSchema = z.array(candidateSchema).min(1).max(3)
 
@@ -45,6 +48,9 @@ Each array element must be an object with exactly these fields:
 - "condition": exactly one of "new", "like_new", "good", "fair", "damaged_for_parts"
 - "conditionJustification": one sentence citing what you saw (scuffs, missing parts, torn packaging, etc.)
 - "confidence": your confidence in THIS candidate specifically, a number from 0 to 1
+- "barcodeNumber": if a barcode is visible in one of the photos, the digits printed underneath it (as a string, digits only), or null if no barcode is visible or the digits are not legible
+- "groundedRetailPrice": if your Google Search lookup surfaced a current retail or MSRP price for this item, that price as a plain number (no currency symbol), or null if you did not find one
+- "groundedRetailSource": a short label for where that price came from (e.g. "walmart.com", "manufacturer site"), or null if groundedRetailPrice is null
 
 Return only 2 or 3 candidates when you are genuinely unsure between them; return exactly 1 when you are confident. Order the array from highest to lowest confidence.
 

@@ -1,13 +1,15 @@
-import { useState } from 'react'
-import { PackageSearch } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { DollarSign, PackageSearch } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { EmptyState } from '../components/EmptyState'
 import { ItemScanCapture } from '../components/ItemScanCapture'
+import { PricingPanel } from '../components/PricingPanel'
 import { useAuth } from '../lib/auth/useAuth'
 import {
   enqueueItemScan,
   getItemScan,
   newScanId,
+  priceItemScan,
   selectItemScanCandidate,
   uploadScanPhoto,
 } from '../lib/itemScans/itemScanActions'
@@ -96,11 +98,37 @@ export function ItemScanPage() {
     },
   })
 
+  const priceMutation = useMutation({
+    mutationFn: (scanId: string) => priceItemScan(scanId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['itemScan', tenantId] })
+    },
+  })
+
   const scan = scanQuery.data
   const selectedCandidate =
     scan?.selectedCandidateIndex !== null && scan?.selectedCandidateIndex !== undefined
       ? scan.candidates[scan.selectedCandidateIndex]
       : undefined
+  const resultScanId = mode.kind === 'result' ? mode.scanId : null
+  const hasSelectedCandidate = !!selectedCandidate
+  const pricingStatus = scan?.pricingStatus
+  const { mutate: startPricing, isPending: isPricingPending } = priceMutation
+
+  // PALLETIQ-026 / ADR-0011. "Confidence and explanation panels ship
+  // alongside the first price, not after" (plan section 10) - pricing
+  // starts automatically as soon as a candidate is confirmed, rather than
+  // waiting for a separate Buyer action.
+  useEffect(() => {
+    if (
+      resultScanId &&
+      hasSelectedCandidate &&
+      pricingStatus === 'not_priced' &&
+      !isPricingPending
+    ) {
+      startPricing(resultScanId)
+    }
+  }, [resultScanId, hasSelectedCandidate, pricingStatus, isPricingPending, startPricing])
 
   return (
     <main className="bg-cloud-gray min-h-svh p-4 sm:p-6">
@@ -122,7 +150,7 @@ export function ItemScanPage() {
           !scan ||
           scan.status === 'queued' ||
           scan.status === 'processing') ? (
-          <div className="flex flex-col gap-2 rounded-xl bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-3 rounded-xl bg-white p-8 shadow-sm">
             <div className="bg-cloud-gray h-6 w-2/3 animate-pulse rounded-lg" />
             <div className="bg-cloud-gray h-24 animate-pulse rounded-lg" />
             <p className="text-label text-slate-gray">Identifying item…</p>
@@ -130,12 +158,13 @@ export function ItemScanPage() {
         ) : null}
 
         {mode.kind === 'result' && scan?.status === 'failed' ? (
-          <div className="rounded-xl bg-white p-6 shadow-sm">
+          <div className="rounded-xl bg-white p-8 shadow-sm">
             <EmptyState
               icon={PackageSearch}
               message={scan.error ?? 'Identification failed.'}
               action={
                 <Button
+                  className="min-h-11"
                   onClick={() => {
                     setMode({ kind: 'capture' })
                   }}
@@ -171,6 +200,44 @@ export function ItemScanPage() {
                 ))}
               </div>
             )}
+
+            {selectedCandidate && (isPricingPending || scan.pricingStatus === 'pricing') ? (
+              <div className="flex flex-col gap-3 rounded-xl bg-white p-8 shadow-sm">
+                <div className="bg-cloud-gray h-8 w-1/3 animate-pulse rounded-lg" />
+                <div className="bg-cloud-gray h-16 animate-pulse rounded-lg" />
+                <p className="text-label text-slate-gray">Pricing…</p>
+              </div>
+            ) : null}
+
+            {scan.pricingStatus === 'priced' && scan.pricing ? (
+              <PricingPanel pricing={scan.pricing} />
+            ) : null}
+
+            {scan.pricingStatus === 'unknown' ? (
+              <div className="rounded-xl bg-white p-8 shadow-sm">
+                <EmptyState icon={DollarSign} message="Not enough data to price this item yet." />
+              </div>
+            ) : null}
+
+            {scan.pricingStatus === 'failed' ? (
+              <div className="rounded-xl bg-white p-8 shadow-sm">
+                <EmptyState
+                  icon={DollarSign}
+                  message={scan.pricingError ?? 'Pricing failed.'}
+                  action={
+                    <Button
+                      className="min-h-11"
+                      onClick={() => {
+                        if (resultScanId) startPricing(resultScanId)
+                      }}
+                    >
+                      Try pricing again
+                    </Button>
+                  }
+                />
+              </div>
+            ) : null}
+
             <Button
               variant="secondary"
               className="min-h-11"

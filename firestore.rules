@@ -282,6 +282,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ---- Cross-tenant: product_price_cache -----------------------------
+    // PALLETIQ-026 / ADR-0011. Same security domain shape as
+    // product_intelligence/restock_lots above: a cached price for a given
+    // UPC/fingerprint isn't tenant-specific, so one cache serves every
+    // tenant rather than N duplicate writes. Readable by any authenticated
+    // user, any tenant; never client-writable — populated exclusively by
+    // the pricing waterfall (priceItemScan) via the Admin SDK, which
+    // bypasses these rules.
+
+    match /product_price_cache/{cacheKey} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // Deny-by-default for anything not explicitly matched above.
     match /{document=**} {
       allow read, write: if false;

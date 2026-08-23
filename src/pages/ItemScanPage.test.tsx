@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
 import type { Role } from '../types/auth'
 import { AuthContext, type AuthState } from '../lib/auth/AuthContext'
-import type { ItemScan, ItemScanCandidate } from '../types/itemScan'
+import type { ItemScan, ItemScanCandidate, PricingResult } from '../types/itemScan'
 
 const newScanId = vi.fn<(tenantId: string) => string>()
 const uploadScanPhoto =
@@ -22,12 +22,14 @@ const enqueueItemScan =
 const getItemScan = vi.fn<(tenantId: string, scanId: string) => Promise<ItemScan | null>>()
 const selectItemScanCandidate =
   vi.fn<(tenantId: string, scanId: string, candidateIndex: number) => Promise<void>>()
+const priceItemScan = vi.fn<(scanId: string) => Promise<{ pricing: PricingResult | null }>>()
 vi.mock('../lib/itemScans/itemScanActions', () => ({
   newScanId,
   uploadScanPhoto,
   enqueueItemScan,
   getItemScan,
   selectItemScanCandidate,
+  priceItemScan,
 }))
 
 beforeAll(() => {
@@ -79,11 +81,28 @@ const CANDIDATE: ItemScanCandidate = {
   condition: 'good',
   conditionJustification: 'Minor scuffing on lid.',
   confidence: 0.92,
+  barcodeNumber: null,
+  groundedRetailPrice: null,
+  groundedRetailSource: null,
+}
+
+const PRICING: PricingResult = {
+  msrp: 100,
+  salePrice: 70,
+  salePriceLow: 60,
+  salePriceHigh: 80,
+  liquidationPrice: 30,
+  confidence: 0.7,
+  sampleSize: 5,
+  factors: [{ label: 'Condition: good', direction: 'neutral', explanation: null }],
+  comps: [],
+  waterfallStepsUsed: ['ebay'],
 }
 
 describe('ItemScanPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    priceItemScan.mockResolvedValue({ pricing: null })
   })
 
   it('uploads photos and enqueues a scan', async () => {
@@ -99,6 +118,9 @@ describe('ItemScanPage', () => {
       candidates: [],
       selectedCandidateIndex: null,
       error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
     })
     renderPage()
 
@@ -129,6 +151,9 @@ describe('ItemScanPage', () => {
       candidates: [CANDIDATE],
       selectedCandidateIndex: 0,
       error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
     })
     renderPage()
 
@@ -138,6 +163,122 @@ describe('ItemScanPage', () => {
     expect(await screen.findByText('Instant Pot Duo 6-Quart')).toBeInTheDocument()
     expect(screen.getByText('92% confident')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /scan another item/i })).toBeInTheDocument()
+  })
+
+  it('auto-starts pricing once a candidate is confirmed, and shows the priced panel', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
+    })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'priced',
+      pricing: PRICING,
+      pricingError: null,
+    })
+    priceItemScan.mockResolvedValueOnce({ pricing: PRICING })
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    await waitFor(() => {
+      expect(priceItemScan).toHaveBeenCalledWith('scan-1')
+    })
+    expect(await screen.findByText('$70.00')).toBeInTheDocument()
+    expect(screen.getByText('70% confidence')).toBeInTheDocument()
+  })
+
+  it('shows the "not enough data" empty state when pricing finds nothing', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
+    })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'unknown',
+      pricing: null,
+      pricingError: null,
+    })
+    priceItemScan.mockResolvedValueOnce({ pricing: null })
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByText('Not enough data to price this item yet.')).toBeInTheDocument()
+  })
+
+  it('shows a pricing failure message and lets the buyer retry pricing', async () => {
+    newScanId.mockReturnValueOnce('scan-1')
+    uploadScanPhoto.mockResolvedValueOnce({
+      storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+    })
+    enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
+    })
+    getItemScan.mockResolvedValueOnce({
+      id: 'scan-1',
+      status: 'completed',
+      photoPaths: [],
+      candidates: [CANDIDATE],
+      selectedCandidateIndex: 0,
+      error: null,
+      pricingStatus: 'failed',
+      pricing: null,
+      pricingError: 'eBay is down',
+    })
+    priceItemScan.mockResolvedValueOnce({ pricing: null })
+    renderPage()
+
+    selectFiles(fileInput(), [photoFile()])
+    fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+    expect(await screen.findByText('eBay is down')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /try pricing again/i })).toBeInTheDocument()
   })
 
   it('shows a top-3 picker when confidence is low, and selects a candidate', async () => {
@@ -155,6 +296,9 @@ describe('ItemScanPage', () => {
       candidates: [lowA, lowB],
       selectedCandidateIndex: null,
       error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
     })
     selectItemScanCandidate.mockResolvedValueOnce(undefined)
     renderPage()
@@ -185,6 +329,9 @@ describe('ItemScanPage', () => {
       candidates: [],
       selectedCandidateIndex: null,
       error: 'Gemini returned an empty response.',
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
     })
     renderPage()
 

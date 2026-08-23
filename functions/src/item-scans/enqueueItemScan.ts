@@ -62,6 +62,9 @@ export const enqueueItemScan = onCall<EnqueueItemScanRequest, Promise<{ scanId: 
       candidates: [],
       selectedCandidateIndex: null,
       error: null,
+      pricingStatus: 'not_priced',
+      pricing: null,
+      pricingError: null,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
     }

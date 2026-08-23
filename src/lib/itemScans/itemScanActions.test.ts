@@ -27,8 +27,14 @@ const httpsCallable = vi.fn<(...args: unknown[]) => (data: unknown) => Promise<u
 const getFunctions = vi.fn<(...args: unknown[]) => unknown>()
 vi.mock('firebase/functions', () => ({ getFunctions, httpsCallable }))
 
-const { newScanId, uploadScanPhoto, enqueueItemScan, getItemScan, selectItemScanCandidate } =
-  await import('./itemScanActions')
+const {
+  newScanId,
+  uploadScanPhoto,
+  enqueueItemScan,
+  getItemScan,
+  selectItemScanCandidate,
+  priceItemScan,
+} = await import('./itemScanActions')
 
 describe('itemScanActions', () => {
   it('newScanId generates an ID without writing', () => {
@@ -94,5 +100,27 @@ describe('itemScanActions', () => {
       { id: 'generated-id', path: 'tenants/tenant-a/item_scans/scan-1' },
       { selectedCandidateIndex: 1 },
     )
+  })
+
+  it('priceItemScan calls the callable with the given scanId', async () => {
+    const pricing = {
+      msrp: 100,
+      salePrice: 70,
+      salePriceLow: 60,
+      salePriceHigh: 80,
+      liquidationPrice: 30,
+      confidence: 0.7,
+      sampleSize: 5,
+      factors: [],
+      comps: [],
+      waterfallStepsUsed: ['ebay'],
+    }
+    httpsCallableFn.mockResolvedValueOnce({ data: { pricing } })
+
+    const result = await priceItemScan('scan-1')
+
+    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'priceItemScan')
+    expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
+    expect(result).toEqual({ pricing })
   })
 })

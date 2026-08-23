@@ -2,7 +2,7 @@ import { collection, doc, getDoc, updateDoc } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { app, db, storage } from '../firebase'
-import type { ItemScan } from '../../types/itemScan'
+import type { ItemScan, PricingResult } from '../../types/itemScan'
 
 const functions = getFunctions(app)
 
@@ -54,4 +54,14 @@ export async function selectItemScanCandidate(
   await updateDoc(doc(db, `tenants/${tenantId}/item_scans/${scanId}`), {
     selectedCandidateIndex: candidateIndex,
   })
+}
+
+// PALLETIQ-026 / ADR-0011. Runs the pricing waterfall against a scan's
+// already-confirmed candidate.
+export async function priceItemScan(scanId: string): Promise<{ pricing: PricingResult | null }> {
+  const call = httpsCallable<{ scanId: string }, { pricing: PricingResult | null }>(
+    functions,
+    'priceItemScan',
+  )
+  return (await call({ scanId })).data
 }

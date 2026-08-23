@@ -237,6 +237,35 @@ describe('restock_lots (cross-tenant)', () => {
   })
 })
 
+describe('product_price_cache (cross-tenant)', () => {
+  it('allows any authenticated user to read regardless of tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+    const memberOfB = testEnv.authenticatedContext('buyer-b', {
+      tenantId: TENANT_B,
+      role: 'buyer',
+    })
+
+    // Same doc, two different tenants - proves this collection is global,
+    // not scoped to the reader's own tenant (PALLETIQ-026 / ADR-0011).
+    await assertSucceeds(memberOfA.firestore().doc('product_price_cache/upc:049000028911').get())
+    await assertSucceeds(memberOfB.firestore().doc('product_price_cache/upc:049000028911').get())
+  })
+
+  it('denies client writes even from an owner', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc('product_price_cache/upc:049000028911').set({ msrp: 1 }),
+    )
+  })
+})
+
 // The remaining collections below share one of a small number of RBAC
 // shapes. Rather than hand-writing a near-identical block per collection,
 // describe.each parameterizes the shared shapes so every collection still

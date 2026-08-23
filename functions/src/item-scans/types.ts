@@ -1,4 +1,5 @@
 import type { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import type { PricingResult, PricingStatus } from '../pricing/types'
 
 export type ItemScanStatus = 'queued' | 'processing' | 'completed' | 'failed'
 
@@ -16,6 +17,19 @@ export interface ItemScanCandidate {
   conditionJustification: string
   /** 0-1. Gemini's own confidence in this specific candidate. */
   confidence: number
+  // PALLETIQ-026 / ADR-0011. Digits read from a barcode photo, if one was
+  // captured and is legible - feeds the pricing waterfall's UPC-lookup
+  // step. Not a true deterministic decode (that would need a barcode-
+  // scanning library against the raw pixels); reusing the existing vision
+  // call to read the human-readable digits printed under the barcode is
+  // the pragmatic v1 choice - see functions/src/pricing/waterfall.ts.
+  barcodeNumber: string | null
+  // PALLETIQ-026 / ADR-0011. A current retail/MSRP price the Google
+  // Search grounding tool surfaced while identifying this candidate, if
+  // any - "already available from PALLETIQ-025's identification call,
+  // reused here" per the ADR, rather than a second Gemini call.
+  groundedRetailPrice: number | null
+  groundedRetailSource: string | null
 }
 
 // tenants/{tenantId}/item_scans/{scanId}. PALLETIQ-025 / ADR-0011. Stores
@@ -36,6 +50,15 @@ export interface ItemScanDoc {
   // ADR-0011, this ticket's scope note.
   selectedCandidateIndex: number | null
   error: string | null
+  // PALLETIQ-026 / ADR-0011. Pricing runs as a separate step, after a
+  // candidate is confirmed - its own status lifecycle rather than folding
+  // into `status` above, since identification and pricing can each
+  // independently succeed/fail. 'unknown' is a legitimate terminal state
+  // (no waterfall step found enough signal to price this item), not an
+  // error - see waterfall.ts.
+  pricingStatus: PricingStatus
+  pricing: PricingResult | null
+  pricingError: string | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

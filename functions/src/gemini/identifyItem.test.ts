@@ -20,6 +20,9 @@ const HIGH_CONFIDENCE_CANDIDATE = {
   condition: 'good',
   conditionJustification: 'Visible light scuffing on the lid, otherwise clean.',
   confidence: 0.92,
+  barcodeNumber: '0123456789012',
+  groundedRetailPrice: 99.95,
+  groundedRetailSource: 'instantpot.com',
 }
 
 function photo(): { data: Buffer; mimeType: string } {
