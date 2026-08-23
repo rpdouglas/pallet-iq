@@ -1548,3 +1548,52 @@ responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   untouched (identical `msrp`/`waterfallStepsUsed` before and after),
   proving the fix actually skips the full waterfall re-run rather than
   just relabeling it.
+
+- **2026-08-23 — PALLETIQ-034 opened and closed same session.** Owner
+  reported directly (not a scope note found via review): on the
+  item-scan capture screen, adding a second photo silently did nothing,
+  and the only way to add a photo at all was the device camera - no
+  "choose from device" option existed.
+
+  **Root cause, confirmed via a throwaway repro test before touching any
+  code:** the accumulation logic itself was correct (a jsdom test firing
+  two sequential `change` events on the same `<input>` node correctly
+  produced two photos in state) - the real cause was the
+  `capture="environment"` attribute on `ItemScanCapture.tsx`'s single
+  file input. It forces the browser straight into the camera app,
+  skipping the OS's native picker sheet entirely (which is also why
+  there was no "choose from device" option - that sheet is what would
+  normally offer it), and reusing that same input node for a second
+  camera capture is a known-unreliable pattern on mobile browsers,
+  particularly iOS Safari, where the second capture's `change` event can
+  silently fail to fire.
+
+  **Fix:** split into two controls - "Take photo" (camera-only,
+  `capture="environment"`) and "Choose from device" (`accept="image/*"
+multiple`, no `capture` attribute, opens the OS's normal picker/
+  gallery) - laid out side by side, reusing the exact same dashed-border
+  styling the original single control used. Both inputs are now keyed by
+  the current photo count, forcing React to mount a fresh DOM node per
+  use rather than reusing one - the standard workaround for the known
+  iOS Safari repeat-capture bug, applied to both controls defensively.
+  Also fixed an adjacent bug found while touching this code:
+  `URL.createObjectURL(photo)` was being called fresh on every render
+  for every photo with no revocation, a real memory leak across a
+  multi-photo session - now memoized via `useMemo` and revoked via a
+  `useEffect` cleanup.
+
+  **Verification limits, stated plainly:** the exact bug (iOS Safari's
+  camera-input-reuse quirk) can't be reproduced in this sandbox - no
+  mobile Safari, no camera hardware, and no logged-in browser session
+  readily available without significant auth setup for a component-level
+  fix. Verification here is a targeted regression test simulating the
+  reported scenario (two sequential file selections, second one via a
+  remounted camera-input node, both photos render) plus the full
+  existing suite (18 `ItemScanCapture`/`ItemScanPage` tests, all
+  passing) and a Check IV audit (clean - both new buttons meet the
+  ≥44×44px rule, no new hardcoded styling, no new pattern beyond the
+  gap the component's own header comment already flagged). The owner
+  should confirm on a real device before treating the mobile-Safari
+  repeat-capture path as fully proven, same posture this track has taken
+  on every other device/vendor-credential gap it couldn't verify
+  in-sandbox.

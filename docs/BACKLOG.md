@@ -39,7 +39,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
-| PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
 
 ## Adding a ticket
 

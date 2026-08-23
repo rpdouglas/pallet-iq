@@ -50,7 +50,7 @@ function photoFile(name = 'photo.jpg') {
 }
 
 function fileInput() {
-  return screen.getByLabelText<HTMLInputElement>('Add photo')
+  return screen.getByLabelText<HTMLInputElement>('Choose from device')
 }
 
 function selectFiles(input: HTMLInputElement, files: File[]) {
