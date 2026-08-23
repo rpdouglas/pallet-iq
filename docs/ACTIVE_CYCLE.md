@@ -1206,7 +1206,7 @@ new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
 - **2026-08-23 — PALLETIQ-025 closed.** Planned scope (per `ADR-0011` and
   the ticket's own `docs/BACKLOG.md` scope note) shipped as specified: a
   mobile-first Buyer capture flow (1-5 photos), a new `tenants/{tenantId}/
-  item_scans/{scanId}/...` Storage path, `enqueueItemScan` callable +
+item_scans/{scanId}/...` Storage path, `enqueueItemScan` callable +
   `processItemScan` Cloud Tasks worker making the first real Gemini API
   call in the codebase (vision + Google Search grounding, prompt-engineered
   JSON parsed and Zod-validated rather than `responseSchema` +
@@ -1223,7 +1223,7 @@ new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
   floating action button as an alternative "rather than inventing a second
   mobile pattern," shipped a role-gated (`owner`/`buyer`) FAB on `AppShell`
   instead of building a new tab-bar shell for one route. `mobile-
-  responsive.md` should be reworded to drop the now-incorrect "Warehouse's
+responsive.md` should be reworded to drop the now-incorrect "Warehouse's
   existing bottom-tab-bar" reference next time that doc is touched -
   logged here rather than editing design docs mid-ticket.
 
@@ -1237,7 +1237,7 @@ new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
   breakdown pattern, citing `ADR-0011`'s "confidence & explanation panel"
   commitment - was checked against the source plan
   (`docs/projects/treasure-hunter-plan.md` §6) and rejected: that panel is
-  explicitly the *pricing* confidence view (dollar amount + comp checklist),
+  explicitly the _pricing_ confidence view (dollar amount + comp checklist),
   scoped to Phase 1/`PALLETIQ-026`-`027`, not Phase 0 identification. Left
   as a plain confidence percentage per this ticket's own scope note ("no
   existing pattern, likely a simple card-select list").
@@ -1262,7 +1262,7 @@ new, 399 updated, 0 closed` - a full, uncrashed run, and only 8
   code:** the first deploy attempt's crash (bug 1 above) meant Firebase's
   normal "grant `roles/run.invoker` to `allUsers` on a new callable's
   Cloud Run service" step never ran; the follow-up deploy succeeded as an
-  *update*, which doesn't re-grant it, so `enqueueItemScan` returned a
+  _update_, which doesn't re-grant it, so `enqueueItemScan` returned a
   bare `401` at the Cloud Run ingress layer (before reaching our own
   auth check) until the binding was granted manually to match every other
   `onCall` function. Investigated whether `processItemScan` (a Cloud-
