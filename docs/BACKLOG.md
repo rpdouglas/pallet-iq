@@ -39,6 +39,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -1754,4 +1755,63 @@ saleability-failed button calls.
 _ADR:_ not needed - adds one narrowly-scoped callable within `ADR-0011`'s
 existing background-enrichment design (`enrichItemScanPricing` already
 exists; this just gives it a second, narrower entry point), not a new
+architectural decision.
+
+_Scope note on `PALLETIQ-034` (2026-08-23) — Planning gate only, not started:_
+
+_Reported directly by the owner:_ on the item-scan capture screen
+(`ItemScanCapture.tsx`, `PALLETIQ-025`), adding a first photo works, but
+adding a second photo silently does nothing - no thumbnail, no error, no
+visible change. The owner also asked for a "choose from device" option,
+since currently the only way to add a photo is the device camera.
+
+_Root cause, confirmed via a throwaway repro test:_ the file input's
+accumulation logic itself is correct - a jsdom test firing two sequential
+`change` events on the same `<input>` node correctly ends up with two
+photos in state. The bug is the `capture="environment"` attribute: it
+forces the browser to launch the camera app directly, skipping the OS's
+native file-picker sheet entirely (which is _also_ why there's no
+"choose from device" option today - that sheet is what would normally
+offer it). Reusing that same input node for a second camera capture is a
+known-unreliable pattern on mobile browsers, particularly iOS Safari,
+where the second capture's `change` event can silently fail to fire on
+the same DOM node. Both the reported bug and the requested feature trace
+back to this one attribute.
+
+_In scope:_ split the single `capture="environment"` input into two
+separate controls - "Take photo" (camera-only, one at a time) and
+"Choose from device" (`accept="image/*" multiple`, no `capture`
+attribute, opens the OS's normal picker/gallery). Each input gets a
+`key` that changes after every successful add, forcing React to mount a
+fresh DOM node per use rather than reusing one - the standard, reliable
+workaround for the known iOS Safari repeat-capture bug, applied to both
+controls defensively even though the bug reports were specifically about
+the camera path. Also fixes an adjacent bug found while touching this
+code: `URL.createObjectURL(photo)` is currently called fresh on every
+render for every photo without ever revoking the previous URL - a real
+(if slow) memory leak across a multi-photo session - revoke stale blob
+URLs on removal/unmount as part of this same fix, since it's the exact
+code being rewritten, not new scope.
+
+_Out of scope:_ any change to `priceItemScan`/`enrichItemScanPricing`/
+identification (`processItemScan`) - this is a capture-UI-only bug;
+drag-and-drop upload (no evidence this is needed for the mobile-first
+capture flow this screen is scoped to, per `docs/design/mobile-
+responsive.md`'s Buyer-capture-flow exception); documenting a new
+`docs/design/components.md` two-button-picker pattern - flagging the gap
+(same as `ItemScanCapture.tsx`'s existing header comment already does)
+rather than writing new design-system doc content in a bug-fix ticket.
+
+_Firestore/RBAC impact:_ none - client-side capture UI only, no backend
+change.
+
+_UI pattern notes:_ still no documented pattern for a multi-photo
+capture control (`ItemScanCapture.tsx`'s own header comment already
+flags this gap from `PALLETIQ-025`) - two side-by-side dashed-border
+"Add photo"-style buttons (same visual treatment already in use, just
+two of them) rather than inventing a new visual style, per the mobile-
+first density rules this screen already follows.
+
+_ADR:_ not needed - a bug fix + a same-shape UI control added to an
+existing screen within `ADR-0011`'s existing capture-flow design, not an
 architectural decision.

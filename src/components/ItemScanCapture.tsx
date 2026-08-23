@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { X } from 'lucide-react'
 import { Button } from './Button'
 
@@ -9,17 +9,31 @@ interface ItemScanCaptureProps {
   onSubmit: (photos: File[]) => Promise<void>
 }
 
-// No documented multi-photo capture pattern exists yet in
+// PALLETIQ-034. No documented multi-photo capture pattern exists yet in
 // docs/design/components.md (same gap ImportForm's single-file input notes
-// for uploads generally) - a plain native file input with `capture`
-// (invokes the phone camera directly on mobile, per this ticket's
-// mobile-first capture-flow scope note) plus thumbnail previews, rather
-// than inventing a heavier custom picker for a first instance of this
-// pattern.
+// for uploads generally) - two plain native file inputs (one camera-only via
+// `capture`, one a plain device/library picker) plus thumbnail previews,
+// rather than inventing a heavier custom picker for a first instance of
+// this pattern. Each input is keyed by the current photo count so React
+// mounts a fresh DOM node per use - the standard workaround for mobile
+// Safari's known bug where reusing the same `capture` input node for a
+// second photo can silently fail to fire its change event (PALLETIQ-034).
 export function ItemScanCapture({ onSubmit }: ItemScanCaptureProps) {
   const [photos, setPhotos] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  // Recreated only when the photo list itself changes, and revoked on
+  // cleanup - createObjectURL previously ran on every render with no
+  // revocation, leaking a blob URL each time (PALLETIQ-034).
+  const photoUrls = useMemo(() => photos.map((photo) => URL.createObjectURL(photo)), [photos])
+  useEffect(() => {
+    return () => {
+      photoUrls.forEach((url) => {
+        URL.revokeObjectURL(url)
+      })
+    }
+  }, [photoUrls])
 
   const addPhotos = (files: FileList | null) => {
     if (!files || files.length === 0) return
@@ -66,7 +80,7 @@ export function ItemScanCapture({ onSubmit }: ItemScanCaptureProps) {
           {photos.map((photo, index) => (
             <div key={`${photo.name}-${index.toString()}`} className="relative aspect-square">
               <img
-                src={URL.createObjectURL(photo)}
+                src={photoUrls[index]}
                 alt={`Capture ${(index + 1).toString()}`}
                 className="h-full w-full rounded-lg object-cover"
               />
@@ -86,20 +100,34 @@ export function ItemScanCapture({ onSubmit }: ItemScanCaptureProps) {
       ) : null}
 
       {photos.length < MAX_PHOTOS ? (
-        <label className="border-slate-gray text-body text-slate-gray flex min-h-11 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 text-center">
-          Add photo
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            multiple
-            className="hidden"
-            onChange={(event) => {
-              addPhotos(event.target.files)
-              event.target.value = ''
-            }}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <label className="border-slate-gray text-body text-slate-gray flex min-h-11 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 text-center">
+            Take photo
+            <input
+              key={`camera-${photos.length.toString()}`}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(event) => {
+                addPhotos(event.target.files)
+              }}
+            />
+          </label>
+          <label className="border-slate-gray text-body text-slate-gray flex min-h-11 cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 text-center">
+            Choose from device
+            <input
+              key={`library-${photos.length.toString()}`}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                addPhotos(event.target.files)
+              }}
+            />
+          </label>
+        </div>
       ) : null}
 
       {error ? <p className="text-label text-danger">{error}</p> : null}
