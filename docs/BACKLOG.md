@@ -42,7 +42,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)      | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators              | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Planned     | P2       |
+| PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 
 ## Adding a ticket
@@ -2039,10 +2039,44 @@ gets written, not who can write it.
 _UI pattern notes:_ none - `PricingPanel.tsx`'s comp rendering is unchanged;
 this is a data-quality gate before storage, not a new UI pattern.
 
-_ADR:_ not yet determined - likely not needed (a verification step within
-the existing pricing-research design), but deferred to when this ticket
-actually starts, since the concrete mechanism (HEAD check vs. something
-stricter) isn't chosen yet.
+_ADR:_ not needed - a lightweight verification step within the existing
+pricing-research design, as predicted; no architectural decision beyond
+what `verifyComps.ts`'s own header comment documents.
+
+_Close-out (2026-08-23):_ shipped as scoped. `verifyComps.ts`'s
+`verifyPricingComps()` runs a real `fetch` (GET, 8s timeout, follows
+redirects) against each comp with a `source`/`url` before
+`priceItemScanWorker.ts` caches or stores the `PricingResult`, checking
+the resolved host against `EXPECTED_DOMAINS` per source
+(`kijiji.ca` / `ebay.ca`+`ebay.com`). Resolved the two questions the scope
+note deferred: a comp that fails verification keeps its title/price but
+has its `url` nulled (not dropped - the price signal may still be real
+even if the link isn't verifiable); `computeConfidence()` is unchanged
+(out of scope, consistent with `PALLETIQ-038`'s precedent of not touching
+scoring logic). A cache hit skips re-verification entirely - a cached
+`PricingResult`'s comps were already verified at write time.
+
+A live pre-flight check against real `ebay.ca`/`ebay.com`/`kijiji.ca`
+(not just mocks) surfaced a real design flaw before merge: eBay returns
+HTTP 403 to _any_ plain server-side fetch (homepage, search results),
+regardless of `User-Agent`/`Accept`/`Sec-Fetch-*` headers - consistent
+with datacenter-IP bot-blocking, which Cloud Functions' egress would also
+hit in production, not just this sandbox. Shipping the original
+ok-or-fail check as designed would have nulled the URL on virtually
+every real eBay comp - a false, noisy "could not be verified" signal on
+links that were actually fine. Fixed by treating `403`/`429` responses as
+a third, inconclusive outcome (comp left completely untouched - no url
+change, no factor) rather than a failure, reserving "failed" for
+network errors, other non-2xx statuses (e.g. a genuine 404 dead link),
+and wrong-domain resolutions. Re-verified live against real
+`kijiji.ca`/`ebay.ca` URLs post-fix: real links kept, a fake domain and a
+wrong-domain-for-its-source-tag URL both still correctly caught. See the
+`PALLETIQ-037` drift note in `docs/ACTIVE_CYCLE.md` for the full account.
+
+_Firestore/RBAC/UI impact:_ none, as scoped - confirmed no changes
+outside `functions/src/pricing/verifyComps.ts` (new) and
+`functions/src/item-scans/priceItemScanWorker.ts` (one new import + one
+new await before the existing cache write).
 
 ## PALLETIQ-038: Speed up pricing research by splitting the single Gemini call into parallel legs
 

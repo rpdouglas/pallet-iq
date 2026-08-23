@@ -1963,3 +1963,87 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   comp range. Saleability computed correctly in the same worker
   invocation. Checked Cloud Logging directly for the invocation: zero
   warning/error-severity entries - a fully clean run.
+
+- **2026-08-23 — PALLETIQ-037 closed.** Planning gate (ticket) already
+  existed before this session picked it up - opened directly by the
+  owner during a review of `priceResearch.ts`, alongside `PALLETIQ-038`.
+
+  **Shipped as scoped.** New `functions/src/pricing/verifyComps.ts` -
+  `verifyPricingComps(pricing: PricingResult): Promise<PricingResult>` -
+  runs a real `fetch` (GET, 8s timeout via `AbortController`, follows
+  redirects) against every comp that has both a `url` and a `source`,
+  checking the resolved host against a small `EXPECTED_DOMAINS` map
+  (`kijiji.ca` for `kijiji_new`/`kijiji_used`; `ebay.ca`/`ebay.com` for
+  `ebay_sold`). Comps run in parallel via `Promise.all`, so wall-clock
+  cost is ~one fetch's worth, not comp-count × fetch. Wired into
+  `priceItemScanWorker.ts` between `mapPriceResearchToPricingResult()`
+  and the `product_price_cache` write, so a cache write never persists
+  an unverified link - a cache hit correctly skips re-verification
+  entirely (confirmed by a dedicated test asserting `verifyPricingComps`
+  is not called on the cache-hit path).
+
+  Resolved the two design questions the scope note explicitly deferred
+  to implementation time: **(1)** a comp that fails verification keeps
+  its title/price but has its `url` nulled, not dropped outright - the
+  price signal may still be real even when the specific link isn't
+  confirmable, and `PricingPanel.tsx` already omits the link affordance
+  for any `url: null` comp, so this needed no UI change. **(2)**
+  `computeConfidence()`/`sampleSize` are unchanged - out of scope, and
+  consistent with `PALLETIQ-038`'s precedent of not touching scoring
+  logic for an unrelated change.
+
+  **Drift: a live pre-flight check against real domains (not just
+  mocks) surfaced a real design flaw before merge, fixed within this
+  same ticket rather than shipped and discovered later.** The original
+  design treated any non-2xx response as "verification failed." Testing
+  the compiled worker against real `https://www.ebay.com/` and
+  `https://www.ebay.ca/` (homepage and a search-results URL) found eBay
+  returns **HTTP 403 to every plain server-side fetch**, regardless of
+  `User-Agent`/`Accept`/`Accept-Language`/`Sec-Fetch-*` headers tried -
+  consistent with datacenter-IP-based bot-blocking, not a broken page.
+  Since Cloud Functions' own egress is itself a well-known datacenter IP
+  range, the same blocking is expected to occur in production, not just
+  this sandbox - shipping the original design would have nulled the URL
+  on virtually every real eBay comp, a false and noisy "could not be
+  verified" signal on links that were actually fine, arguably worse
+  than not verifying at all. Fixed by adding a third outcome -
+  `'inconclusive'` - for responses with status `403` or `429`: the comp
+  is left completely untouched (no url change, no factor added),
+  reserving the "failed → null the url, add a factor" treatment for
+  network errors, other non-2xx statuses (a genuine 404/410 dead link),
+  and resolutions that land on the wrong domain. Re-verified live
+  post-fix against a mix of real and fake URLs (real `kijiji.ca`/
+  `ebay.ca` homepages, a nonexistent lookalike domain, and a real site
+  mislabeled with the wrong `source` tag): both real URLs kept their
+  links, both genuinely-bad ones were correctly nulled. `kijiji.ca`
+  didn't show the same 403 behavior in testing, but the same treatment
+  covers it defensively if that changes. This finding and fix are folded
+  into `verifyComps.ts`'s own header comment, not just this note, so the
+  reasoning stays visible at the point of maintenance, not only in
+  history that ages out of relevance.
+
+  This is the kind of drift the governance model exists to catch: the
+  ticket's own scope note called for "a HEAD/GET check" without
+  anticipating real marketplace bot-protection, and only live testing
+  against real infrastructure (not the mocked unit tests, which all
+  passed throughout) surfaced it. No scope-note wording update needed -
+  the fix stayed within "a lightweight server-side verification step,"
+  just a more carefully-reasoned one than first drafted.
+
+  **Governance:** no Firestore/rules impact, no UI impact - confirmed
+  by diff: only `functions/src/pricing/verifyComps.ts` (new) and
+  `functions/src/item-scans/priceItemScanWorker.ts` (one new import,
+  one new `await` before the existing cache write) changed outside
+  test files. Matches the ticket's own scope note. Governance Check II
+  (async AI boundary): unaffected by construction - `verifyPricingComps`
+  makes a plain `fetch`, not a Gemini/Vertex call, so it isn't subject
+  to Check II in the first place. No ADR needed, as the scope note
+  predicted - a bounded verification step within the existing pricing
+  design, not a new architectural decision.
+
+  Full checklist run clean: `functions` `npm run build` /
+  `npx eslint` (scoped to changed files) / `npx vitest run` (218/218,
+  up from 206 pre-`PALLETIQ-037`/`038`), plus repo-root
+  `npm run format:check` / `npm run lint` / `npm run typecheck`, all
+  passing after one `prettier --write` pass on the two new/changed
+  files.

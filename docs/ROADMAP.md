@@ -51,11 +51,14 @@ by uncompressed photo uploads, plus the first real implementation of
 `PALLETIQ-038` (split pricing research's single sequential Gemini call
 into three concurrent legs plus a synthesis call, cutting worst-case
 wall-clock and making a single failed leg degrade gracefully instead of
-failing the whole price; see `ADR-0013`) are also all **Done**.
-`PALLETIQ-037` (verify pricing comps actually resolve before trusting
-them) remains **Planned**. See `ADR-0011` and
-`docs/projects/PROJ-PALLETIQ.md`'s Phase 2 section for the full
-rationale, and `docs/BACKLOG.md` for scope.
+failing the whole price; see `ADR-0013`), and `PALLETIQ-037` (server-side
+verification that Kijiji/eBay comp URLs actually resolve to their
+claimed domain before a `PricingResult` is cached or stored, nulling a
+failed comp's link rather than dropping the comp) are also all **Done**.
+This pull-forward track's Treasure Hunter pricing-research slice
+(`PALLETIQ-025`/`026`/`027`/`033`/`034`/`035`/`036`/`037`/`038`) is now
+fully complete. See `ADR-0011` and `docs/projects/PROJ-PALLETIQ.md`'s
+Phase 2 section for the full rationale, and `docs/BACKLOG.md` for scope.
 
 ## ⚪ Phase 3 — Operations (6–8 weeks)
 
