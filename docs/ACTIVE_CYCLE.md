@@ -1940,5 +1940,26 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   open, independent of this ticket per both tickets' own scope notes -
   not started.
 
-  **Not yet deployed** - pending the owner's go-ahead, same pattern as
-  every other ticket in this track.
+  **Deployed and live-verified against `mrt-pallet-iq` post-merge.**
+  `priceItemScanWorker`'s Cloud Run invoker IAM policy was confirmed to
+  stay empty (non-public, Cloud-Tasks-only) after the update deploy - an
+  existing function being updated, not a fresh create, so no IAM-gap risk
+  applied here regardless.
+
+  A scripted round-trip against real `mrt-pallet-iq` infra (test tenant/
+  user/item_scan, cleaned up after) drove a real item (a Weber Genesis II
+  gas grill) through the actual deployed path: `priceItemScan` → Cloud
+  Tasks → `priceItemScanWorker` (now running the parallel-legs design) →
+  Firestore. **Completed in 30.4 seconds** - the fastest full pricing
+  round-trip measured anywhere in this session's live testing across
+  `PALLETIQ-035`/`036`/`038`, and meaningfully faster than the pre-flight
+  spike's own two spot-checks (36.6s/52.7s), though still not a
+  controlled A/B comparison against the pre-`PALLETIQ-038` design on the
+  same item. Real research found a $1249 CAD retail price, 4 real Kijiji
+  comps with genuine deep-linked URLs (not just generic domain URLs),
+  correctly identified eBay sold data as unavailable for this item with
+  an honest factor rather than fabricating one, and landed a sensible
+  $350 CAD price with a coherent rationale referencing the specific
+  comp range. Saleability computed correctly in the same worker
+  invocation. Checked Cloud Logging directly for the invocation: zero
+  warning/error-severity entries - a fully clean run.
