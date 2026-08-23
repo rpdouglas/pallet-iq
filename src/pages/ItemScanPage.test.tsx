@@ -265,6 +265,44 @@ describe('ItemScanPage', () => {
     expect(screen.getByText('70% confidence')).toBeInTheDocument()
   })
 
+  // Regression test for a bug found reviewing PALLETIQ-035's pricing
+  // pipeline: refetchInterval didn't check pricingStatus === 'pricing', so
+  // once identification finished the query stopped polling and the UI sat
+  // frozen on whatever it fetched right after priceItemScan's onSuccess
+  // invalidation - no visible progress for the rest of the up-to-300s
+  // Gemini research call in priceItemScanWorker.ts.
+  it('keeps polling while pricingStatus is "pricing" until the result lands', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      newScanId.mockReturnValueOnce('scan-1')
+      uploadScanPhoto.mockResolvedValueOnce({
+        storagePath: 'tenants/tenant-a/item_scans/scan-1/photo-0.jpg',
+      })
+      enqueueItemScan.mockResolvedValueOnce({ scanId: 'scan-1' })
+      getItemScan.mockResolvedValueOnce(baseScan())
+      getItemScan.mockResolvedValueOnce(baseScan({ pricingStatus: 'pricing' }))
+      getItemScan.mockResolvedValueOnce(
+        baseScan({ pricingStatus: 'priced', pricing: PRICING, saleabilityStatus: 'not_scored' }),
+      )
+      priceItemScan.mockResolvedValueOnce(undefined)
+      renderPage()
+
+      selectFiles(fileInput(), [photoFile()])
+      fireEvent.click(screen.getByRole('button', { name: /identify item/i }))
+
+      expect(await screen.findByText('Pricing…')).toBeInTheDocument()
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+
+      expect(await screen.findByText('$70.00')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+      getItemScan.mockReset()
+    }
+  })
+
   it('shows the "not enough data" empty state when pricing finds nothing', async () => {
     newScanId.mockReturnValueOnce('scan-1')
     uploadScanPhoto.mockResolvedValueOnce({

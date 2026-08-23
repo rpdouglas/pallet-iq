@@ -84,13 +84,16 @@ export function ItemScanPage() {
     enabled: !!tenantId && mode.kind === 'result',
     // Identification runs asynchronously (queued -> processing ->
     // completed/failed) server-side, same polling posture as
-    // ManifestsPage's import status. Also polls while saleabilityStatus is
-    // 'scoring' - PALLETIQ-027's background enrichment (Keepa/PriceCharting/
-    // Discogs/Google Books + the saleability score) resolves later than
-    // this callable's own response, unlike pricingStatus above.
+    // ManifestsPage's import status. Also polls while pricingStatus is
+    // 'pricing' (priceItemScanWorker.ts's live Gemini research call, which
+    // can run up to 300s) and while saleabilityStatus is 'scoring' -
+    // PALLETIQ-027's background enrichment (Keepa/PriceCharting/Discogs/
+    // Google Books + the saleability score) resolves later than this
+    // callable's own response, unlike pricingStatus above.
     refetchInterval: (query) =>
       query.state.data?.status === 'queued' ||
       query.state.data?.status === 'processing' ||
+      query.state.data?.pricingStatus === 'pricing' ||
       query.state.data?.saleabilityStatus === 'scoring'
         ? 2000
         : false,
