@@ -43,6 +43,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)      | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators              | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Planned     | P2       |
+| PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs         | Buyer         | 2     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -2007,3 +2008,73 @@ already-decided, already-documented UI pattern (`components.md`'s
 spinner rule, decided under `ADR-0002`'s design-system-adherence
 umbrella), not a new architectural decision. Same reasoning class
 `PALLETIQ-033`/`034` used.
+
+## PALLETIQ-037: Verify pricing comps actually resolve before trusting them
+
+_Scope note (2026-08-23) — Planning gate only, not started:_ surfaced during
+a review of `functions/src/pricing/priceResearch.ts` requested by the owner.
+The Gemini research call's comp titles/URLs (Kijiji new/used, eBay sold) are
+never checked server-side once returned - `mapPriceResearch.ts` passes them
+straight through into `PricingResult.comps`, and `PricingPanel.tsx` renders
+`comp.url` as a plain link with no validation. A hallucinated comp would
+look identical to a real one in the UI, on a signal that drives a real
+buy/pass money decision.
+
+_In scope:_ a lightweight server-side verification step (e.g. a HEAD/GET
+check that `comp.url` resolves and its response roughly matches the
+expected domain per `comp.source` - `kijiji.ca` for `kijiji_new`/
+`kijiji_used`, `ebay.ca`/`ebay.com` for `ebay_sold`) run before a
+`PricingResult` is cached/written to the scan doc; deciding what happens to
+a comp that fails verification (drop it vs. flag it) and whether that
+should affect `computeConfidence()`.
+
+_Out of scope:_ a full anti-hallucination framework; deep content-matching
+of the fetched page against the comp's claimed title/price (only that the
+URL resolves and is on the expected domain).
+
+_Firestore/RBAC impact:_ none new - `product_price_cache` keeps its
+existing `write: if false` / Admin-SDK-only rule; this only changes what
+gets written, not who can write it.
+
+_UI pattern notes:_ none - `PricingPanel.tsx`'s comp rendering is unchanged;
+this is a data-quality gate before storage, not a new UI pattern.
+
+_ADR:_ not yet determined - likely not needed (a verification step within
+the existing pricing-research design), but deferred to when this ticket
+actually starts, since the concrete mechanism (HEAD check vs. something
+stricter) isn't chosen yet.
+
+## PALLETIQ-038: Speed up pricing research by splitting the single Gemini call into parallel legs
+
+_Scope note (2026-08-23) — Planning gate only, not started:_ requested by
+the owner after reporting pricing "takes a long time and sometimes doesn't
+even return anything," with no visible progress indicator (the indicator
+half of that report was a real bug, fixed directly in this same session -
+see the `ItemScanPage.tsx` `refetchInterval` fix in this ticket's branch
+history; not itself part of PALLETIQ-038's scope). Root cause: `researchPrice()`
+runs the SOP's five steps (retail, Kijiji new, Kijiji used, eBay sold,
+open-box) sequentially inside one Gemini model turn - `priceItemScanWorker.ts`
+budgets up to 300s for it, and none of the steps can overlap.
+
+_In scope:_ see [`ADR-0013`](../adr/0013-pricing-research-parallel-legs.md)
+for the full design - splitting into three concurrent Gemini calls (retail+
+open-box, Kijiji, eBay sold) plus one lightweight synthesis call, run via
+`Promise.allSettled` and merged into the same `PriceResearchResponse` shape
+`mapPriceResearch.ts` already expects; per-leg failure handling (a failed
+leg degrades to null/empty/thin plus a `dataQuality.flags` entry, rather
+than failing the whole price as today's single call does).
+
+_Out of scope:_ changing what data each research leg looks for or the SOP's
+synthesis rules themselves; changing `computeConfidence()`/
+`computeSaleability()`; `PALLETIQ-037`'s comp-verification work (independent,
+can land in either order); any model swap (noted in the ADR as a separate,
+undecided lever).
+
+_Firestore/RBAC impact:_ none - `product_price_cache`'s key/shape and rules
+are unchanged per the ADR.
+
+_UI pattern notes:_ none - `PricingPanel.tsx`/`ItemScanPage.tsx` are
+unaffected; the merged response still maps onto the existing, unchanged
+`PricingResult` shape.
+
+_ADR:_ written - [`ADR-0013`](../adr/0013-pricing-research-parallel-legs.md).
