@@ -56,7 +56,7 @@ its own narrower Zod schema (a subset of today's
 `priceResearchResponseSchema`, split along the same lines).
 
 4. **Synthesis leg** — a fourth, tools-free Gemini call that takes the three
-   legs' *merged, structured* JSON results (whichever succeeded) as plain
+   legs' _merged, structured_ JSON results (whichever succeeded) as plain
    text input and applies the SOP's existing synthesis rules (eBay sold as
    primary anchor, Kijiji new/sealed as fallback anchor, retail as a
    ceiling, 15-40% below-retail deal band, used-Kijiji floor, recency/
