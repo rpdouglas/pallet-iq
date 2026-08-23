@@ -40,6 +40,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)      | Buyer         | 2     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -1815,3 +1816,109 @@ first density rules this screen already follows.
 _ADR:_ not needed - a bug fix + a same-shape UI control added to an
 existing screen within `ADR-0011`'s existing capture-flow design, not an
 architectural decision.
+
+_Scope note on `PALLETIQ-035` (2026-08-23) — Planning gate only, not started:_
+
+_Reported directly by the owner:_ scanned items only ever show an MSRP -
+`salePrice`/`salePriceLow`/`salePriceHigh`/`liquidationPrice`/`comps` stay
+empty. Traced to `functions/src/pricing/waterfall.ts`: those fields depend
+entirely on eBay Browse API comps, and `EBAY_APP_ID`/`EBAY_CERT_ID` (plus
+`KEEPA_API_KEY`/`PRICECHARTING_API_KEY` for background enrichment) are
+still the inert placeholder values set during `PALLETIQ-026`/`027`. A
+`try/catch` swallows the resulting OAuth failure and gracefully degrades
+to MSRP-only, exactly as designed - not a bug, an unfinished credential
+dependency.
+
+Investigating this surfaced two bigger problems with simply swapping in
+real credentials: (1) the current vendor stack (eBay Browse API hardcoded
+to the US marketplace, Keepa/Amazon US sales rank) is entirely
+US-oriented, while the owner's actual target market is Ontario, Canada;
+(2) eBay Browse API only ever returns active asking prices, not real sold
+data (`types.ts` already documents this) - real sold-comp data needs eBay
+Marketplace Insights, which `ADR-0011` itself flags as gated/unconfirmed
+access.
+
+The owner has a Standard Operating Procedure
+(`docs/projects/SOP-Pricing-Research-v1.4.docx`) used successfully for
+months in a separate pawn shop business (Ontario/Canada) - an LLM session
+with live web search+fetch tools, researching a Canadian retail price,
+Kijiji Ontario comps (new/sealed and used), eBay sold/completed listings,
+and an open-box estimate, synthesized into one bottom-line recommended
+price with rationale. This is a fundamentally different architecture than
+the deterministic multi-vendor API waterfall PalletIQ currently has -
+agentic LLM research vs. per-vendor API integrations, each requiring its
+own credential/account.
+
+_Decision, confirmed with the owner via `AskUserQuestion`:_ re-architect
+the pricing engine to match the SOP's method - Ontario/Canada market,
+LLM-driven live research via Gemini (which already has a `googleSearch`
+grounding tool in this codebase, `functions/src/gemini/identifyItem.ts`)
+replacing the eBay/Keepa/PriceCharting/Discogs/Google Books vendor
+waterfall entirely. Confirmed via the installed `@google/genai` SDK
+(v2.18.0) that `googleSearch` and `urlContext` (fetch a specific URL's
+content, not just search snippets) can run together in one
+`generateContent` call - the building block that maps directly onto the
+SOP's "search, then `web_fetch` the direct page" workflow.
+
+_In scope:_ new `priceResearch.ts` (the Gemini call, `googleSearch` +
+`urlContext` tools, a prompt encoding the SOP's §4-8 rules, a Zod schema
+mirroring its §8 Output Format) and `mapPriceResearch.ts` (pure
+SOP-response → `PricingResult`/`SaleabilityInputs` mapping, including a
+relocated, unchanged `computePriceVariance`); collapsing
+`priceItemScan.ts` (shrinks to enqueue-only) + `enrichItemScanPricing.ts`
+into one new async worker `priceItemScanWorker.ts` (the two-stage
+fast/slow split's justification - Keepa being a separate slow call - no
+longer applies once Keepa is gone); simplifying `retrySaleabilityScore.ts`
+to a synchronous recompute from already-stored comps (no more separate
+data source to re-fetch); an additive `source` field on `PricingComp`;
+`PricingPanel.tsx` copy generalized away from eBay-only language; deleting
+`ebayBrowseApi.ts`/`upcLookup.ts`/`keepa.ts`/`priceCharting.ts`/
+`discogs.ts`/`googleBooks.ts`/`enrichment.ts`/`waterfall.ts`/
+`computePrices.ts`/`params.ts` (the four vendor secrets) and their tests;
+slimming `categoryProfile.ts` to just `computeCacheKey` (the SOP doesn't
+category-branch). Confidence is computed deterministically server-side
+from structured facts the LLM reports (sample sizes, thin-data flags),
+not trusted from the LLM's own self-rating - this drives a real buy/pass
+money decision.
+
+_Out of scope:_ the SOP's regulated-goods addenda (§11 nicotine/vape,
+§12 adult novelty) - specific to the pawn shop's actual inventory mix,
+not PalletIQ's liquidation-pallet buyer persona; any change to
+`identifyItem.ts` or the four-stage Capture→Identify→Price→Score shape
+(Price+Score are recommended to co-locate into one task dispatch as an
+implementation detail, not a stage removal); any Firestore schema/rules
+change (none needed - `PricingResult`'s top-level shape is unchanged, no
+new collections).
+
+_A known, forced consequence of this ticket, not optional:_ simplifying
+`retrySaleabilityScore.ts` (`PALLETIQ-033`) from an async worker-retry to
+a synchronous recompute is a direct effect of deleting Keepa's separate
+slow data source, not a scope-creep addition - called out explicitly here
+and in the close-out notes as revising prior shipped work.
+
+_Firestore/RBAC impact:_ none new - `item_scans`/`product_price_cache`
+keep their existing `PALLETIQ-025`/`026` rules unchanged, no new
+collections or roles.
+
+_UI pattern notes:_ `PricingPanel.tsx` keeps its existing
+`docs/design/explainable-scoring.md` score-badge + factor-breakdown
+pattern unchanged structurally - only copy changes (source-generalized
+comp labeling instead of eBay-only language). `SaleabilityPanel.tsx` is
+untouched (`SaleabilityResult`'s shape doesn't change).
+
+_Known risk, not resolved by planning - resolved by a required pre-flight
+spike during implementation:_ `docs/projects/treasure-hunter-plan.md` §12
+notes eBay closed _logged-out_ sold-listing access in July 2026 - an
+anonymous `urlContext` fetch may not be able to load eBay's sold-listings
+pages at all. The prompt/schema design builds in the SOP's own fallback
+for this (`ebaySold.thin`/`dataQuality.flags`, "flag when data is thin
+rather than force a number") rather than assuming it will work; the
+pre-flight spike (live `researchPrice()` calls against real items, before
+finalizing the prompt) confirms which path is actually hit in practice.
+
+_ADR:_ required - `ADR-0012`, written next as a separate step before any
+implementation starts. Supersedes `ADR-0011`'s "waterfall design, vendor
+list" paragraph and its secrets list; explicitly confirms what's NOT
+superseded (the four-stage shape, the async AI boundary treatment, the
+Firestore collections/rules, the explainable-scoring UI reuse pattern,
+the persona/RBAC/mobile-design decisions).
