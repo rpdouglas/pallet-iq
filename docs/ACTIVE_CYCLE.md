@@ -2047,3 +2047,43 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   `npm run format:check` / `npm run lint` / `npm run typecheck`, all
   passing after one `prettier --write` pass on the two new/changed
   files.
+
+  **Merged (PR #75) and deployed** - `priceItemScanWorker` only, the
+  single function whose behavior this ticket changed. An existing
+  function being updated, not a fresh create, so no IAM-invoker-gap risk
+  applied regardless; the Cloud Run service's invoker policy was
+  confirmed to stay non-public (no bindings beyond the standing
+  Cloud-Tasks-only setup) after the update.
+
+  **Two scripted live round-trips against real `mrt-pallet-iq` infra**
+  (test tenant/`item_scan` doc via the Firestore REST API, a real Cloud
+  Task enqueued directly at the deployed `priceItemScanWorker` Cloud Run
+  service - mirroring exactly what `priceItemScan`'s own
+  `getFunctions().taskQueue().enqueue()` does in production - cleaned up
+  after): a Bissell CrossWave vacuum (40s) and a Milwaukee M18 hammer
+  drill kit (28s). Both completed cleanly with correct, sensible pricing
+  (`$349.99`/`$428` MSRP, coherent Kijiji-anchored sale prices, honest
+  "eBay sold data unavailable" factors rather than fabricated ones) and
+  zero Cloud Logging warning/error-severity entries for either
+  invocation.
+
+  **Neither item's Kijiji comps came back with a real per-listing URL
+  from Gemini's own research** (`comp.url: null` straight out of
+  `mapPriceResearchToPricingResult()`, confirmed via the raw stored
+  document - not `verifyPricingComps` nulling something that was
+  present, since no "could not be verified" factor was added either
+  time). Both live runs still meaningfully verify the ticket: they
+  prove `verifyPricingComps` is correctly wired into the real deployed
+  worker with zero errors and correctly passes a comp through untouched
+  when there's nothing to verify, but neither happened to exercise the
+  actual fetch-and-check path against comps with real URLs on real
+  production egress. That path's actual logic (real Kijiji/eBay
+  domains, a fake lookalike domain, a wrong-domain-for-its-source-tag
+  case, and the 403/429-inconclusive fix) was validated directly and
+  thoroughly during implementation (see the pre-flight-check drift
+  above) - just not, by chance of which two items got live-tested here,
+  through this specific deployed-worker path. `PALLETIQ-038`'s own
+  close-out noted real deep-linked Kijiji URLs _do_ show up from Gemini
+  sometimes (its Weber Genesis grill test got 4 of them) - it appears to
+  be inconsistent per-item rather than never happening, worth watching
+  real usage data post-deploy rather than a gap to chase further here.
