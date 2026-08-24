@@ -19,8 +19,20 @@ Runs the full gate a change needs to clear before a PR or ticket close, per
 2. **Scope the diff.** Run `git status` and `git diff` against the `main` base to see
    what changed. This determines which conditional checks below apply.
 
-3. **Command checklist** — run in order, stop and report on first failure rather than
-   continuing past a broken step:
+3. **Command checklist — scoped to the diff, not run by default on everything.**
+   `.github/workflows/ci.yml` already runs the root checklist, the `functions/`
+   checklist, `test:rules`, `test:storage-rules`, and `test:e2e` on every PR and
+   blocks merge on all of them — running the identical commands locally first is
+   pure duplication unless there's a specific reason to want the failure signal
+   _before_ pushing. Default to trusting CI. Run a command locally only when at
+   least one applies:
+   - the diff is large/risky enough that discovering a CI failure after push
+     would be an expensive iterate-fix-push-wait cycle,
+   - you're mid-implementation and want a fast local signal, or
+   - the user asks for it explicitly.
+
+   When you do run it, scope to what actually changed instead of always running
+   both trees:
 
    ```
    npm run format:check
@@ -29,8 +41,17 @@ Runs the full gate a change needs to clear before a PR or ticket close, per
    npm run test
    ```
 
-   Then `npm run test:rules` **if** `firestore.rules`, `firestore.rules.test.ts`, or
-   any file under a tenant-scoped collection's code path changed.
+   for root, only if anything outside `functions/` changed; the equivalent
+   `functions/`-prefixed commands only if `functions/` changed. Stop and report on
+   first failure rather than continuing past a broken step.
+
+   `npm run test:rules` **only if** `firestore.rules`, `firestore.rules.test.ts`,
+   or any file under a tenant-scoped collection's code path changed — this one
+   also costs a JDK 21 setup in a fresh sandbox, so the bar for running it
+   locally vs. letting CI catch it is higher than the others.
+
+   For a docs-only or governance-only diff, skip this step entirely (report
+   `N/A — docs-only, no code changed`) rather than running any of the above.
 
 4. **Check I — Rules parity.** If `firestore.rules`, `firestore.rules.test.ts`, or any
    code introducing/using a new Firestore collection changed, dispatch to the
@@ -64,9 +85,11 @@ PALLETIQ-002/006)`. If it exists, cross-check each UI role boundary against the
    (e.g. a docs-only or governance-only PR), report `N/A — no UI code or brand
 assets changed`.
 
-8. **Report.** Print one compact pass/fail table: the 4-5 npm commands, then Check
-   I/II/III/IV each as PASS / FAIL / N/A with a one-line reason. If anything failed,
-   stop here — don't suggest the change is ready.
+8. **Report.** Print one compact pass/fail table: the command-checklist items each
+   as PASS / FAIL / **Skipped — trusting CI** (per step 3's scoping) with a
+   one-line reason, then Check I/II/III/IV each as PASS / FAIL / N/A with a
+   one-line reason. If anything failed, stop here — don't suggest the change is
+   ready.
 
 9. **Re-sync with `origin/main` right before finalizing.** `git fetch origin && git
 merge origin/main`. Do this even if you synced when the branch was created — the
