@@ -92,10 +92,18 @@ copy generation, `ADR-0014`) is **Done**; `028`/`029` stay **Planned**,
 each blocked on external vendor/API access their own scope notes
 require confirmed first (eBay Marketplace Insights approval, a
 compliant paid fashion/sneaker data vendor) - not engineering-ready
-work. All of these run as a parallel track alongside
-Phase 2 — not blocking or blocked by it — so don't read this phase's ⚪
-status as meaning no work has started; see `ADR-0009`/`ADR-0011` and
-`docs/projects/PROJ-PALLETIQ.md`'s Phase 4 section for the full rationale.
+work. `PALLETIQ-041`/`043` (`ADR-0015`) bridge a discovered `restock_lots`
+lot into a real tenant import and let a tenant dismiss one from their own
+view - both **Done**; `042` (lot profitability scoring, same ADR,
+depends on `041`'s output) stays **Planned**. `041`'s own live-
+verification pass found the Import feature is currently non-functional
+for every real lot in production (`fetchManifestLink.ts`'s extraction
+matches a false-positive nav link, not a real manifest) - opened
+`PALLETIQ-044` (P1) to fix it, **Planned**, not started. All of these run
+as a parallel track alongside Phase 2 — not blocking or blocked by it —
+so don't read this phase's ⚪ status as meaning no work has started; see
+`ADR-0009`/`ADR-0011`/`ADR-0015` and `docs/projects/PROJ-PALLETIQ.md`'s
+Phase 4 section for the full rationale.
 
 ## Deferred (unplanned phase)
 
