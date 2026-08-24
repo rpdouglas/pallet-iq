@@ -25,13 +25,16 @@ Three standing checks apply across every phase:
   `product_intelligence`) — most collections don't have their own pair yet.
 - **Check II — Async AI boundary.** No Gemini/Vertex call happens inline on a
   user-facing request path; AI work is queued (Cloud Tasks/Pub-Sub) and polled/pushed
-  back. Applicable and enforced since `PALLETIQ-025`: both real Gemini call sites
-  (`functions/src/gemini/identifyItem.ts`, item identification; `functions/src/
-pricing/priceResearch.ts`, `PALLETIQ-035`'s SOP-modeled pricing research) only ever
-  run inside `onTaskDispatched` Cloud Tasks workers (`processItemScan.ts`,
-  `priceItemScanWorker.ts`) — never inline in an `onCall`. This note went stale for
-  a few tickets after `PALLETIQ-025` first shipped a real Gemini call; corrected
-  during `PALLETIQ-035`'s close-out rather than left inaccurate.
+  back. Applicable and enforced since `PALLETIQ-025`: all three real Gemini call
+  sites (`functions/src/gemini/identifyItem.ts`, item identification;
+  `functions/src/pricing/priceResearch.ts`, `PALLETIQ-035`'s SOP-modeled pricing
+  research; `functions/src/listing-copy/generateListingCopy.ts`, `PALLETIQ-030`'s
+  listing-copy generation) only ever run inside `onTaskDispatched` Cloud Tasks
+  workers (`processItemScan.ts`, `priceItemScanWorker.ts`, `listingCopyWorker.ts`)
+  — never inline in an `onCall`. This note went stale for a few tickets after
+  `PALLETIQ-025` first shipped a real Gemini call; corrected during `PALLETIQ-035`'s
+  close-out rather than left inaccurate. Now enforced by the `async-ai-boundary-auditor`
+  subagent (built at `PALLETIQ-030`) rather than manual review alone.
 - **Check III — RBAC in UI and rules.** A permission boundary enforced only in
   Firestore rules and not reflected in the UI (or vice versa) is incomplete. Not yet
   applicable — no role-gated UI exists yet (pre PALLETIQ-002/006).
@@ -88,11 +91,15 @@ push` to `main`/`master` as a guardrail, but don't rely on it — branch
   new Firestore collection.
 - **`design-system-auditor`** — audits Check IV (design system adherence). Invoke
   after any change under `src/` touching components, pages, or styles.
+- **`async-ai-boundary-auditor`** — audits Check II (async AI boundary). Built at
+  `PALLETIQ-030` once a third real Gemini call site landed (`identifyItem.ts`,
+  `priceResearch.ts`, `generateListingCopy.ts`). Traces every Gemini/Vertex call
+  site to its enclosing exported Cloud Function and confirms it's a Cloud-Tasks-
+  dispatched worker, never a direct `onCall`/`onRequest`. Invoke after any change
+  introducing or touching a Gemini/Vertex call site.
 
-`rbac-parity-auditor` (Check III) and `async-ai-boundary-auditor` (Check II) are
-not built yet. `rbac-parity-auditor` still has nothing to check — no role-gated
-UI exists (pre `PALLETIQ-002`/`006`). `async-ai-boundary-auditor` now has a real
-trigger condition (two Gemini call sites since `PALLETIQ-025`/`035`, see Check II
-above) but hasn't been built - manual review has been sufficient so far since both
-call sites already follow the same `onTaskDispatched`-worker pattern; worth
-building once a third AI call site lands or manual review starts missing things.
+`rbac-parity-auditor` (Check III) is not built yet. It now has a real trigger
+condition too — role-gated UI exists as of `PALLETIQ-011` (inventory) and
+`PALLETIQ-030` (the first Manager-only page) — but manual review has been
+sufficient so far; worth building once a third role-gated surface lands or manual
+review starts missing things, same bar `async-ai-boundary-auditor` just cleared.

@@ -2450,17 +2450,47 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   Manager role specifically; nav item and route use the same `owner`/
   `manager` role set, nav item omitted from the DOM entirely for other
   roles (not hidden), confirmed both by the audit and by a live check
-  (see below). Check II (async AI boundary) - this is the trigger point
-  `CLAUDE.md`'s own governance notes already named ("worth building
-  [`async-ai-boundary-auditor`] once a third AI call site lands") - now
-  three real sites exist (`identifyItem.ts`, `priceResearch.ts`,
-  `generateListingCopy.ts`), all following the identical Cloud-Tasks-
-  worker pattern by inspection, but the subagent itself is still not
-  built. Flagging this explicitly rather than letting the note go stale
-  a second time - worth building the next time a fourth site lands, or
-  sooner if manual review starts missing something these three didn't.
-  No new `firestore.rules`, so `firestore-rules-auditor` wasn't
-  dispatched (no new collection, no rules-file diff).
+  (see below). No new `firestore.rules`, so `firestore-rules-auditor`
+  wasn't dispatched (no new collection, no rules-file diff).
+
+  **Check II (async AI boundary): the `async-ai-boundary-auditor`
+  subagent got built as part of this ticket** (owner's explicit request,
+  before merging) - `CLAUDE.md`'s own governance notes had named a third
+  Gemini call site as the trigger to finally build it, and
+  `generateListingCopy.ts` is that third site. Wrote
+  `.claude/agents/async-ai-boundary-auditor.md` (Read/Grep/Glob,
+  `sonnet`) following the same trace-and-classify procedure
+  `firestore-rules-auditor`/`design-system-auditor` already established:
+  find every real Gemini/Vertex call site, trace each to its enclosing
+  exported Cloud Function, classify the trigger type, and confirm the
+  matching `onCall` entry point only enqueues rather than awaiting the
+  AI call inline. Updated `CLAUDE.md`'s Check II note and Subagents list
+  to name it as built, and corrected an adjacent stale claim found in the
+  same pass - `rbac-parity-auditor`'s note still said "no role-gated UI
+  exists" despite `PALLETIQ-011`'s inventory RBAC and this very ticket's
+  Manager-only page both already existing.
+
+  **Dogfooded before relying on it, not just written and assumed
+  correct.** A fresh subagent definition added mid-session isn't
+  hot-loaded by the `Agent` tool (same "loads at startup" limitation
+  already known for hooks/settings watchers) - invoking it live returned
+  "agent type not found." Rather than leave the procedure unverified,
+  walked through its exact steps manually with the same tools it's
+  scoped to (`Read`/`Grep`/`Glob`): found all three real Gemini call
+  sites via the documented grep, traced each to its actual caller
+  (catching a real false-positive the naive grep alone would have
+  produced - `identifyItem` also matches a type-only import in
+  unrelated files, not just the real `identifyItem(` call, confirming
+  the procedure's instruction to trace by reading rather than trusting
+  a bare grep hit), confirmed all three enclosing workers
+  (`processItemScan.ts`/`priceItemScanWorker.ts`/`listingCopyWorker.ts`)
+  are `onTaskDispatched`, and confirmed all three `onCall` entry points
+  (`enqueueItemScan.ts`/`priceItemScan.ts`/`enqueueListingCopy.ts`) only
+  call `taskQueue(...).enqueue(...)`, never the Gemini call or the
+  worker directly. Result: 3/3 compliant chains, 0 violations - Check II
+  holds. Live end-to-end invocation via the `Agent` tool itself (not
+  just a manual walk-through of its written steps) is still worth a
+  spot-check next session once the definition is actually loaded.
 
   **Live-verified twice before merge - the actual Gemini call, and the
   actual page/RBAC, both against real `mrt-pallet-iq` data, not just
