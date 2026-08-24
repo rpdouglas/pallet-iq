@@ -18,6 +18,10 @@ export interface ImportSummary {
   // PALLETIQ-022 - set at import time only, not editable after. Fills the
   // gap for line items whose manifest has no per-item cost column.
   totalPurchasePrice: number | null
+  // PALLETIQ-041 - null for a regular manual manifest upload, set to the
+  // originating restock_lots doc ID for one created via the Discovered
+  // Lots "Import" button.
+  sourceRestockLotId: string | null
 }
 
 export interface LineItem {

@@ -46,8 +46,10 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)      | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)      | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)   | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list          | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -2454,3 +2456,103 @@ score-badge pattern, reused verbatim — no new pattern to audit for Check IV
 beyond confirming correct reuse.
 
 _ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
+
+## PALLETIQ-043: Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ requested
+directly by the owner alongside `PALLETIQ-041`. `restock_lots` is a global,
+cross-tenant, Cloud-Functions-write-only collection (`ADR-0009`) — a tenant
+can never delete or mutate the shared doc itself, so "removing" a lot from
+one tenant's `DiscoveredLotsPage.tsx` list has to be a per-tenant overlay
+that hides it from that tenant's view only, leaving the shared doc and
+every other tenant's view untouched.
+
+_In scope:_ a new tenant-scoped `dismissed_lots/{lotId}` collection (doc ID
+= the dismissed `restock_lots` doc's ID, value just `{dismissedAt:
+serverTimestamp()}` — no richer shape needed). A "Remove" row action on
+`DiscoveredLotsPage.tsx`, reusing `WatchlistPage.tsx`'s existing `Trash2`
+icon-button pattern (same row-action precedent already on this page for
+the external-link/manifest-link icons), that writes a `dismissed_lots` doc
+for the current tenant — a direct tenant-scoped Firestore write, not a
+Cloud Function, matching `watchlist_lots`' existing write pattern (no
+async/Cloud Tasks boundary needed, this isn't an AI call). The page's list
+query filters out any lot ID present in the signed-in tenant's
+`dismissed_lots`.
+
+_Out of scope, explicitly deferred:_ un-dismissing / restoring a
+previously dismissed lot (no "undo" UI in this ticket — a real limitation,
+not silently papered over); bulk-dismiss / dismiss-all; automatically
+un-dismissing if the underlying lot's data changes (e.g. a price drop) —
+a dismissal is permanent from that tenant's perspective until a future
+ticket adds restore; any change to the global `restock_lots` collection
+itself, which this ticket never reads differently or writes to.
+
+_Firestore/RBAC impact:_ new collection
+`tenants/{tenantId}/dismissed_lots/{lotId}` — `isTenantMember` read,
+`isOwnerOrBuyer` write, mirroring `watchlist_lots`' existing rule shape
+exactly (`ADR-0006` lineage) since this is the same "Buyer's daily sourcing
+job" RBAC posture, not an admin task. New collection, so Check I applies —
+needs its own rules test pair at close.
+
+_UI pattern notes:_ reuses `WatchlistPage.tsx`'s existing `Trash2`
+icon-button row-action verbatim — no new pattern to audit for Check IV.
+`docs/design/components.md`'s Data table pattern (already in use on this
+page per `PALLETIQ-039`) is otherwise unchanged.
+
+_ADR:_ not needed — a straightforward tenant-scoped overlay collection
+with no new tradeoffs, directly mirroring `watchlist_lots`' existing shape
+and RBAC rule (`ADR-0006`/`ADR-0009` already cover the relevant
+decisions).
+
+## PALLETIQ-044: Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ found via
+`PALLETIQ-041`'s own live-verification pass against real production data,
+not reported by the owner. `fetchManifestLink.ts`'s own header comment
+already flagged the risk: "written and tested against a synthetic
+fixture... verify/adjust the selectors below against a real restock.ca lot
+detail page before relying on this in production." That verification
+finally happened here, and the selector is wrong: querying all 500 real
+`active` `restock_lots` docs (spanning dozens of categories - Lawn Tools,
+Coffee Tables, Rugs, Home Products, and more) shows every single one has
+the _identical_ `manifestUrl`:
+`https://www.restock.ca/furniture/unmanifested-furniture/` — a real
+site-wide nav/footer link present on every lot detail page, matched by
+`extractManifestLink`'s `href.includes('manifest')` check because
+"unmanifested-furniture" contains the substring "manifest". It is a
+genuine HTML category page (confirmed live: `Content-Type: text/html`,
+`<title>Unmanifested Furniture</title>`), not a per-lot manifest file.
+Every lot currently in the database has this same wrong value - `100%` of
+attempts to use `PALLETIQ-041`'s new "Import" button will correctly fail
+(`PALLETIQ-041`'s own host-allowlist + HTML-content-sniffing rejects it
+safely, verified live) but the feature is functionally dead until this is
+fixed. `P1`, not `P2` like its sibling tickets, because it fully blocks a
+just-shipped feature's real-world utility, not because of new scope.
+
+_In scope:_ fix `extractManifestLink`'s selector/matching logic
+(`functions/src/restock-scraper/fetchManifestLink.ts`) against **real**
+restock.ca lot detail pages across a few different categories/lots (not
+just the one synthetic fixture this was originally written against) -
+confirm it returns a genuine per-lot file link when a real manifest
+exists on the page, and returns `null` (not a false positive) when it
+doesn't. Decide and ship a backfill/re-fetch plan for the 500 already-
+`active` lots carrying the wrong value today -
+`scrapeRestockLots.ts`'s own comment notes `manifestUrl` is "not re-fetched
+on later runs once a lot is already known," so without an explicit
+backfill step every existing lot stays permanently wrong even after the
+extraction logic itself is fixed.
+
+_Out of scope, explicitly deferred:_ any change to `PALLETIQ-041`'s import
+pipeline itself (already correct - verified live to fail safely on bad
+manifest data, nothing to fix there); PDF-manifest parsing (`ADR-0015`
+already deferred this separately); backfilling lots that are no longer
+`active` (`status: 'closed'`) - only the live, importable set matters.
+
+_Firestore/RBAC impact:_ none - scraper-internal logic and a one-time
+backfill only, no schema/rules change.
+
+_UI pattern notes:_ none - `DiscoveredLotsPage.tsx` and every other UI
+surface are unaffected.
+
+_ADR:_ not needed - a bug fix to existing, already-decided scraper logic,
+not a new architectural decision.

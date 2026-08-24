@@ -46,7 +46,10 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-None currently in flight. `PALLETIQ-003` is shelved, not active — see below.
+None currently in flight. `PALLETIQ-041`/`043` closed 2026-08-24 (see
+Drift notes). `PALLETIQ-044` (found via `041`'s own live-verification
+pass) is open but not started. `PALLETIQ-003` is shelved, not active —
+see below.
 
 ## Shelved, not a near-term blocker
 
@@ -2597,3 +2600,123 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   only, confirming the one piece PALLETIQ-030's merge explicitly
   deferred (the deployed callable, end to end) now genuinely works
   against real `mrt-pallet-iq` infrastructure.
+
+- **2026-08-24 — PALLETIQ-041 and PALLETIQ-043 closed together**
+  (`ADR-0015`). Requested directly by the owner right after `PALLETIQ-030`
+  closed: an "Import" button bridging a discovered `restock_lots` lot into
+  a real tenant import (`041`), plus (added to the same request, not
+  originally in `ADR-0015`) a "Remove" action letting a tenant dismiss a
+  discovered lot from their own view without touching the shared global
+  doc (`043`, opened fresh alongside `041` since `ADR-0015` never covered
+  it).
+
+  **Shipped per `ADR-0015`'s plan for `041`**, no drift on the core
+  design: `enqueueDiscoveredLotImport` (Buyer/Owner `onCall`) validates
+  the target `restock_lots` doc and writes a `queued` `imports/{id}` doc
+  tagged `sourceRestockLotId`, then enqueues `importDiscoveredLotWorker`
+  (`onTaskDispatched`) - never inline, Check II - which fetches
+  `manifestUrl` (host-allowlisted to `restock.ca`), validates it, auto-
+  provisions a per-tenant `vendors/restock-ca` doc, uploads the accepted
+  content, and hands off to the **existing, unmodified**
+  `processManifestImport.ts`. `043` shipped exactly to its own scope note:
+  a new `tenants/{tenantId}/dismissed_lots/{lotId}` overlay collection
+  (`isTenantMember` read / `isOwnerOrBuyer` write, mirroring
+  `watchlist_lots`) and a `Trash2` row action on `DiscoveredLotsPage.tsx`
+  reusing `WatchlistPage.tsx`'s pattern verbatim - `restock_lots` itself
+  is never touched, per `ADR-0009`.
+
+  **Drift #1, found and fixed during implementation, not after: the
+  manifest-validation heuristic was too weak for a server-side fetch, a
+  gap `ADR-0015`'s own Consequences section had already flagged as worth
+  naming explicitly** ("a new trust boundary... worth naming explicitly
+  for future readers"). `validateFile`'s existing CSV check (no ZIP
+  signature, no NUL byte in the first 8KB) was built for client-uploaded
+  files where the filename extension already narrows the format: it does
+  **not** reliably reject real HTML content, which was confirmed by
+  fetching a real restock.ca page live (see drift #2) - the response had
+  no NUL byte anywhere in its first 8KB. Hardened
+  `fetchAndValidateManifest.ts` with an explicit "definitely not a
+  spreadsheet" Content-Type check (`text/html`, `application/pdf`,
+  `application/json`, xml, `image/*`) plus a content-sniff HTML check as
+  defense in depth regardless of what Content-Type claims - both added
+  before merge, with dedicated tests, once the live-verification pass
+  below surfaced the exact real content that would have slipped through.
+
+  **Drift #2, a real, live-verification-only finding with lasting impact
+  - folded forward into a new ticket, not left as a note nobody reads
+    again: `PALLETIQ-041`'s Import feature is currently non-functional for
+    every real lot in production**, discovered while live-verifying the
+    deployed pipeline against real `mrt-pallet-iq` data (`enqueueDiscoveredLotImport`/
+    `importDiscoveredLotWorker` deployed fresh - CI only deploys Hosting,
+    never Functions). Querying all 500 real `active` `restock_lots` docs
+    showed every single one - spanning dozens of categories (Lawn Tools,
+    Coffee Tables, Rugs, Home Products, and more) - has the _identical_
+    `manifestUrl`: `https://www.restock.ca/furniture/unmanifested-furniture/`.
+    Confirmed live by fetching it directly: a real `Content-Type: text/html`
+    page titled "Unmanifested Furniture," not a manifest file -
+    `fetchManifestLink.ts`'s `extractManifestLink` (`PALLETIQ-020`) is
+    matching a false-positive site-wide nav link whose URL slug
+    ("unmanifested-furniture") happens to contain the substring "manifest."
+    That file's own header comment already named this exact risk ("written
+    and tested against a synthetic fixture... verify/adjust the selectors
+    below against a real restock.ca lot detail page before relying on this
+    in production") - this is the first time that verification actually
+    happened, and it failed. Confirmed `PALLETIQ-041`'s own code handles it
+    correctly and safely: dispatched a real Cloud Tasks task against the
+    deployed worker for a real lot (`1011402`) and watched it fail with the
+    exact expected `"Manifest not available in a supported format"` error
+  - no vendor doc got auto-provisioned (confirmed via a 404 read
+    immediately after), proving the worker short-circuits before any
+    partial side effect, not just that it eventually errors. Opened
+    `PALLETIQ-044` (P1, not P2 like its siblings - it fully blocks a
+    just-shipped feature's real-world utility) to fix the extraction logic
+    against real pages and decide a backfill plan for the 500 already-wrong
+    `active` lots (`scrapeRestockLots.ts` only fetches `manifestUrl` for
+    "newly-seen lots... not re-fetched on later runs," so the existing 500
+    stay wrong forever without an explicit backfill step). Deliberately
+    **not** fixed as part of `041`/`043` - `ADR-0015` itself already named
+    `fetchManifestLink.ts`'s extraction as out of scope for this ADR, and
+    the fix belongs with real-page verification as its own focused piece of
+    work, not bundled into an unrelated ticket's close-out.
+
+  **Drift #3, cosmetic, caught by `design-system-auditor` before merge:**
+  the Import column's initial draft defined a `STATUS_STYLES` map
+  (mirroring `ManifestsPage.tsx`) but didn't actually use it for the
+  `processing`/`failed` states, so `processing` rendered identically to
+  `queued` and a failed import showed no visual distinction at all.
+  Fixed to genuinely index the map and add an explicit "Import failed"
+  note in `text-danger`, with dedicated test coverage.
+
+  **Live-verified against real `mrt-pallet-iq` data, both tickets:**
+  - `041`: both new functions deployed (CI-gap - Hosting-only). Full
+    async pipeline exercised for real (Cloud Tasks dispatch -> deployed
+    worker -> real restock.ca fetch -> validation -> the exact expected
+    failure), described under drift #2 above. `enqueueDiscoveredLotImport`
+    confirmed deployed and enforcing its auth gate live (unauthenticated
+    request -> `401 UNAUTHENTICATED / "Sign in first."`).
+  - `043`: the `dismissed_lots` write/read round-trip verified directly
+    against real Firestore, matching `dismissLot`'s/`listDismissedLotIds`'
+    exact operation shapes. RBAC enforcement itself is proven by
+    `firestore.rules.test.ts`'s real-emulator run (116/116, +6 new) against
+    the identical rules file that was then deployed - not re-derived here.
+  - **Full authenticated UI click-through (sign in as a real Buyer, click
+    "Import"/"Remove" in the browser) was not possible this pass** - the
+    `signJwt` custom-token mint that `PALLETIQ-030`'s post-merge pass hit
+    earlier today reproduced as a hard block again, even after a scoped
+    `autoMode.allow` rule and a full session restart (two clean,
+    non-transient retries) - see the credential-minting memory's updated
+    write-up. Used the same accepted equivalent as `PALLETIQ-030`: direct
+    Cloud Tasks dispatch against the real deployed worker (no identity
+    impersonation needed) plus direct Firestore REST round-trips matching
+    the client SDK's exact operations. All synthetic live-verification
+    artifacts (the seeded `imports` doc, the seeded `dismissed_lots` doc)
+    were deleted after - unlike `PALLETIQ-030`'s pass, nothing here was
+    genuine correct output worth keeping, only test scaffolding.
+
+  Full checklist clean: `functions` `npm run build`/`lint`/`vitest run`
+  (275/275, up from 252) and repo-root `format:check`/`lint`/`typecheck`/
+  `npm test` (210/210, up from 200). `npm run test:rules` 116/116 (+6),
+  `npm run test:storage-rules` 24/24 (unaffected, no `storage.rules`
+  change). `firestore-rules-auditor` and `design-system-auditor` both ran
+  clean (the latter's one finding fixed before merge, drift #3 above).
+  Check II: n/a, no Gemini/Vertex call site in this diff.

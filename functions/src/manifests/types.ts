@@ -26,6 +26,11 @@ export interface ImportDoc {
   // flat per-unit-quantity unitCost for rows whose manifest provides no
   // direct cost column - see normalizeRow's flatUnitCost parameter.
   totalPurchasePrice: number | null
+  // PALLETIQ-041 / ADR-0015 - null for a regular manual manifest upload,
+  // set to the originating restock_lots doc ID when this import was
+  // created via the Discovered Lots "Import" button. Traceability only -
+  // nothing reads this to change import behavior.
+  sourceRestockLotId: string | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

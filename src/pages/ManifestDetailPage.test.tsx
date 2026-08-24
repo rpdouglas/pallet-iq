@@ -43,6 +43,7 @@ const IMPORT: ImportSummary = {
   freightCost: 10,
   otherFees: 5,
   totalPurchasePrice: null,
+  sourceRestockLotId: null,
 }
 
 const LINE_ITEM: LineItem = {

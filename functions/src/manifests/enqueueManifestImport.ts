@@ -102,6 +102,7 @@ export const enqueueManifestImport = onCall<
     freightCost: 0,
     otherFees: 0,
     totalPurchasePrice: typeof totalPurchasePrice === 'number' ? totalPurchasePrice : null,
+    sourceRestockLotId: null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }

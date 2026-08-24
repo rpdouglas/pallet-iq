@@ -21,7 +21,9 @@ Custom claim: `role: "buyer"`
 - **Read:** vendors, imports, manifests, pallets, inventory (read-only),
   bids, favorites, watchlists, notes, tasks, `product_intelligence`
   (cross-tenant, anonymized), `restock_lots` (cross-tenant, scraped
-  sourcing feed — see `ADR-0009`), `watchlist_lots`, `item_scans`
+  sourcing feed — see `ADR-0009`), `watchlist_lots`, `dismissed_lots`
+  (own tenant's per-lot dismissals overlaying `restock_lots` — see
+  `ADR-0015`/`PALLETIQ-043`), `item_scans`
   (own tenant's item-identification/pricing scans — see `ADR-0011`),
   `product_price_cache` (cross-tenant pricing cache — see `ADR-0011`)
 - **Write:** `imports`, `manifests` (importing/uploading manifests - see
@@ -29,10 +31,14 @@ Custom claim: `role: "buyer"`
   vendor management), own bids, favorites, watchlists, notes, pass/reject
   logging, `watchlist_lots` (manual sourcing watchlist entries - see
   `ADR-0009`; `restock_lots` itself is Cloud-Functions-write-only, no
-  client, including Buyer, writes to it directly), `item_scans`
+  client, including Buyer, writes to it directly), `dismissed_lots`
+  (per-tenant dismissal of a discovered lot - see `ADR-0015`/
+  `PALLETIQ-043`), `item_scans`
   (the "Treasure Hunter" pre-purchase field-scan capture flow — see
   `ADR-0011`; `product_price_cache` is Cloud-Functions-write-only, same
-  as `restock_lots`)
+  as `restock_lots`). Can also trigger `enqueueDiscoveredLotImport`
+  (bridges a discovered `restock_lots` lot into a real tenant import via
+  the existing manifest-import pipeline — see `ADR-0015`/`PALLETIQ-041`).
 - **No access to:** `settings` (tenant config), `subscriptions` (billing),
   `api_keys`, `audit_logs`, team/user management
 

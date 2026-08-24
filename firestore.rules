@@ -159,6 +159,18 @@ service cloud.firestore {
         allow write: if isOwnerOrBuyer(tenantId);
       }
 
+      // PALLETIQ-043. Per-tenant overlay hiding a restock_lots doc from
+      // this tenant's own Discovered Lots view - restock_lots itself
+      // (ADR-0009) is global/Cloud-Functions-write-only and is never
+      // touched by this. Doc ID = the dismissed restock_lots doc's ID.
+      // Same isOwnerOrBuyer write policy as watchlist_lots/imports
+      // (ADR-0006) - this is the same "Buyer's daily sourcing job" RBAC
+      // posture, not an admin task.
+      match /dismissed_lots/{lotId} {
+        allow read: if isTenantMember(tenantId);
+        allow write: if isOwnerOrBuyer(tenantId);
+      }
+
       // PALLETIQ-025 / ADR-0011. Buyer's pre-purchase field-scan captures -
       // full Gemini identification record, not just pricing-relevant
       // fields. Same isOwnerOrBuyer write policy as manifests/
