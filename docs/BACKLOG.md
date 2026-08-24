@@ -55,6 +55,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
 | PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
+| PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | In Progress | P2       |
 
 ## Adding a ticket
 
@@ -2793,3 +2794,61 @@ _UI pattern notes:_ none.
 
 _ADR:_ not needed - a one-time ops setup step with a documented runbook,
 not an architectural decision.
+
+## PALLETIQ-050: Discovered Lots card view for mobile
+
+_Scope note (2026-08-24):_ built from `docs/reports/SPEC-DISCOVERED-LOTS-CARD-VIEW-001.md`,
+an untracked spec doc (owner Ryan) found in the working tree proposing a
+card-per-lot layout to replace the Discovered Lots page's 7-column table
+on mobile, which currently requires both vertical and horizontal
+scrolling to see all fields. Two real conflicts with the current design
+system were found and resolved before implementation: (1)
+`docs/design/mobile-responsive.md` groups Discovered Lots with the other
+"stays desktop-first, unchanged" Buyer surfaces - this ticket amends that
+doc to add a second, narrower scoped exception (list content only, nav
+chrome unaffected, unlike the Treasure Hunter capture-flow exception);
+(2) the approved palette had no badge/pill pattern and only 4 usable
+hues - this ticket adds 3 new semantic tokens (amber/emerald/sky) to
+`Pallet-IQ-Design-System.md` §2, scoped explicitly to badge use, via the
+same addenda mechanism that already grew that doc once before.
+
+_In scope:_ new `Badge` component (generic, tone-based); new `LotCard`
+component preserving every field and interaction the table has today
+(title/manifest links, category + condition badges, units/MSRP/price/
+margin % stat block, discovered date, the existing 4-state Import
+control and RBAC-gated Remove button from `PALLETIQ-041`/`043`); a
+condition->badge-tone map with a neutral fallback for unrecognized
+condition strings (the field is raw server free text, not a closed
+enum); a shared `src/lib/format.ts` (`formatMoney` consolidated out of
+`DiscoveredLotsPage.tsx`'s local copy, plus a new `computeMarginPct`);
+wiring both table (`md` and up, unchanged) and cards (below `md`) into
+`DiscoveredLotsPage.tsx` via Tailwind responsive display classes; the 3
+`docs/design/` amendments described above.
+
+_Out of scope:_ the category filter dropdown, data fetching/the lot
+discovery pipeline, sort/pagination behavior, and the spec's alternate
+List/Table view prototypes (card view only) - all per the spec's own
+stated scope. Also out of scope: `ScannedItemsPage.tsx`'s separate local
+`formatMoney` copy (unrelated page, not touched); surfacing margin % as
+a sortable/filterable field (the spec defers this to a future spec,
+display-only here); any Lighthouse CI tooling (none exists in this repo
+today - the "no mobile score regression" acceptance criterion is
+verified by a manual DevTools run instead).
+
+_Firestore/RBAC impact:_ none - purely presentational; the existing
+`canWrite` (owner/buyer) gate on Import/Remove is preserved verbatim in
+the card layout, omitted from the DOM for read-only roles exactly as the
+table does today.
+
+_UI pattern notes:_ new Badge/pill pattern (documented in
+`docs/design/components.md`); new responsive table-below/cards-above
+`md` split for Discovered Lots (documented in
+`docs/design/mobile-responsive.md` as a new scoped exception); 3 new
+color tokens (documented in `Pallet-IQ-Design-System.md` §2). This is
+the first responsive table->card pattern in the codebase - no existing
+precedent to point to, flagged here per Check IV rather than presented
+as reuse.
+
+_ADR:_ not needed - a design-system evolution through the established
+addenda mechanism, not a new data model or an architectural tradeoff
+future work builds on.
