@@ -47,17 +47,24 @@ Three standing checks apply across every phase:
 
 ## Document map
 
-| File                             | Purpose                                                        |
-| -------------------------------- | -------------------------------------------------------------- |
-| `docs/ROADMAP.md`                | Phase-level status (Phase 0–4)                                 |
-| `docs/BACKLOG.md`                | Ticket-level backlog across all phases                         |
-| `docs/ACTIVE_CYCLE.md`           | Current cycle's goal, in-flight tickets, blockers, drift notes |
-| `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope             |
-| `docs/personas/`                 | Role definitions and permission boundaries (RBAC input)        |
-| `docs/adr/`                      | Architecture Decision Records                                  |
-| `docs/design/`                   | Design system + addenda — source of truth for UI (Check IV)    |
+| File                             | Purpose                                                                                  |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| `docs/ROADMAP.md`                | Phase-level status (Phase 0–4)                                                           |
+| `docs/BACKLOG.md`                | Ticket-level backlog across all phases                                                   |
+| `docs/ACTIVE_CYCLE.md`           | Current cycle's goal, in-flight tickets, blockers, drift notes                           |
+| `docs/projects/PROJ-PALLETIQ.md` | Canonical product spec — source of truth for scope                                       |
+| `docs/personas/`                 | Role definitions and permission boundaries (RBAC input)                                  |
+| `docs/adr/`                      | Architecture Decision Records                                                            |
+| `docs/design/`                   | Design system + addenda — source of truth for UI (Check IV)                              |
+| `docs/reports/`                  | Standalone analysis/investigation reports (e.g. cost audits) — not ticket- or ADR-scoped |
 
 ## Conventions
+
+- **One-off analysis/investigation reports** (a cost audit, a performance
+  deep-dive, anything that isn't a ticket or an ADR but is worth keeping) go in
+  `docs/reports/`, named `YYYY-MM-DD-short-slug.md`, as plain Markdown — not a
+  published Artifact. Still lands via a feature branch + PR like any other docs
+  change (see below), not a direct commit.
 
 - **Never commit or push directly to `main`.** Always work on a feature
   branch (`git checkout -b palletiq-NNN-short-slug`) and land changes via PR
