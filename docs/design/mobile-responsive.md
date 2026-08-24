@@ -71,6 +71,27 @@ manifests, inventory, watchlist) stays desktop-first, unchanged.
   instead of the sidebar; navigating to any other Buyer page returns to
   the standard desktop-first sidebar/top-app-bar behavior.
 
+## Exception: Discovered Lots list view (mobile card layout)
+
+Added per `PALLETIQ-050`. The Discovered Lots page's list is a second,
+narrower scoped exception to "Buyer is desktop-first" above — lots are
+reviewed opportunistically ("check what's new") from a phone, a
+materially different use pattern than back-office surfaces like vendor
+management or inventory. This exception is deliberately narrower than the
+Treasure Hunter capture-flow one:
+
+- **Only the list body changes.** Unlike the capture flow, navigation
+  chrome is unaffected — the standard desktop-first sidebar/top-app-bar
+  renders exactly as it does on every other Buyer page, at every width.
+  There is no bottom tab bar here.
+- Below `md`, the list renders as one card per lot (all fields
+  vertically stacked — no horizontal scroll at any width). At `md` and
+  above, the existing table renders unchanged.
+- This exception applies to the Discovered Lots list only. Every other
+  Buyer surface not already covered by the capture-flow exception
+  (dashboard, vendors, manifests, inventory, watchlist) still stays
+  desktop-first, unchanged.
+
 ## Density
 
 Desktop surfaces can use the base doc's card padding/spacing as specified. Mobile

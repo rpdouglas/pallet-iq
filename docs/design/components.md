@@ -25,6 +25,26 @@ but not these.
 - **RBAC note:** a column a role can't see is omitted from the table entirely — see
   [`rbac-ui-patterns.md`](./rbac-ui-patterns.md). Don't render it and hide it with CSS.
 
+## Badges / pills
+
+Added for `PALLETIQ-050` (Discovered Lots card view) — the first place a
+compact inline tag was needed for something other than plain colored
+status text (see `Data tables`' zebra/hover rules above, which already
+covers row-level status via text color alone).
+
+- Shape: `rounded-full`, Label/Caption type size (12–13px, Medium).
+- Color: a `tone` prop selects one of the badge-scoped tokens from
+  `Pallet-IQ-Design-System.md` §2 (`amber` / `emerald` / `sky`) or the
+  neutral default (`slate`, for tags that aren't semantically color-coded,
+  e.g. a category tag). Background is the tone token at low opacity, text
+  is the tone token at full opacity (Tailwind v4 opacity modifiers, e.g.
+  `bg-amber/10 text-amber` — no separate background/text token pairs).
+- Badges always carry a text label, never color alone — same
+  colorblind-accessibility principle as the base doc's delta convention.
+- Don't reach for the amber/emerald/sky tokens outside a badge — they're
+  scoped to this pattern, not general UI accents (see the Role column in
+  `Pallet-IQ-Design-System.md` §2).
+
 ## Form inputs
 
 Used across vendor forms, bid entry, settings, manifest upload metadata — React

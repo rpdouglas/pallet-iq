@@ -26,6 +26,7 @@ no horizontal scroll is required at any breakpoint.
 ## 3. Scope
 
 **In scope:**
+
 - New `LotCard` component rendering all fields for a single lot
 - New `LotCardList` (or equivalent) container replacing the table on mobile
   breakpoints
@@ -36,6 +37,7 @@ no horizontal scroll is required at any breakpoint.
   is preferred — **decision needed, see Open Questions**
 
 **Out of scope:**
+
 - Changes to the category filter dropdown
 - Changes to data fetching / the lot discovery pipeline
 - Sort or pagination behavior (unless already present and needs preserving)
@@ -58,6 +60,7 @@ classes that need to be checked against this repo's existing Tailwind config
 and design tokens before merging.
 
 ### Card contents (top to bottom)
+
 1. Title (as a link to the existing lot detail destination)
 2. Category badge + Condition badge (color-coded) + Lot # (small, muted)
 3. Four-up stat row: Units / MSRP / Price / Margin %

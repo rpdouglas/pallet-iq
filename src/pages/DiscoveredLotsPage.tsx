@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '../components/Button'
 import { EmptyState } from '../components/EmptyState'
+import { LotCard } from '../components/LotCard'
 import { Spinner } from '../components/Spinner'
 import { SelectField } from '../components/form/SelectField'
 import { useAuth } from '../lib/auth/useAuth'
@@ -12,6 +13,8 @@ import {
   enqueueDiscoveredLotImport,
   listDiscoveredLotImports,
 } from '../lib/discoveredLots/discoveredLotImportActions'
+import { IMPORT_STATUS_STYLES } from '../lib/discoveredLots/importStatusStyles'
+import { formatMoney } from '../lib/format'
 import { listActiveRestockLots } from '../lib/restockLots/restockLotsActions'
 import type { ImportSummary } from '../types/manifest'
 import type { RestockLot } from '../types/restockLot'
@@ -23,24 +26,12 @@ const ALL_CATEGORIES = 'All categories'
 // is still loading.
 const EMPTY_DISMISSED_IDS = new Set<string>()
 
-// Same palette ManifestsPage.tsx already uses for import status.
-const STATUS_STYLES: Record<ImportSummary['status'], string> = {
-  queued: 'text-slate-gray',
-  processing: 'text-brand-blue',
-  completed: 'text-success',
-  failed: 'text-danger',
-}
-
 // Newest-discovered first, not "closes soon" - restock.ca lots are
 // fixed-price, not auctions, so they have no closing time (that concept is
 // specific to WatchlistPage.tsx's auction sources). Matches this ticket's
 // own scope note.
 function byDiscoveredNewest(a: RestockLot, b: RestockLot): number {
   return b.firstSeenAt.toMillis() - a.firstSeenAt.toMillis()
-}
-
-function formatMoney(value: number | null): string {
-  return value !== null ? `$${value.toFixed(2)}` : '—'
 }
 
 export function DiscoveredLotsPage() {
@@ -160,120 +151,141 @@ export function DiscoveredLotsPage() {
               }
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-label text-slate-gray">
-                    <th className="px-2 py-2 font-medium">Title</th>
-                    <th className="px-2 py-2 font-medium">Category</th>
-                    <th className="px-2 py-2 font-medium">Condition</th>
-                    <th className="px-2 py-2 text-right font-medium">Units</th>
-                    <th className="px-2 py-2 text-right font-medium">MSRP</th>
-                    <th className="px-2 py-2 text-right font-medium">Price</th>
-                    <th className="px-2 py-2 font-medium">Discovered</th>
-                    {canWrite ? <th className="px-2 py-2 font-medium">Import</th> : null}
-                    {canWrite ? <th className="px-2 py-2 font-medium">Actions</th> : null}
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleLots.map((lot, i) => {
-                    const lotImport = imports.get(lot.id)
-                    return (
-                      <tr
-                        key={lot.id}
-                        className={`text-body text-ink-navy ${i % 2 === 1 ? 'bg-cloud-gray' : ''}`}
-                      >
-                        <td className="px-2 py-2">
-                          <div className="flex items-center gap-2">
-                            <a
-                              href={lot.productUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-brand-blue inline-flex items-center gap-1 hover:underline"
-                            >
-                              {lot.title}
-                              <ExternalLink size={14} />
-                            </a>
-                            {lot.manifestUrl ? (
+            <>
+              {/* PALLETIQ-050: cards below `md` (docs/design/mobile-responsive.md's
+                  Discovered Lots exception), table unchanged at `md`+. Both render
+                  in the DOM; Tailwind display classes toggle visibility. */}
+              <div data-testid="lots-cards" className="flex flex-col gap-3 md:hidden">
+                {visibleLots.map((lot) => (
+                  <LotCard
+                    key={lot.id}
+                    lot={lot}
+                    lotImport={imports.get(lot.id)}
+                    canWrite={canWrite}
+                    onImport={(lotId) => {
+                      importMutation.mutate(lotId)
+                    }}
+                    importPending={importMutation.isPending}
+                    onDismiss={onDismiss}
+                  />
+                ))}
+              </div>
+
+              <div data-testid="lots-table" className="hidden overflow-x-auto md:block">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="text-label text-slate-gray">
+                      <th className="px-2 py-2 font-medium">Title</th>
+                      <th className="px-2 py-2 font-medium">Category</th>
+                      <th className="px-2 py-2 font-medium">Condition</th>
+                      <th className="px-2 py-2 text-right font-medium">Units</th>
+                      <th className="px-2 py-2 text-right font-medium">MSRP</th>
+                      <th className="px-2 py-2 text-right font-medium">Price</th>
+                      <th className="px-2 py-2 font-medium">Discovered</th>
+                      {canWrite ? <th className="px-2 py-2 font-medium">Import</th> : null}
+                      {canWrite ? <th className="px-2 py-2 font-medium">Actions</th> : null}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleLots.map((lot, i) => {
+                      const lotImport = imports.get(lot.id)
+                      return (
+                        <tr
+                          key={lot.id}
+                          className={`text-body text-ink-navy ${i % 2 === 1 ? 'bg-cloud-gray' : ''}`}
+                        >
+                          <td className="px-2 py-2">
+                            <div className="flex items-center gap-2">
                               <a
-                                href={lot.manifestUrl}
+                                href={lot.productUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                aria-label={`Manifest for ${lot.title}`}
-                                className="text-slate-gray hover:text-brand-blue"
+                                className="text-brand-blue inline-flex items-center gap-1 hover:underline"
                               >
-                                <FileText size={14} />
+                                {lot.title}
+                                <ExternalLink size={14} />
                               </a>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td className="px-2 py-2">{lot.category}</td>
-                        <td className="px-2 py-2">{lot.condition}</td>
-                        <td className="px-2 py-2 text-right">{lot.units}</td>
-                        <td className="px-2 py-2 text-right">{formatMoney(lot.msrp)}</td>
-                        <td className="px-2 py-2 text-right">{formatMoney(lot.price)}</td>
-                        <td className="px-2 py-2">
-                          {lot.firstSeenAt.toDate().toLocaleDateString()}
-                        </td>
-                        {canWrite ? (
-                          <td className="px-2 py-2">
-                            {lotImport?.status === 'queued' ||
-                            lotImport?.status === 'processing' ? (
-                              <span
-                                className={`inline-flex items-center gap-2 ${STATUS_STYLES[lotImport.status]}`}
-                              >
-                                <Spinner className="h-4 w-4" />
-                                {lotImport.status === 'processing' ? 'Importing…' : 'Queued…'}
-                              </span>
-                            ) : lotImport?.status === 'completed' ? (
-                              <Link
-                                to={`/manifests/${lotImport.id}`}
-                                className={`font-medium hover:underline ${STATUS_STYLES.completed}`}
-                              >
-                                Imported
-                              </Link>
-                            ) : lot.manifestUrl ? (
-                              <div className="flex flex-col items-start gap-1">
-                                <Button
-                                  className="min-h-11"
-                                  disabled={importMutation.isPending}
-                                  onClick={() => {
-                                    importMutation.mutate(lot.id)
-                                  }}
+                              {lot.manifestUrl ? (
+                                <a
+                                  href={lot.manifestUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  aria-label={`Manifest for ${lot.title}`}
+                                  className="text-slate-gray hover:text-brand-blue"
                                 >
-                                  {lotImport?.status === 'failed' ? 'Try again' : 'Import'}
-                                </Button>
-                                {lotImport?.status === 'failed' ? (
-                                  <span className={`text-label ${STATUS_STYLES.failed}`}>
-                                    Import failed
-                                  </span>
-                                ) : null}
-                              </div>
-                            ) : (
-                              <span className="text-slate-gray">—</span>
-                            )}
+                                  <FileText size={14} />
+                                </a>
+                              ) : null}
+                            </div>
                           </td>
-                        ) : null}
-                        {canWrite ? (
+                          <td className="px-2 py-2">{lot.category}</td>
+                          <td className="px-2 py-2">{lot.condition}</td>
+                          <td className="px-2 py-2 text-right">{lot.units}</td>
+                          <td className="px-2 py-2 text-right">{formatMoney(lot.msrp)}</td>
+                          <td className="px-2 py-2 text-right">{formatMoney(lot.price)}</td>
                           <td className="px-2 py-2">
-                            <button
-                              type="button"
-                              aria-label={`Remove ${lot.title}`}
-                              onClick={() => {
-                                onDismiss(lot)
-                              }}
-                              className="text-danger cursor-pointer"
-                            >
-                              <Trash2 size={16} />
-                            </button>
+                            {lot.firstSeenAt.toDate().toLocaleDateString()}
                           </td>
-                        ) : null}
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          {canWrite ? (
+                            <td className="px-2 py-2">
+                              {lotImport?.status === 'queued' ||
+                              lotImport?.status === 'processing' ? (
+                                <span
+                                  className={`inline-flex items-center gap-2 ${IMPORT_STATUS_STYLES[lotImport.status]}`}
+                                >
+                                  <Spinner className="h-4 w-4" />
+                                  {lotImport.status === 'processing' ? 'Importing…' : 'Queued…'}
+                                </span>
+                              ) : lotImport?.status === 'completed' ? (
+                                <Link
+                                  to={`/manifests/${lotImport.id}`}
+                                  className={`font-medium hover:underline ${IMPORT_STATUS_STYLES.completed}`}
+                                >
+                                  Imported
+                                </Link>
+                              ) : lot.manifestUrl ? (
+                                <div className="flex flex-col items-start gap-1">
+                                  <Button
+                                    className="min-h-11"
+                                    disabled={importMutation.isPending}
+                                    onClick={() => {
+                                      importMutation.mutate(lot.id)
+                                    }}
+                                  >
+                                    {lotImport?.status === 'failed' ? 'Try again' : 'Import'}
+                                  </Button>
+                                  {lotImport?.status === 'failed' ? (
+                                    <span className={`text-label ${IMPORT_STATUS_STYLES.failed}`}>
+                                      Import failed
+                                    </span>
+                                  ) : null}
+                                </div>
+                              ) : (
+                                <span className="text-slate-gray">—</span>
+                              )}
+                            </td>
+                          ) : null}
+                          {canWrite ? (
+                            <td className="px-2 py-2">
+                              <button
+                                type="button"
+                                aria-label={`Remove ${lot.title}`}
+                                onClick={() => {
+                                  onDismiss(lot)
+                                }}
+                                className="text-danger cursor-pointer"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </td>
+                          ) : null}
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

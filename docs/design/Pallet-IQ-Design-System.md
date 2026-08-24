@@ -32,16 +32,30 @@
 
 ## 2. Color Palette
 
-| Swatch | Name        | Hex       | Role                                                              |
-| ------ | ----------- | --------- | ----------------------------------------------------------------- |
-| 🟦     | Deep Navy   | `#1E3A8A` | Primary brand color, headers, nav background accents              |
-| 🔵     | Brand Blue  | `#2563EB` | Primary action color — buttons, links, active states, chart lines |
-| 🟢     | Cyan Accent | `#06B6D4` | Secondary accent — gradients, highlights, icons                   |
-| ⬜     | Cloud Gray  | `#F1F5F9` | Backgrounds, cards, subtle surfaces                               |
-| ◾     | Slate Gray  | `#475569` | Secondary text, muted labels, inactive icons                      |
-| ⬛     | Ink Navy    | `#0F172A` | Primary text, dark UI surfaces (sidebar, footer)                  |
-| 🟩     | Success     | `#15803D` | Positive deltas (with ↑ arrow), success states, form validation   |
-| 🟥     | Danger      | `#B91C1C` | Negative deltas (with ↓ arrow), error states, destructive actions |
+| Swatch | Name        | Hex       | Role                                                                                       |
+| ------ | ----------- | --------- | ------------------------------------------------------------------------------------------ |
+| 🟦     | Deep Navy   | `#1E3A8A` | Primary brand color, headers, nav background accents                                       |
+| 🔵     | Brand Blue  | `#2563EB` | Primary action color — buttons, links, active states, chart lines                          |
+| 🟢     | Cyan Accent | `#06B6D4` | Secondary accent — gradients, highlights, icons                                            |
+| ⬜     | Cloud Gray  | `#F1F5F9` | Backgrounds, cards, subtle surfaces                                                        |
+| ◾     | Slate Gray  | `#475569` | Secondary text, muted labels, inactive icons                                               |
+| ⬛     | Ink Navy    | `#0F172A` | Primary text, dark UI surfaces (sidebar, footer)                                           |
+| 🟩     | Success     | `#15803D` | Positive deltas (with ↑ arrow), success states, form validation                            |
+| 🟥     | Danger      | `#B91C1C` | Negative deltas (with ↓ arrow), error states, destructive actions                          |
+| 🟠     | Amber       | `#B45309` | Condition/category badges only — e.g. "Returns"-type conditions (not a general UI accent)  |
+| 🟢     | Emerald     | `#047857` | Condition/category badges only — e.g. "Like New"-type conditions (not a general UI accent) |
+| 🔷     | Sky         | `#0369A1` | Condition/category badges only — e.g. "New"-type conditions (not a general UI accent)      |
+
+> **Revised 2026-08-24** — Added Amber/Emerald/Sky for the new badge/pill
+> pattern (`PALLETIQ-050`, see `components.md`'s Badges section). No
+> status/condition tagging tokens existed before this — the existing
+> Success/Danger pair is explicitly scoped to deltas/validation/destructive
+> actions, not general multi-state badges, so reusing them for conditions
+> like "Returns" would misread as an error state. All three are the
+> ~700-weight shade of their hue (matching how Success/Danger were
+> themselves chosen) to clear WCAG AA (4.5:1) on white: `#B45309` measures
+> ~5.0:1, `#047857` ~5.5:1, `#0369A1` ~5.9:1. Scoped to badge use only, per
+> the Role column above — not general UI accents.
 
 > **Revised 2026-08-07** — Slate Gray was `#64748B` (Tailwind slate-500); changed to
 > `#475569` (slate-600). At `#64748B`, Slate Gray text on a Cloud Gray background
