@@ -1,11 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ImportSummary } from '../../types/manifest'
 
-vi.mock('../firebase', () => ({ app: {} }))
+vi.mock('../firebase', () => ({ functions: {} }))
 
 const httpsCallable = vi.fn()
-const getFunctions = vi.fn(() => ({}))
-vi.mock('firebase/functions', () => ({ getFunctions, httpsCallable }))
+vi.mock('firebase/functions', () => ({ httpsCallable }))
 
 const mockListImports = vi.fn<(tenantId: string) => Promise<ImportSummary[]>>()
 vi.mock('../manifests/manifestActions', () => ({ listImports: mockListImports }))

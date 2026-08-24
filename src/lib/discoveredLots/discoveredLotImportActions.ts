@@ -1,9 +1,7 @@
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import { app } from '../firebase'
+import { httpsCallable } from 'firebase/functions'
+import { functions } from '../firebase'
 import { listImports } from '../manifests/manifestActions'
 import type { ImportSummary } from '../../types/manifest'
-
-const functions = getFunctions(app)
 
 export async function enqueueDiscoveredLotImport(lotId: string): Promise<{ importId: string }> {
   const call = httpsCallable<{ lotId: string }, { importId: string }>(

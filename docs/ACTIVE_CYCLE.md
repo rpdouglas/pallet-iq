@@ -51,9 +51,9 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-  `PALLETIQ-041`/`043`/`050` closed 2026-08-24 (see Drift notes). `PALLETIQ-044`
-  (found via `041`'s own live-verification pass) is open but not started.
-  `PALLETIQ-003` is shelved, not active — see below.
+  `PALLETIQ-041`/`043`/`050`/`051` closed 2026-08-24 (see Drift notes).
+  `PALLETIQ-044` (found via `041`'s own live-verification pass) is open
+  but not started. `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -2997,3 +2997,94 @@ none`, table renders exactly as it did before this ticket - no
   immediately after - `git status` confirmed a clean tree (only the
   pre-existing, session-long `.claude/settings.json` diff remained)
   before moving on. `docs/BACKLOG.md` flipped to `Done`.
+
+- **2026-08-24 — `PALLETIQ-051` (committed Playwright e2e suite),
+  closed.** Directly prompted by the `PALLETIQ-050` entry above: the
+  user asked whether Playwright/Lighthouse should be formalized in this
+  repo, given the just-demonstrated ad-hoc pattern. Two research passes
+  plus a design pass produced `ADR-0017` (emulator-backed, not real
+  `mrt-pallet-iq`; explicit Cloud Tasks coverage boundary since no
+  Cloud Tasks emulator exists; the manual live-verification pattern
+  stays in use for what this can't reach; Lighthouse deliberately kept
+  a separate, later, decoupled ticket).
+
+  Implementation matched the plan closely. `src/lib/firebase.ts` gained
+  a `functions` export plus an env-gated `connect*Emulator` block
+  (confirmed dead-code-eliminated from the production bundle via a
+  build-output grep - zero occurrences of `VITE_USE_FIREBASE_EMULATORS`
+  or `connectAuthEmulator`). One real scope expansion during
+  implementation: grepping `getFunctions` turned up **4** module-scope
+  call sites needing the same centralization, not just
+  `tenantActions.ts` as scoped - `discoveredLotImportActions.ts`,
+  `manifestActions.ts`, and `itemScanActions.ts` also called
+  `getFunctions(app)` locally. All 4 now import the shared `functions`
+  export instead; their test files' `../firebase` mocks and a few
+  `toHaveBeenCalledWith(undefined, ...)` assertions needed updating to
+  match (`{}` instead of `undefined`, since the mock now returns an
+  object) - all caught immediately by the existing test suite, not
+  discovered later.
+
+  **This ticket's specs were run for real against the real emulator
+  suite, not just written and reviewed** - genuinely important given
+  the previous ticket's own gap. That surfaced two real bugs no amount
+  of code review would have caught:
+  - The functions emulator refused to load **any** function at all in
+    non-interactive mode, because `functions/src/billing/params.ts`'s
+    `stripeProPriceId = defineString('STRIPE_PRO_PRICE_ID')` has no
+    default and isn't a secret (so `functions/.secret.local` doesn't
+    cover it) - it tried to prompt interactively for a value and failed
+    outright. Fixed with a `functions/.env.local` dummy value
+    (`STRIPE_PRO_PRICE_ID=price_dummy`), added to both the local run and
+    the new CI job. Recorded in `ADR-0017`'s Consequences as a pattern
+    future `defineString`/`defineInt`/`defineBoolean` params need to
+    follow too, distinct from `defineSecret`'s existing `.secret.local`
+    mechanism.
+  - `playwright.config.ts`'s `webServer.url`/`baseURL` were originally
+    `http://127.0.0.1:4173`, matching the plan - but `vite preview`'s
+    Node HTTP server resolved the bare hostname `localhost` to `::1`
+    only in this environment (confirmed via `ss -tlnp`), so a literal
+    `127.0.0.1` URL got "connection refused" and the `webServer` timed
+    out at 120s. Fixed by using `http://localhost:4173` everywhere in
+    the config instead (resolves correctly for both address families).
+    The Firebase emulators themselves were unaffected - the browser-side
+    `connect*Emulator(...,'127.0.0.1', port)` calls in `firebase.ts`
+    connected fine, confirmed by the auth-onboarding spec's real
+    sign-up/sign-in working end-to-end.
+  - Separately, this session's own interactive sandbox had no Java at
+    all (`firebase-tools` requires **JDK 21+** specifically for the
+    Firestore/Auth emulators - a bundled Debian `default-jre-headless`
+    only provided 17, which firebase-tools explicitly rejects). Worked
+    around by downloading a Temurin 21 tarball directly and prepending
+    it to `PATH` for this session's verification runs - not a repo
+    change, CI's `setup-java@v5` already pins 21. Worth remembering if a
+    future session needs to run `npm run test:e2e` locally and hits the
+    same "Java version before 21" error.
+  - A real `@typescript-eslint` gap also surfaced: `e2e/**` files
+    weren't covered by any `tsconfig`, so ESLint's typed linting
+    couldn't parse them at all. Adding them to `tsconfig.node.json`
+    (alongside `vite.config.ts`) surfaced a different problem -
+    `nodenext` module resolution demands explicit `.js` extensions on
+    every relative import, which Playwright's own esbuild-based test
+    runner doesn't require and nothing else in this repo does either.
+    Resolved with a new dedicated `tsconfig.e2e.json` (bundler
+    resolution, like `tsconfig.app.json`, not `nodenext`), referenced
+    from the root `tsconfig.json` alongside the other two.
+  - Also gitignored Playwright's own `test-results/`/`playwright-report/`
+    output directories - not in the original plan, caught by
+    `format:check` flagging a stray `test-results/.last-run.json` that
+    had been created by a local run.
+
+  All 4 specs pass locally against the real Firebase emulator suite -
+  `npm run test:e2e`: `auth-onboarding` (real signup -> onboarding ->
+  `createTenant` -> lands on `/`), `rbac-guards` (buyer redirected away
+  from `/scanned-items`, allowed on `/discovered-lots`; no-tenant user
+  redirected to `/onboarding`), and `discovered-lots-dismiss` (seeded
+  `restock_lots` fixture, dismissed via the real UI, confirmed gone from
+  the table and a real `dismissed_lots` doc written) - 4 passed, 0
+  failed. Root checklist (format/lint/typecheck, 237 unit tests) and
+  `functions`' own checklist (lint/typecheck, 293 unit tests, build) all
+  independently confirmed green and unaffected - neither touched by this
+  ticket's changes. Local verification artifacts
+  (`functions/.secret.local`, `functions/.env.local`) are gitignored and
+  left in place, matching the documented local-dev pattern rather than
+  deleted after use.

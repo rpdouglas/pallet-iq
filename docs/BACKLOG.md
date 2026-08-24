@@ -56,6 +56,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
 | PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
 | PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)              | Owner/Admin   | 0     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -2860,3 +2861,58 @@ against a pre-seeded query cache, screenshotted, deleted after - see
 375px, table/cards correctly toggle at the `md` breakpoint, and all
 three badge tokens render at their exact documented hex values. Status
 flipped to `Done`.
+
+## PALLETIQ-051: Committed Playwright e2e suite against Firebase emulators
+
+_Scope note (2026-08-24):_ Playwright has been used repeatedly across past
+tickets, but only as an ad hoc, uncommitted script run once against real
+production (`mrt-pallet-iq`) then deleted - most recently `PALLETIQ-050`.
+That pattern relies on a credential-minting technique (`signJwt` custom
+token minting) that this session's safety classifier now hard-blocks, so
+it can't reliably be repeated. This ticket formalizes a durable
+replacement for the flows it can reach: a committed `e2e/` suite running
+against the already-configured Firebase emulator suite
+(`firebase.json`), never real `mrt-pallet-iq`. See `ADR-0017` for the
+full decision, including the explicit Cloud Tasks coverage boundary.
+
+_In scope:_ an env-gated emulator-connection seam in `src/lib/firebase.ts`
+(+ centralizing `tenantActions.ts`'s separate `getFunctions(app)` call
+through it); an Admin-SDK-based seed helper (`e2e/support/`); a
+`playwright.config.ts` (build-then-`vite preview`, not the dev server);
+3 first specs - auth/onboarding (real signup+`createTenant`), RBAC
+route-guard redirects, and Discovered Lots dismiss (direct Firestore
+write); a new non-blocking `e2e` CI job reusing the
+`firestore-rules`/`storage-rules` jobs' proven `firebase emulators:exec`
+recipe.
+
+_Out of scope:_ any flow gated on the 6 Cloud-Tasks-dispatched workers
+(item-scan identify, pricing research, listing-copy generation, manifest
+import processing, discovered-lot import, the dummy AI task) finishing -
+no Cloud Tasks emulator exists, this is a hard limit not a gap to close
+here. Those stay covered only by the existing manual live-verification
+pattern, which this ticket does **not** retire. Lighthouse - deliberately
+a separate, later, lower-stakes ticket (today's ad hoc attempt failed
+with `NO_FCP` in this interactive sandbox specifically; worth spiking in
+actual CI, but decoupled so a bad result there can't cast doubt on this
+ticket's unrelated infra). A 4th+ spec (e.g. Vendors CRUD) - left as an
+obvious, easy follow-up rather than day-one scope. Flipping the new `e2e`
+CI job to blocking / adding it to `CONTRIBUTING.md`'s required-checks
+list - revisit once it's been green for a stretch.
+
+_Firestore/RBAC impact:_ none to `firestore.rules` itself - specs read/
+write against the emulator only, using the same rules already deployed
+there for `test:rules`. No new collection.
+
+_UI pattern notes:_ none - no new UI, this is test infrastructure only.
+
+_ADR:_ `ADR-0017` - a new testing paradigm future tickets build on, plus
+a production-code change (the emulator seam), warranting one before
+implementation per governance.
+
+_Closed (2026-08-24):_ all 3 specs verified genuinely green locally
+against the real Firebase emulator suite (not just reviewed) - see
+`docs/ACTIVE_CYCLE.md`'s drift note for the two real gotchas found while
+standing this up (a plain `defineString` param with no default blocking
+the functions emulator's cold start; `vite preview` binding IPv6-only in
+one tested environment). Root/functions checklists (format/lint/
+typecheck/237+293 unit tests) all unaffected and green.

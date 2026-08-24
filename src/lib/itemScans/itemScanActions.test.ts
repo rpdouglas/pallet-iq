@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('../firebase', () => ({ db: {}, storage: {}, app: {} }))
+vi.mock('../firebase', () => ({ db: {}, storage: {}, functions: {} }))
 
 const collection = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => path)
 const doc = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => ({
@@ -35,8 +35,7 @@ const httpsCallableFn = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const httpsCallable = vi.fn<(...args: unknown[]) => (data: unknown) => Promise<unknown>>(
   () => httpsCallableFn,
 )
-const getFunctions = vi.fn<(...args: unknown[]) => unknown>()
-vi.mock('firebase/functions', () => ({ getFunctions, httpsCallable }))
+vi.mock('firebase/functions', () => ({ httpsCallable }))
 
 const {
   newScanId,
@@ -76,7 +75,7 @@ describe('itemScanActions', () => {
 
     const result = await enqueueItemScan(params)
 
-    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'enqueueItemScan')
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'enqueueItemScan')
     expect(httpsCallableFn).toHaveBeenCalledWith(params)
     expect(result).toEqual({ scanId: 'scan-1' })
   })
@@ -120,7 +119,7 @@ describe('itemScanActions', () => {
 
     await priceItemScan('scan-1')
 
-    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'priceItemScan')
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'priceItemScan')
     expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
   })
 
@@ -129,7 +128,7 @@ describe('itemScanActions', () => {
 
     await enqueueListingCopy('scan-1')
 
-    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'enqueueListingCopy')
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'enqueueListingCopy')
     expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
   })
 

@@ -38,6 +38,12 @@ functions/lib
 .env.*.local
 functions/.env
 functions/.env.*
+functions/.secret.local
 
 # Coverage
 coverage
+
+# Playwright (PALLETIQ-051)
+/test-results
+/playwright-report
+/blob-report
