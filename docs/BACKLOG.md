@@ -55,7 +55,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
 | PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
-| PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | In Progress | P2       |
+| PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | Done        | P2       |
 
 ## Adding a ticket
 
@@ -2852,3 +2852,11 @@ as reuse.
 _ADR:_ not needed - a design-system evolution through the established
 addenda mechanism, not a new data model or an architectural tradeoff
 future work builds on.
+
+_Closed (2026-08-24):_ visual acceptance criteria verified via a
+temporary Playwright harness (rendered the real `DiscoveredLotsPage`
+against a pre-seeded query cache, screenshotted, deleted after - see
+`docs/ACTIVE_CYCLE.md`'s drift note for detail). No horizontal scroll at
+375px, table/cards correctly toggle at the `md` breakpoint, and all
+three badge tokens render at their exact documented hex values. Status
+flipped to `Done`.

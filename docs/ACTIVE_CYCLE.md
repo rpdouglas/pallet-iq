@@ -51,21 +51,9 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-- **`PALLETIQ-050`** — Discovered Lots card view for mobile. Code is
-  complete and merged-ready: `Badge`/`LotCard` components, the 3 new
-  badge-scoped design tokens, the `docs/design/` amendments, and the
-  `md:hidden`/`hidden md:block` responsive split are all in place, with
-  every state/logic/RBAC acceptance criterion covered by tests (build/
-  lint/typecheck/format/238 unit tests all green). What's **not**
-  verified this session: the spec's purely visual acceptance criteria —
-  no horizontal scroll at 375px, all fields visible without a tap, no
-  Lighthouse mobile-score regression — since no browser/screenshot tool
-  was available. Close once someone eyeballs the page at a narrow
-  viewport (or a future session with browser tooling does it).
-
-`PALLETIQ-041`/`043` closed 2026-08-24 (see Drift notes). `PALLETIQ-044`
-(found via `041`'s own live-verification pass) is open but not started.
-`PALLETIQ-003` is shelved, not active — see below.
+  `PALLETIQ-041`/`043`/`050` closed 2026-08-24 (see Drift notes). `PALLETIQ-044`
+  (found via `041`'s own live-verification pass) is open but not started.
+  `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -2926,8 +2914,8 @@ build`/`lint`/`vitest run` (293/293, unaffected) and repo-root
   polluted `product_price_cache` entry) deleted after - left nothing
   behind that wasn't genuine real data already confirmed correct.
 
-- **2026-08-24 — `PALLETIQ-050` (Discovered Lots card view), not yet
-  closed.** Built from an untracked spec doc
+- **2026-08-24 — `PALLETIQ-050` (Discovered Lots card view), closed.**
+  Built from an untracked spec doc
   (`docs/reports/SPEC-DISCOVERED-LOTS-CARD-VIEW-001.md`, owner Ryan)
   found sitting in the working tree with no git history - committed it
   alongside opening this ticket rather than leaving it orphaned. Two real
@@ -2958,15 +2946,54 @@ build`/`lint`/`vitest run` (293/293, unaffected) and repo-root
     used `font-semibold` where `StatCard`/the base doc's §4 both specify
     `font-bold` - fixed immediately, re-tested green.
 
-  **Why this stays `In Progress`, not `Done`:** every automatable
-  acceptance criterion is verified - `formatMoney`/`computeMarginPct`,
-  the condition-tone map's fallback behavior, RBAC omission (not
-  CSS-hiding) of Import/Remove for read-only roles, all 4 import-status
-  states, and the responsive split itself - across 238 passing unit
-  tests plus a clean `design-system-auditor` pass. But the spec's three
-  purely visual criteria (no horizontal scroll at 375px, every field
-  visible without a tap, no Lighthouse mobile-score regression) were
-  **not verified this session** - no browser/screenshot tool was
-  available. Close this ticket once someone actually looks at the page
-  at a narrow viewport (a 30-second manual check) or a future session
-  with browser tooling confirms it.
+  Every automatable acceptance criterion is verified -
+  `formatMoney`/`computeMarginPct`, the condition-tone map's fallback
+  behavior, RBAC omission (not CSS-hiding) of Import/Remove for
+  read-only roles, all 4 import-status states, and the responsive split
+  itself - across 238 passing unit tests plus a clean
+  `design-system-auditor` pass.
+
+  **Update, same day:** the user pointed out Playwright + a Chromium
+  binary were already available in this environment (`@playwright/test`
+  is a repo devDependency, and `~/.cache/ms-playwright` already had
+  Chromium installed) - correcting the earlier "no browser tool
+  available" assumption. Verified the remaining visual criteria directly:
+  a temporary, untracked harness
+  (`src/pages/__PreviewDiscoveredLots.tsx`, wired to a throwaway
+  `/__preview` route in `src/App.tsx`) rendered the real
+  `DiscoveredLotsPage` against a `QueryClient` pre-seeded with fixture
+  lots (`staleTime: Infinity`, so no real Firebase calls happened) -
+  reusing the exact same render setup `DiscoveredLotsPage.test.tsx`
+  already validates, just in a real browser instead of jsdom. A
+  Playwright script then drove it at both breakpoints:
+  - **375px:** `document.documentElement.scrollWidth === clientWidth`
+    (no horizontal scroll), `lots-table` computed `display: none`,
+    `lots-cards` visible with all 3 fixture lots rendered - including a
+    deliberately long title (Bosch, 3 lines) to stress-test wrapping.
+    Screenshot confirmed no clipped/overlapping content; all three
+    import-state variants (Import button, `—` no-manifest, "Try
+    again"/"Import failed") rendered correctly side by side.
+  - **1024px (`md`+):** `lots-table` visible, `lots-cards` `display:
+none`, table renders exactly as it did before this ticket - no
+    regression.
+  - **Badge colors:** computed `color` on each condition badge matched
+    the exact new tokens - `rgb(180, 83, 9)` (`#B45309`, amber/Returns),
+    `rgb(4, 120, 87)` (`#047857`, emerald/Like New), `rgb(3, 105, 161)`
+    (`#0369A1`, sky/New) - confirming the tokens actually render as
+    documented, not just that the class names are present.
+  - **Lighthouse:** attempted via the CLI against the same route
+    (`CHROME_PATH` pointed at the Playwright Chromium binary,
+    `--headless=new --no-sandbox` and several GL/software-rendering
+    flag variants tried) - consistently failed with `NO_FCP` ("page did
+    not paint"), a known Lighthouse-specific fragility in constrained/
+    sandboxed containers, not a real rendering problem (the same page
+    painted fine and screenshotted cleanly under plain Playwright
+    seconds earlier). Not resolved this session; also moot as a
+    "regression" check since no Lighthouse baseline was ever recorded
+    for this page to compare against (no Lighthouse CI exists in this
+    repo).
+
+  The temporary harness/route and the verification script were deleted
+  immediately after - `git status` confirmed a clean tree (only the
+  pre-existing, session-long `.claude/settings.json` diff remained)
+  before moving on. `docs/BACKLOG.md` flipped to `Done`.
