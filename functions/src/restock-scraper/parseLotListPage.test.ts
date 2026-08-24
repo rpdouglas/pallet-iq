@@ -112,4 +112,41 @@ describe('parseLotListPage', () => {
       lotNumber: '105-917312',
     })
   })
+
+  // PALLETIQ-040. Real category values captured live from restock.ca/all/
+  // via PALLETIQ-039's live verification - restock.ca's own title
+  // convention sometimes repeats the item's specific product name in the
+  // category clause instead of a genuine category.
+  function cardHtml(lotNumber: string, category: string) {
+    return `
+      <ul class="productGrid">
+        <li class="product">
+          <article class="card">
+            <h4 class="card-title"><a href="https://www.restock.ca/${lotNumber}/">1 unit of ${category} - MSRP $100 - Brand New (Lot # ${lotNumber})</a></h4>
+          </article>
+        </li>
+      </ul>
+    `
+  }
+
+  it.each([
+    ['14-inch Wheel Covers - Silver Finish - Part Number KT1061-14S/L'],
+    ['Ionic Table Desks - 48 X 2'],
+    ['Ionic 30"D x 29"H Square Tables - X-Base'],
+    ['Hilroy 1.5" Mesh Front Pocket Zipper Binders'],
+    ['Outdoor Large Shiplap TV Lift Cabinets for TVs - White'],
+  ])('normalizes an item-specific category clause "%s" to "Uncategorized"', (category) => {
+    const { lots } = parseLotListPage(cardHtml('9001', category))
+    expect(lots[0].category).toBe('Uncategorized')
+  })
+
+  it.each([
+    ['Automotive'],
+    ['Midea Air Conditioners'],
+    ['Motivate Stacking Chairs'],
+    ['Clothing & Accessories'],
+  ])('keeps a genuine category clause "%s" unchanged', (category) => {
+    const { lots } = parseLotListPage(cardHtml('9002', category))
+    expect(lots[0].category).toBe(category)
+  })
 })

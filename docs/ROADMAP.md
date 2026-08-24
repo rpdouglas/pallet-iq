@@ -78,8 +78,10 @@ scraper + compliant manual watchlist for B-Stock/Direct Liquidation) and
 title-parsing gap and an hourly production OOM crash loop, both fixed) are
 a narrow slice of "automated vendor ingestion" pulled forward from this
 phase, tracked in `docs/BACKLOG.md` - all **Done**. `PALLETIQ-039` (the
-`restock_lots` browse UI `PALLETIQ-020` itself deferred) is the same
-pull-forward, **Done** as of this update. `PALLETIQ-028`/
+`restock_lots` browse UI `PALLETIQ-020` itself deferred) and `040` (a
+scraper category-field data-quality fix found via `039`'s own live
+verification) are the same pull-forward, both **Done** as of this
+update. `PALLETIQ-028`/
 `029`/`030` (the later half of the "Treasure Hunter" item-identification
 track — real eBay sold-comps/outcome-data flywheel, fashion/sneaker
 categories, and the first "beyond pricing" listing-copy feature) are a

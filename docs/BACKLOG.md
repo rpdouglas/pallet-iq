@@ -45,7 +45,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
 
 ## Adding a ticket
 
@@ -2240,3 +2240,31 @@ _UI pattern notes:_ none - no UI code touched.
 _ADR:_ not needed - a scraper parsing-logic bug fix within the existing
 `ADR-0009` design, not a new architectural decision, matching
 `PALLETIQ-031`'s own precedent for the same file.
+
+_Close-out (2026-08-24):_ shipped as scoped, with one real correction to
+the scope note's own premise. Investigating found this scraper only ever
+fetches restock.ca's one combined `/all/` catalog listing (see
+`scrapeRestockLots.ts`'s `CATEGORY_PATH`), never per-category pages, and
+the fixture HTML has no separate category element anywhere - so there
+was never a "genuine category breadcrumb" for the parser to switch to
+reading instead, as the scope note speculated. The only real fix
+available is a heuristic on the title-derived text itself:
+`normalizeCategory()` in `parseLotListPage.ts` falls back to
+`"Uncategorized"` when the parsed category clause contains a digit or
+`"` (dimensions, part numbers, inch marks) or exceeds 40 characters -
+checked against every real example from the `PALLETIQ-039` finding
+before shipping. 9 new fixture-based tests
+(`parseLotListPage.test.ts`, using the real captured category strings
+from that finding) - 5 confirming genuine item-specific titles get
+normalized, 4 confirming real genuine categories pass through unchanged.
+**Live-verified against all 512 real active lots before closing:** 55
+unique category values before the fix, 40 after (simulated against the
+shipped heuristic) - a real ~27% reduction, not total elimination (a few
+borderline non-digit product names like `"Castor End Tables - White"`
+still pass through as their own entries), matching the scope note's own
+"meaningfully reduces junk," not "eliminates," framing. No manual
+backfill - the next hourly `scrapeRestockLots` run re-normalizes every
+still-active lot automatically. Full checklist clean: `functions` build/
+lint/`vitest run` (227/227, up from 218) and repo-root format/lint/
+typecheck/`npm test` (192/192, unaffected). No `firestore.rules`/UI
+change, as scoped.

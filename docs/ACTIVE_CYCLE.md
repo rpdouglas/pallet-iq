@@ -2229,3 +2229,51 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   `typecheck` / `npm test` (192/192, up from 186). No `firestore.rules`
   change, so `npm run test:rules` doesn't apply. Re-synced with
   `origin/main` before closing - already up to date, no conflicts.
+
+- **2026-08-24 — PALLETIQ-040 closed, added to the same PR as
+  `PALLETIQ-039` before merging** (owner's explicit request, rather than
+  a separate follow-up PR). Found and opened directly during
+  `PALLETIQ-039`'s own live verification, not from a report.
+
+  **Drift: the scope note's own premise didn't survive contact with the
+  actual code.** It speculated the parser should read a "genuine category
+  breadcrumb" elsewhere on the page instead of the title clause it
+  currently uses. Checking `scrapeRestockLots.ts` found this scraper only
+  ever fetches restock.ca's one combined `/all/` catalog listing (its
+  `CATEGORY_PATH` is `/all/`, not a per-category URL iterated per
+  category) - there's no separate category element anywhere in the
+  fixture HTML to fall back to. The only real fix available - and the one
+  shipped - is a heuristic on the title-derived text itself:
+  `normalizeCategory()` (`parseLotListPage.ts`) falls back to
+  `"Uncategorized"` when the parsed category clause contains a digit or
+  `"` (catching dimensions, part numbers, inch marks) or exceeds 40
+  characters, checked against every real example from `PALLETIQ-039`'s
+  finding before shipping (5 confirmed-junk examples correctly fall back;
+  4 confirmed-genuine examples, including a borderline brand+type one
+  `"Midea Air Conditioners"`, pass through unchanged) - 9 new fixture
+  tests in `parseLotListPage.test.ts`.
+
+  **Live-verified against all 512 real active lots before closing, not
+  just the fixture:** simulated the shipped heuristic against every
+  currently-stored `category` value - 55 unique values before, 40 after,
+  a real ~27% reduction. Not total elimination, stated honestly rather
+  than oversold - a few borderline non-digit, non-long product names
+  (e.g. `"Castor End Tables - White"`, `"Emery RD Cocktail Tables"`)
+  still pass through as their own filter entries, matching the ticket's
+  own "meaningfully reduces junk" framing rather than a claim of
+  precision this heuristic can't actually deliver. No manual backfill -
+  `scrapeRestockLots`'s existing hourly run re-normalizes every
+  still-active lot automatically on its next pass, confirmed via
+  `PALLETIQ-032`'s own live-verified update behavior (a normal run
+  updates hundreds of existing docs).
+
+  **Governance:** no Firestore/rules impact (confirmed - no
+  `firestore.rules` diff), no UI impact (confirmed -
+  `DiscoveredLotsPage.tsx` untouched, it already correctly renders
+  whatever `category` string is stored). No ADR needed, as scoped - a
+  scraper parsing-logic fix within `ADR-0009`'s existing design, same
+  precedent `PALLETIQ-031` already set for this exact file. Full
+  checklist clean: `functions` `npm run build` / `npx eslint` (scoped) /
+  `npx vitest run` (227/227, up from 218) and repo-root
+  `format:check`/`lint`/`typecheck`/`npm test` (192/192, unaffected -
+  this ticket touched no frontend code).
