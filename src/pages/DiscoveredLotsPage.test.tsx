@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { User } from 'firebase/auth'
@@ -105,34 +105,46 @@ describe('DiscoveredLotsPage', () => {
     listActiveRestockLots.mockResolvedValueOnce([OLDER_LOT, NEWER_LOT])
     renderPage()
 
-    await screen.findByText('Bosch cordless tool set')
-    const rows = screen.getAllByRole('row')
+    // PALLETIQ-050: the table and the mobile card list both render in the
+    // DOM at once (Tailwind display classes toggle visibility - jsdom
+    // doesn't apply CSS media queries), so assertions here scope to the
+    // table container to avoid ambiguous duplicate-text matches.
+    const table = within(await screen.findByTestId('lots-table'))
+    const rows = table.getAllByRole('row')
     // rows[0] is the header row.
     expect(rows[1]).toHaveTextContent('Bosch cordless tool set')
     expect(rows[2]).toHaveTextContent('Staples Canada stacking chairs')
 
-    expect(screen.getByText('$599.00')).toBeInTheDocument()
-    expect(screen.getByText('$320.00')).toBeInTheDocument()
-    expect(screen.getByLabelText('Manifest for Bosch cordless tool set')).toBeInTheDocument()
+    expect(table.getByText('$599.00')).toBeInTheDocument()
+    expect(table.getByText('$320.00')).toBeInTheDocument()
+    expect(table.getByLabelText('Manifest for Bosch cordless tool set')).toBeInTheDocument()
+  })
+
+  it('also renders the same lots as cards for narrow viewports', async () => {
+    listActiveRestockLots.mockResolvedValueOnce([OLDER_LOT, NEWER_LOT])
+    renderPage()
+
+    const cards = within(await screen.findByTestId('lots-cards'))
+    expect(cards.getByText('Bosch cordless tool set')).toBeInTheDocument()
+    expect(cards.getByText('Staples Canada stacking chairs')).toBeInTheDocument()
   })
 
   it('filters by category', async () => {
     listActiveRestockLots.mockResolvedValueOnce([OLDER_LOT, NEWER_LOT])
     renderPage()
 
-    await screen.findByText('Bosch cordless tool set')
-
+    const table = within(await screen.findByTestId('lots-table'))
     fireEvent.change(screen.getByLabelText('Category'), { target: { value: 'Furniture' } })
 
-    expect(screen.getByText('Staples Canada stacking chairs')).toBeInTheDocument()
-    expect(screen.queryByText('Bosch cordless tool set')).not.toBeInTheDocument()
+    expect(table.getByText('Staples Canada stacking chairs')).toBeInTheDocument()
+    expect(table.queryByText('Bosch cordless tool set')).not.toBeInTheDocument()
   })
 
   it('shows a category-scoped empty message when a filter matches nothing', async () => {
     listActiveRestockLots.mockResolvedValueOnce([OLDER_LOT])
     renderPage()
 
-    await screen.findByText('Staples Canada stacking chairs')
+    await screen.findByTestId('lots-table')
     expect(screen.queryByText('No lots in this category right now.')).not.toBeInTheDocument()
   })
 
@@ -140,7 +152,7 @@ describe('DiscoveredLotsPage', () => {
     listActiveRestockLots.mockResolvedValueOnce([NEWER_LOT])
     renderPage('warehouse')
 
-    await screen.findByText('Bosch cordless tool set')
+    await screen.findByTestId('lots-table')
     expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
     expect(screen.queryByLabelText(/^Remove/)).not.toBeInTheDocument()
   })
@@ -150,8 +162,8 @@ describe('DiscoveredLotsPage', () => {
     enqueueDiscoveredLotImport.mockResolvedValueOnce({ importId: 'import-1' })
     renderPage('buyer')
 
-    await screen.findByText('Bosch cordless tool set')
-    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+    const table = within(await screen.findByTestId('lots-table'))
+    fireEvent.click(table.getByRole('button', { name: 'Import' }))
 
     await waitFor(() => {
       expect(enqueueDiscoveredLotImport).toHaveBeenCalledWith('1011500')
@@ -184,7 +196,8 @@ describe('DiscoveredLotsPage', () => {
     )
     renderPage('buyer')
 
-    const link = await screen.findByRole('link', { name: 'Imported' })
+    const table = within(await screen.findByTestId('lots-table'))
+    const link = table.getByRole('link', { name: 'Imported' })
     expect(link).toHaveAttribute('href', '/manifests/import-1')
   })
 
@@ -214,8 +227,9 @@ describe('DiscoveredLotsPage', () => {
     )
     renderPage('buyer')
 
-    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
-    expect(screen.getByText('Import failed')).toBeInTheDocument()
+    const table = within(await screen.findByTestId('lots-table'))
+    expect(table.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(table.getByText('Import failed')).toBeInTheDocument()
   })
 
   it('a buyer can dismiss a lot and it disappears from the list', async () => {
@@ -224,8 +238,8 @@ describe('DiscoveredLotsPage', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
     renderPage('buyer')
 
-    await screen.findByText('Bosch cordless tool set')
-    fireEvent.click(screen.getByLabelText('Remove Bosch cordless tool set'))
+    const table = within(await screen.findByTestId('lots-table'))
+    fireEvent.click(table.getByLabelText('Remove Bosch cordless tool set'))
 
     await waitFor(() => {
       expect(dismissLot).toHaveBeenCalledWith('tenant-a', '1011500')

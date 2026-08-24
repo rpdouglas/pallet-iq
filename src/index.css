@@ -18,6 +18,11 @@
   --color-success: #15803d;
   --color-danger: #b91c1c;
 
+  /* Badge/pill use only (docs/design/components.md) - not general accents. */
+  --color-amber: #b45309;
+  --color-emerald: #047857;
+  --color-sky: #0369a1;
+
   --font-sans: 'Inter Variable', 'Inter', sans-serif;
   --font-display: 'Poppins', sans-serif;
 

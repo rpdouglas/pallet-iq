@@ -51,6 +51,17 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
+- **`PALLETIQ-050`** — Discovered Lots card view for mobile. Code is
+  complete and merged-ready: `Badge`/`LotCard` components, the 3 new
+  badge-scoped design tokens, the `docs/design/` amendments, and the
+  `md:hidden`/`hidden md:block` responsive split are all in place, with
+  every state/logic/RBAC acceptance criterion covered by tests (build/
+  lint/typecheck/format/238 unit tests all green). What's **not**
+  verified this session: the spec's purely visual acceptance criteria —
+  no horizontal scroll at 375px, all fields visible without a tap, no
+  Lighthouse mobile-score regression — since no browser/screenshot tool
+  was available. Close once someone eyeballs the page at a narrow
+  viewport (or a future session with browser tooling does it).
 
 `PALLETIQ-041`/`043` closed 2026-08-24 (see Drift notes). `PALLETIQ-044`
 (found via `041`'s own live-verification pass) is open but not started.
@@ -2914,3 +2925,48 @@ build`/`lint`/`vitest run` (293/293, unaffected) and repo-root
   Firestore rules/UI change. Test artifacts (the synthetic scan doc, the
   polluted `product_price_cache` entry) deleted after - left nothing
   behind that wasn't genuine real data already confirmed correct.
+
+- **2026-08-24 — `PALLETIQ-050` (Discovered Lots card view), not yet
+  closed.** Built from an untracked spec doc
+  (`docs/reports/SPEC-DISCOVERED-LOTS-CARD-VIEW-001.md`, owner Ryan)
+  found sitting in the working tree with no git history - committed it
+  alongside opening this ticket rather than leaving it orphaned. Two real
+  conflicts with the existing design system surfaced during planning and
+  were resolved with the user before implementation (both recorded in
+  the ticket's own `docs/BACKLOG.md` scope note): `mobile-responsive.md`
+  grouped Discovered Lots with the desktop-first-unchanged Buyer
+  surfaces (amended to add it as a second, narrower scoped exception -
+  list content only, nav chrome untouched), and the approved palette had
+  no badge/pill pattern or spare hues (added Amber/Emerald/Sky, scoped
+  to badge use only, via the same addenda mechanism `PALLETIQ-016`
+  already established).
+
+  Implementation matched the plan closely, with three small deviations
+  worth recording:
+  - The plan's placeholder token hexes (`#D97706`/`#059669`/`#0284C7`,
+    Tailwind's -600 shades) were replaced with darker -700-equivalents
+    (`#B45309`/`#047857`/`#0369A1`) after actually computing WCAG
+    contrast - the -600 shades measured ~3.0-4.1:1 on white, failing the
+    4.5:1 AA bar this doc's existing Success/Danger entries were held to;
+    the -700s measure ~5.0-5.9:1, passing.
+  - A new shared `src/lib/discoveredLots/importStatusStyles.ts` module
+    was added (not in the original file list) so the table and the new
+    card can't drift on import-status coloring - a small in-scope
+    refinement found while wiring `LotCard`, not scope creep.
+  - The `design-system-auditor` subagent (run post-implementation, Check
+    IV) came back clean with one cosmetic nit - `LotCard`'s stat values
+    used `font-semibold` where `StatCard`/the base doc's §4 both specify
+    `font-bold` - fixed immediately, re-tested green.
+
+  **Why this stays `In Progress`, not `Done`:** every automatable
+  acceptance criterion is verified - `formatMoney`/`computeMarginPct`,
+  the condition-tone map's fallback behavior, RBAC omission (not
+  CSS-hiding) of Import/Remove for read-only roles, all 4 import-status
+  states, and the responsive split itself - across 238 passing unit
+  tests plus a clean `design-system-auditor` pass. But the spec's three
+  purely visual criteria (no horizontal scroll at 375px, every field
+  visible without a tap, no Lighthouse mobile-score regression) were
+  **not verified this session** - no browser/screenshot tool was
+  available. Close this ticket once someone actually looks at the page
+  at a narrow viewport (a 30-second manual check) or a future session
+  with browser tooling confirms it.
