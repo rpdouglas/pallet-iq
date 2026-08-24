@@ -56,7 +56,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
 | PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
 | PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)              | Owner/Admin   | 0     | In Progress | P1       |
+| PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)              | Owner/Admin   | 0     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -2908,3 +2908,11 @@ _UI pattern notes:_ none - no new UI, this is test infrastructure only.
 _ADR:_ `ADR-0017` - a new testing paradigm future tickets build on, plus
 a production-code change (the emulator seam), warranting one before
 implementation per governance.
+
+_Closed (2026-08-24):_ all 3 specs verified genuinely green locally
+against the real Firebase emulator suite (not just reviewed) - see
+`docs/ACTIVE_CYCLE.md`'s drift note for the two real gotchas found while
+standing this up (a plain `defineString` param with no default blocking
+the functions emulator's cold start; `vite preview` binding IPv6-only in
+one tested environment). Root/functions checklists (format/lint/
+typecheck/237+293 unit tests) all unaffected and green.
