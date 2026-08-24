@@ -5,6 +5,7 @@ import { RequireNoTenant } from './lib/auth/RequireNoTenant'
 import { RequireRole } from './lib/auth/RequireRole'
 import { AcceptInvitePage } from './pages/AcceptInvitePage'
 import { DashboardPage } from './pages/DashboardPage'
+import { DiscoveredLotsPage } from './pages/DiscoveredLotsPage'
 import { InventoryPage } from './pages/InventoryPage'
 import { ItemScanPage } from './pages/ItemScanPage'
 import { ManifestDetailPage } from './pages/ManifestDetailPage'
@@ -57,6 +58,7 @@ function App() {
         <Route path="/manifests/:importId" element={<ManifestDetailPage />} />
         <Route path="/inventory" element={<InventoryPage />} />
         <Route path="/watchlist" element={<WatchlistPage />} />
+        <Route path="/discovered-lots" element={<DiscoveredLotsPage />} />
         <Route
           path="/scan"
           element={

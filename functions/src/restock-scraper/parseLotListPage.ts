@@ -26,6 +26,35 @@ export interface ParsedLotListPage {
 const TITLE_PATTERN =
   /^(\d+)\s+units?\s+of\s+(.+?)\s+-\s+MSRP\s+\$([\d,.]+)\s+-\s+([^(]+?)\s+\(Lot #\s*(\d+(?:-\d+)?)\)\s*$/i
 
+// PALLETIQ-040. Found via PALLETIQ-039's live verification: 21 of 55
+// unique category values across 512 real active lots are actually
+// item-specific product names, not genuine categories (e.g. "14-inch
+// Wheel Covers - Silver Finish - Part Number KT1061-14S/L", "Ionic Table
+// Desks - 48 X 2"). This scraper only ever fetches restock.ca's one
+// combined "/all/" catalog listing (see scrapeRestockLots.ts's
+// CATEGORY_PATH), never per-category pages, so there's no separate
+// genuine-category element anywhere on the page to read instead - the
+// title's own category clause (captured by TITLE_PATTERN above) is the
+// only source. This is a heuristic on that text, not a smarter DOM
+// lookup: checked against every real example from that finding, a
+// genuine category (e.g. "Automotive", "Midea Air Conditioners") is
+// short and has no digits or inch/foot quote marks, while an
+// item-specific title reliably has a dimension, model/part number, or
+// date somewhere in it. Not perfectly precise (a few borderline real
+// examples like "Clara Gray Hello Non-Slip Doormats" pass through
+// unflagged), but meaningfully reduces the junk cluttering
+// DiscoveredLotsPage.tsx's category filter without inventing a false
+// "genuine category" signal that isn't really there.
+const CATEGORY_MAX_LENGTH = 40
+const FALLBACK_CATEGORY = 'Uncategorized'
+
+function normalizeCategory(categoryRaw: string): string {
+  const category = categoryRaw.trim()
+  const looksLikeGenuineCategory =
+    category.length <= CATEGORY_MAX_LENGTH && !/[0-9"]/.test(category)
+  return looksLikeGenuineCategory ? category : FALLBACK_CATEGORY
+}
+
 function parseMoney(text: string | undefined): number | null {
   if (!text) {
     return null
@@ -108,7 +137,7 @@ export function parseLotListPage(html: string): ParsedLotListPage {
     lots.push({
       lotNumber,
       title: titleText,
-      category: categoryRaw.trim(),
+      category: normalizeCategory(categoryRaw),
       units: Number(unitsRaw),
       condition: conditionRaw.trim(),
       msrp: msrpFromPriceSection ?? parseMoney(`$${msrpRaw}`),
