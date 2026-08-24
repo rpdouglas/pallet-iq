@@ -2760,3 +2760,46 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   unchanged in shape, still each inside its own Cloud-Tasks-dispatched
   worker. Live deployment/verification deferred until `046`/`047` also
   land, per the owner's request to verify all three together.
+
+- **2026-08-24 — PALLETIQ-046 closed.** Second of three tickets executing
+  `docs/reports/2026-08-24-gemini-cost-audit.md` (`045` shipped the
+  cost-visibility logging + pricing retry fix; `047` covers the model
+  choice next). `billing/incrementUsage.ts` (`PALLETIQ-003`/`ADR-0005`)
+  had sat with zero callers since it was built - this ticket is the first
+  real use of it.
+
+  **Shipped exactly per the `BACKLOG.md` scope note, one small addition
+  beyond it, not a scope change:** `incrementUsage()` wired into all
+  three Gemini call sites and the free-tier cap gate wired into all three
+  `onCall` entry points, as scoped. The addition: `recordGeminiCalls()`
+  is deliberately best-effort - it catches and logs (`logger.warn`)
+  rather than throws on a metering-write failure, so a Firestore hiccup
+  in the usage counter can never turn a real, successful scan/price/
+  listing-copy into a `failed` one. Not in the original scope note's
+  wording, but a direct consequence of "metering must never break the
+  real feature," worth recording since it's a real behavioral choice
+  (silently swallowing an error) a future reader should know was
+  deliberate, not an oversight.
+
+  **A design point worth recording, not drift:** `priceItemScanWorker.ts`
+  records its research-legs' Gemini-call count _before_ calling
+  `synthesizePricing`, and the synthesis call's own count separately
+  after - so a synthesis failure (the one step `PALLETIQ-045` left
+  all-or-nothing) still gets the legs' already-billed cost recorded, even
+  though the overall task fails and Cloud Tasks retries. A failed
+  synthesis _attempt_ itself is not separately recorded (only a
+  successful one increments), a minor, accepted undercount versus the
+  cost of wrapping that one call in try/finally purely for metering
+  precision - `P0.1`'s billing export remains the source of truth for
+  exact spend; this counter is for visibility and capping, not
+  reconciliation.
+
+  Full checklist clean: `functions` `npm run build`/`lint`/`vitest run`
+  (293/293, up from 283) and repo-root `format:check`/`lint`/`typecheck`/
+  `npm test` (210/210, unaffected - no frontend/root code touched).
+  `firestore-rules-auditor`: n/a, no Firestore rules/collection change -
+  `subscriptions/current` and its existing `isOwner`-write rule are
+  untouched (all reads/writes here are Admin-SDK-internal, inside Cloud
+  Functions, which bypasses client rules). Check II: n/a, no new Gemini/
+  Vertex call site. Live deployment/verification deferred until `047`
+  also lands, per the owner's request to verify all three together.

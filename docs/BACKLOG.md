@@ -51,7 +51,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list          | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Planned     | P1       |
+| PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
 
 ## Adding a ticket
 
