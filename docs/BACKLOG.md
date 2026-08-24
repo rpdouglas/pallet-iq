@@ -47,7 +47,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0014`)      | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0014`)  | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0014`)   | Buyer         | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
