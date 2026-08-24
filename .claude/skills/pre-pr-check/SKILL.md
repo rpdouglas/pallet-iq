@@ -24,7 +24,7 @@ Runs the full gate a change needs to clear before a PR or ticket close, per
    checklist, `test:rules`, `test:storage-rules`, and `test:e2e` on every PR and
    blocks merge on all of them — running the identical commands locally first is
    pure duplication unless there's a specific reason to want the failure signal
-   *before* pushing. Default to trusting CI. Run a command locally only when at
+   _before_ pushing. Default to trusting CI. Run a command locally only when at
    least one applies:
    - the diff is large/risky enough that discovering a CI failure after push
      would be an expensive iterate-fix-push-wait cycle,
