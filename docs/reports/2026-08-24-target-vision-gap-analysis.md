@@ -11,25 +11,26 @@ whichever liquidator named in the document is easiest/cheapest to scrape.
 
 ## At a glance
 
-| | |
-|---|---|
-| What the source document actually contains | An outline/template for a future report — not filled-in content |
-| Liquidators named in the document that qualify as a free restock.ca-equivalent | **0 of 6** |
-| Additional liquidators checked after widening the search | 4 — **0 of those qualify either** |
-| Capability gaps found that duplicate an already-planned ticket | Most of them — don't re-open |
-| Capability gaps found with genuinely no ticket yet | 4 (listed in §3) |
+|                                                                                |                                                                 |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| What the source document actually contains                                     | An outline/template for a future report — not filled-in content |
+| Liquidators named in the document that qualify as a free restock.ca-equivalent | **0 of 6**                                                      |
+| Additional liquidators checked after widening the search                       | 4 — **0 of those qualify either**                               |
+| Capability gaps found that duplicate an already-planned ticket                 | Most of them — don't re-open                                    |
+| Capability gaps found with genuinely no ticket yet                             | 4 (listed in §3)                                                |
 
 ## 0. What the source document actually is
 
 `docs/projects/Pallet plan 2.docx` reads as an AI chat response proposing the
-*outline* a large "Technical Design Authority" package would have — not a filled-in
+_outline_ a large "Technical Design Authority" package would have — not a filled-in
 vision or architecture spec. Its 19 numbered sections ("1. Executive Summary,"
 "9. Marketplace Connector Framework," "16. Gap Analysis," …) are almost entirely
-one-line placeholders and "Example" blocks describing what each section *would*
+one-line placeholders and "Example" blocks describing what each section _would_
 contain, not real PalletIQ-specific content. Worth knowing before treating anything
 in it as a firm spec.
 
 The two sections with real, actionable content:
+
 - **§3 Competitive Analysis** names six liquidation marketplaces to compare:
   B-Stock, Direct Liquidation, 888 Lots, Liquidation.com, BULQ, Via Trading.
 - **§9/§10** sketch a target pipeline (Auction Discovery → Manifest Collection →
@@ -91,7 +92,7 @@ named at the phase level in `ROADMAP.md` Phase 3 — no new tickets needed, just
 yet broken into them.
 
 **Listing automation / demand forecasting / bid optimization / BI dashboards** —
-none built beyond listing-copy *text generation* (`PALLETIQ-030`, no marketplace
+none built beyond listing-copy _text generation_ (`PALLETIQ-030`, no marketplace
 posting). Demand forecasting is **explicitly deferred by design** in both
 `PROJ-PALLETIQ.md` and `ROADMAP.md` ("needs accumulated outcome history to be
 trustworthy") — not an oversight. Marketplace posting integrations and BI/
@@ -108,30 +109,30 @@ document, then 4 more found by widening the search once all 6 disqualified.
 
 **The 6 named in the document:**
 
-| Site | Public browse? | Real manifest data, no login? | Blocker |
-|---|---|---|---|
-| B-Stock | — | No | ToS explicitly bans scraping (`ADR-0009`, already known) |
-| Direct Liquidation | — | No | ToS explicitly bans scraping (`ADR-0009`, already known) |
-| 888 Lots | Yes | No | ToS explicitly bans scraping ("deep-link, page-scrape, robot… spider"); manifests gated behind a resale-certificate account |
-| Liquidation.com | No | No | 403 Forbidden on a plain fetch (anti-bot wall); same corporate family as B-Stock |
-| BULQ | — | — | Shut down — domain no longer resolves |
-| Via Trading | Partial | No | Real manifest data lives behind a login-required "Load Center" |
+| Site               | Public browse? | Real manifest data, no login? | Blocker                                                                                                                     |
+| ------------------ | -------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| B-Stock            | —              | No                            | ToS explicitly bans scraping (`ADR-0009`, already known)                                                                    |
+| Direct Liquidation | —              | No                            | ToS explicitly bans scraping (`ADR-0009`, already known)                                                                    |
+| 888 Lots           | Yes            | No                            | ToS explicitly bans scraping ("deep-link, page-scrape, robot… spider"); manifests gated behind a resale-certificate account |
+| Liquidation.com    | No             | No                            | 403 Forbidden on a plain fetch (anti-bot wall); same corporate family as B-Stock                                            |
+| BULQ               | —              | —                             | Shut down — domain no longer resolves                                                                                       |
+| Via Trading        | Partial        | No                            | Real manifest data lives behind a login-required "Load Center"                                                              |
 
 **4 more, found widening the search (restock.ca-like fixed-price Canadian/US
 liquidation storefronts):**
 
-| Site | Public browse? | Real manifest data? | Blocker |
-|---|---|---|---|
-| Maple Liquidation (`mapleliquidation.ca`) | Yes, permissive robots.txt | **No** — "There is no manifest for this pallet" on every product checked (5/5) | Business model is photo-based "mystery pallets" — nothing to scrape even though scraping itself would be clean |
-| Liquidation Deals (`liquidationdeals.ca`) | Yes, permissive robots.txt | **No** — identical "no manifest" text to Maple Liquidation (same underlying platform/template) | Same as above |
-| Quicklotz (US) | Yes, permissive robots.txt | No — product pages show only category/quantity, no line items | No manifest data regardless of ToS |
-| Discount Wholesalers Inc (US) | Yes | Only aggregate lot-level fields (UPC/barcode/qty/price — single-SKU bulk lots, not mixed pallets) | ToS explicitly bans scraping (Shopify's own boilerplate "spider, crawl, or scrape" clause) |
+| Site                                      | Public browse?             | Real manifest data?                                                                               | Blocker                                                                                                        |
+| ----------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Maple Liquidation (`mapleliquidation.ca`) | Yes, permissive robots.txt | **No** — "There is no manifest for this pallet" on every product checked (5/5)                    | Business model is photo-based "mystery pallets" — nothing to scrape even though scraping itself would be clean |
+| Liquidation Deals (`liquidationdeals.ca`) | Yes, permissive robots.txt | **No** — identical "no manifest" text to Maple Liquidation (same underlying platform/template)    | Same as above                                                                                                  |
+| Quicklotz (US)                            | Yes, permissive robots.txt | No — product pages show only category/quantity, no line items                                     | No manifest data regardless of ToS                                                                             |
+| Discount Wholesalers Inc (US)             | Yes                        | Only aggregate lot-level fields (UPC/barcode/qty/price — single-SKU bulk lots, not mixed pallets) | ToS explicitly bans scraping (Shopify's own boilerplate "spider, crawl, or scrape" clause)                     |
 
 **The pattern:** liquidation sites split into two clusters — B2B auction/wholesale
 platforms with real manifests but a login/ToS/anti-bot gate, and consumer-facing
 "mystery pallet" stores that are freely public but deliberately withhold itemized
 manifests as a trust/marketing choice. restock.ca's combination of both public
-*and* manifested is not common; nothing checked matches it.
+_and_ manifested is not common; nothing checked matches it.
 
 ## 3. Genuinely new findings (no ticket anywhere yet)
 
@@ -149,7 +150,7 @@ manifests as a trust/marketing choice. restock.ca's combination of both public
 ## 4. Second-liquidator options (no clean winner — pick one)
 
 - **(a) Scrape a "public but unmanifested" store anyway** (Maple Liquidation or
-  Liquidation Deals) for lot-*browsing* only — title/category/price/condition/
+  Liquidation Deals) for lot-_browsing_ only — title/category/price/condition/
   image, `hasManifest: false` throughout. `PALLETIQ-052`'s data model already
   handles this gracefully (lot still visible, no Import button). Would double as
   the forcing function for finding #1 above (build the connector interface while
