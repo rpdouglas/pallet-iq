@@ -43,4 +43,27 @@ describe('extractManifestLink', () => {
       extractManifestLink('<p>No links here.</p>', 'https://www.restock.ca/1016710/'),
     ).toBeNull()
   })
+
+  // PALLETIQ-044. Confirmed live: restock.ca's real site-wide nav link to
+  // /furniture/unmanifested-furniture/ (a category page, not a manifest)
+  // was matching every lot detail page's first candidate anchor before
+  // the word-boundary fix, giving all ~500 active production lots the
+  // identical wrong manifestUrl.
+  it('does not match "unmanifested-furniture" as a false positive (PALLETIQ-044)', () => {
+    const hrefHtml = `<a href="/furniture/unmanifested-furniture/">Furniture</a>`
+    expect(extractManifestLink(hrefHtml, 'https://www.restock.ca/1016710/')).toBeNull()
+
+    const textHtml = `<a href="/furniture/">Unmanifested Furniture</a>`
+    expect(extractManifestLink(textHtml, 'https://www.restock.ca/1016710/')).toBeNull()
+  })
+
+  it('still finds a real manifest link on a page that also has the unmanifested-furniture nav link', () => {
+    const html = `
+      <a href="/furniture/unmanifested-furniture/">Furniture</a>
+      <a href="/files/lot-1016710-manifest.pdf">Download Manifest</a>
+    `
+    expect(extractManifestLink(html, 'https://www.restock.ca/1016710/')).toBe(
+      'https://www.restock.ca/files/lot-1016710-manifest.pdf',
+    )
+  })
 })

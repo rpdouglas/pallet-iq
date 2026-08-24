@@ -14,6 +14,16 @@ import * as cheerio from 'cheerio'
 // wrong selector here degrades to "no manifest link captured," not a
 // broken scrape - scrapeRestockLots.ts's core lot data is unaffected
 // either way.
+// PALLETIQ-044. Word-boundary, not a raw substring match - restock.ca has
+// a real site-wide nav link to /furniture/unmanifested-furniture/, whose
+// slug contains "manifest" as a substring ("un-manifest-ed"). A bare
+// .includes('manifest') matches it on every single lot detail page,
+// which is exactly what happened in production: all ~500 active lots
+// ended up with this one wrong URL as their manifestUrl. `\b` correctly
+// excludes "unmanifested" (no boundary between "n" and "m") while still
+// matching real links, singular or plural ("-manifest.pdf", "manifests/").
+const MANIFEST_WORD = /\bmanifests?\b/
+
 export function extractManifestLink(html: string, pageUrl: string): string | null {
   const $ = cheerio.load(html)
 
@@ -22,7 +32,7 @@ export function extractManifestLink(html: string, pageUrl: string): string | nul
       const $el = $(el)
       const text = $el.text().trim().toLowerCase()
       const href = ($el.attr('href') ?? '').toLowerCase()
-      return text.includes('manifest') || href.includes('manifest') || /\.pdf(\?|$)/.test(href)
+      return MANIFEST_WORD.test(text) || MANIFEST_WORD.test(href) || /\.pdf(\?|$)/.test(href)
     })
     .first()
 
