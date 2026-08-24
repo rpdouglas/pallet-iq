@@ -30,6 +30,20 @@ the process itself, not product-scoped work. Logged here per Check
   Check IV's audit surface (`design-system-auditor` + `pre-pr-check`) to cover
   `public/` and `index.html` (not just `src/`), fixed the placeholder
   `<title>`, opened `PALLETIQ-017` for the favicon/icon brand-asset gap.
+- **PR #99** — Process-efficiency audit (user-requested review of AI-assisted
+  workflow cost: skills, subagents, MCP, Playwright/Lighthouse usage). Finding:
+  governance design (subagent trigger conditions, `ADR-0017`'s scoped e2e,
+  the decision to keep Lighthouse out) was already right-sized — the actual
+  waste was `pre-pr-check` step 3 running the full root+`functions/` command
+  checklist unconditionally on every diff, duplicating what
+  `.github/workflows/ci.yml` already gates merge on regardless. Fixed:
+  step 3 now defaults to trusting CI and only runs locally for large/risky
+  diffs or when explicit fast feedback is wanted, scoped to whichever of
+  root/`functions/` actually changed, and skipped entirely for a docs-only
+  diff. No change made to subagent triggers or the e2e/Lighthouse posture —
+  audit concluded those were already correct. Report itself was ad hoc
+  (delivered inline, not written to `docs/reports/` — a genuinely one-off
+  process check, not a standing analysis worth a permanent doc).
 - **PR #24** — Fixed a real process bug surfaced by closing `PALLETIQ-001`:
   `pre-pr-check` offered to push/open the PR with no mention of `close-ticket`,
   so the natural sequence was pre-pr-check → push → merge → close-ticket —
