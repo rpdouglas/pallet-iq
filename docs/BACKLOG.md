@@ -4,59 +4,60 @@ Ticket IDs are `PALLETIQ-NNN`, allocated sequentially, never reused. Status
 follows the 3-phase gate model in [`docs/GOVERNANCE.md`](./GOVERNANCE.md):
 Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 
-| ID           | Title                                                                               | Persona       | Phase | Status      | Priority |
-| ------------ | ----------------------------------------------------------------------------------- | ------------- | ----- | ----------- | -------- |
-| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)         | Owner/Admin   | 0     | Done        | P0       |
-| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                          | Owner/Admin   | 0     | Done        | P0       |
-| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                   | Owner/Admin   | 0     | In Progress | P2       |
-| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                   | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                            | Buyer         | 0     | Done        | P0       |
-| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                      | Owner/Admin   | 1     | Done        | P0       |
-| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                | Buyer         | 1     | Done        | P0       |
-| PALLETIQ-008 | Manifest import → data normalization → common product schema                        | Buyer         | 1     | Done        | P0       |
-| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                              | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)           | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)           | Warehouse     | 1     | Done        | P1       |
-| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)      | Buyer         | 1     | Done        | P0       |
-| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                  | Owner/Admin   | 0     | Done        | P0       |
-| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                         | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                 | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                 | Owner/Admin   | 0     | Done        | P2       |
-| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image             | Owner/Admin   | 1     | Done        | P2       |
-| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                 | Buyer         | 4     | Done        | P1       |
-| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                 | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate            | Buyer         | 1     | Done        | P1       |
-| PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline     | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI    | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Done        | P2       |
-| PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Done        | P2       |
-| PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
-| PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
-| PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
-| PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"        | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)      | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators              | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Done        | P2       |
-| PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)      | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)   | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list          | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
-| PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Done        | P1       |
-| PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
-| PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
-| PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
-| PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)     | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)              | Owner/Admin   | 0     | Done        | P1       |
+| ID           | Title                                                                                     | Persona       | Phase | Status      | Priority |
+| ------------ | ----------------------------------------------------------------------------------------- | ------------- | ----- | ----------- | -------- |
+| PALLETIQ-001 | Multi-tenant Firestore schema + security rules (with automated rules tests)               | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-002 | Auth custom claims (`tenantId`, `role`) + RBAC scaffolding                                | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-003 | Stripe billing integration (Free/Pro tiers, usage metering hooks)                         | Owner/Admin   | 0     | In Progress | P2       |
+| PALLETIQ-004 | Secret Manager wiring for third-party credentials                                         | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-005 | Async AI task pipeline scaffolding (Cloud Tasks/Pub-Sub)                                  | Buyer         | 0     | Done        | P0       |
+| PALLETIQ-006 | Authentication + tenant onboarding flow (incl. empty-state UX)                            | Owner/Admin   | 1     | Done        | P0       |
+| PALLETIQ-007 | Vendor management for 2–3 vendors, 1–2 manifest formats (CSV + XLSX)                      | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-008 | Manifest import → data normalization → common product schema                              | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-009 | Landed cost calculator (purchase price + freight/fees)                                    | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-010 | Basic dashboard (today's opportunities, recent imports, inventory totals)                 | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-011 | Basic inventory lifecycle tracking (Purchased → Received → Listed → Sold)                 | Warehouse     | 1     | Done        | P1       |
+| PALLETIQ-012 | Manifest upload security hardening (size limits, sandboxed parsing, no macros)            | Buyer         | 1     | Done        | P0       |
+| PALLETIQ-013 | Provision Firebase project + wire real project ID into repo config                        | Owner/Admin   | 0     | Done        | P0       |
+| PALLETIQ-014 | Cloud Functions package scaffold (functions/, deploy target, CI job)                      | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-015 | CI/CD deploy workflow for Firebase Hosting on merge to main                               | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-016 | Wire design system into Tailwind v4 tokens, fonts, and icon library                       | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-017 | Replace favicon/icon assets with brand-correct marks (Check IV gap)                       | Owner/Admin   | 0     | Done        | P2       |
+| PALLETIQ-018 | Provision Cloud Storage bucket + wire storage.rules into repo config                      | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-019 | Replace 3-element auth-card brand mark with flattened logo lockup image                   | Owner/Admin   | 1     | Done        | P2       |
+| PALLETIQ-020 | Scheduled restock.ca lot scraper (Track A, SPEC-SOURCING-INTEL-002)                       | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-021 | Manual sourcing watchlist for B-Stock / Direct Liquidation (Track B)                      | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-022 | Allocate lot purchase price across line items with no per-item cost                       | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-023 | Fix `totalPurchasePrice = 0` mishandled as "no price given" in lot-price allocation       | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-024 | Fix negative manifest unit cost silently replaced by flat lot-price rate                  | Buyer         | 1     | Done        | P1       |
+| PALLETIQ-025 | Treasure Hunter: item capture + Gemini vision/grounding identification pipeline           | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-026 | Treasure Hunter: pricing waterfall v1 (cache/UPC/grounding/eBay) + confidence UI          | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                          | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                        | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                       | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record                    | Store Manager | 4     | Done        | P2       |
+| PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)        | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                           | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)             | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-034 | Fix item-scan capture: second photo silently fails; add "choose from device"              | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-035 | Treasure Hunter: replace pricing waterfall with SOP-modeled LLM research (CAD)            | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-036 | Fix item-scan capture friction: photo compression + loading indicators                    | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them                  | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs                | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                                    | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category       | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)            | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list                | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest        | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug                    | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                            | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                             | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)                 | Buyer         | 2     | Done        | P0       |
+| PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)                    | Owner/Admin   | 0     | In Progress | P1       |
+| PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)           | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)                    | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -2564,6 +2565,32 @@ surface are unaffected.
 _ADR:_ not needed - a bug fix to existing, already-decided scraper logic,
 not a new architectural decision.
 
+_Closed (2026-08-24) — narrower than originally scoped, see `PALLETIQ-052`:_
+the extraction fix itself shipped exactly as scoped -
+`extractManifestLink` now uses a `\bmanifests?\b` word-boundary match,
+verified against the real confirmed false-positive
+(`unmanifested-furniture`) and deployed to `mrt-pallet-iq`. But the
+planned backfill uncovered something the original scope note's own
+premise didn't anticipate: querying a real lot detail page with the
+now-fixed logic returned `null`, not a corrected link, and turned out to
+be right to. restock.ca has **no downloadable manifest file on these
+pages at all** - the manifest is an HTML table
+(`<script type="text/template" id="manifest-template">`) already
+embedded in the same page, revealed by a "Load manifest" button and
+exported to XLSX **client-side in the browser**, never fetched from a
+server URL. The entire `manifestUrl`-points-to-a-file model this
+feature has been built on since `PALLETIQ-020` doesn't match how the
+real site works - confirmed live, not theorized (see
+`docs/ACTIVE_CYCLE.md`'s drift note for the full page excerpt).
+
+Backfilling `manifestUrl` under the old model would only replace one
+wrong value with `null` everywhere - it doesn't restore the feature, so
+it was **not run**. Closing this ticket on its actual, narrower
+accomplishment (the extraction bug is genuinely fixed and correct) and
+opening `PALLETIQ-052` for the real fix - parsing the embedded manifest
+table directly, which is an architecture change (`ADR-0018`), not a
+continuation of this bug fix.
+
 ## PALLETIQ-045: Log Gemini usage per call site and fix pricing retry-amplification bug
 
 _Scope note (2026-08-24) — Planning gate only, not started:_ found via
@@ -2916,3 +2943,59 @@ standing this up (a plain `defineString` param with no default blocking
 the functions emulator's cold start; `vite preview` binding IPv6-only in
 one tested environment). Root/functions checklists (format/lint/
 typecheck/237+293 unit tests) all unaffected and green.
+
+## PALLETIQ-052: Source restock.ca manifest data from the embedded page table, not a file URL
+
+_Scope note (2026-08-24):_ follow-up to `PALLETIQ-044`, opened while
+investigating a user report that Discovered Lots import "keeps
+failing." `PALLETIQ-044`'s regex fix was correct but exposed a much
+bigger finding: restock.ca has **no downloadable manifest file**
+anywhere on its lot detail pages. What every lot page actually has is
+an HTML table (UPC / Merchant SKU / QTY / Title / MSRP / Extended)
+embedded directly in the server-rendered page inside
+`<script type="text/template" id="manifest-template">`, revealed by a
+"Load manifest" button and exported to XLSX **client-side in the
+browser** - never fetched from a server URL. Confirmed live against a
+real lot page, not theorized. This invalidates the `manifestUrl`
+concept the whole Discovered-Lots-import feature has been built on
+since `PALLETIQ-020` - not a regression, a wrong assumption baked in
+from the start (the scraper module's own header comment already
+flagged this exact risk: "written and tested against a synthetic
+fixture... verify against a real page before relying on this in
+production").
+
+_In scope:_ parse the embedded manifest table directly (reusing the
+same page fetch `scrapeRestockLots.ts` already does for newly-
+discovered lots - no new network cost) into structured line items
+instead of extracting a link; change what `restock_lots` stores to
+match (replacing or supplementing `manifestUrl`); change
+`enqueueDiscoveredLotImport`/`importDiscoveredLotWorker` to consume
+that structured data directly instead of fetching/validating a file;
+update the Import button's gating and any UI referencing
+`manifestUrl` (`DiscoveredLotsPage.tsx`, `LotCard.tsx`); a real
+backfill for the 513 already-active lots once the new model ships (this
+one actually restores the feature, unlike the aborted null-writing
+backfill `PALLETIQ-044` stopped short of running); verify the embedded-
+table pattern holds across more than one category before finalizing the
+parser (only Furniture confirmed so far).
+
+_Out of scope:_ any change to `processManifestImport.ts`'s general CSV/
+XLSX pipeline used by real vendor uploads - this ticket only changes
+how the Discovered Lots _source_ gets its data in, not the shared
+pipeline other vendors still use; PDF-manifest parsing (already
+deferred separately, `ADR-0015`).
+
+_Firestore/RBAC impact:_ `restock_lots` schema changes (field(s)
+replacing `manifestUrl`) - global, cross-tenant, Cloud-Functions-write-
+only collection (`ADR-0009`), no RBAC change since read access is
+already `isSignedIn()` for any tenant.
+
+_UI pattern notes:_ `DiscoveredLotsPage.tsx`'s table and `LotCard.tsx`
+(`PALLETIQ-050`) both currently gate the Import button and a manifest-
+icon link on `lot.manifestUrl` truthiness - needs a matching update in
+both places, not just one.
+
+_ADR:_ `ADR-0018` - reverses/supersedes an assumption `ADR-0009` was
+built on (that restock.ca exposes a fetchable manifest file), and
+changes a core data model future tickets (`PALLETIQ-042`'s
+profitability scoring, which reads manifest data) will build on.
