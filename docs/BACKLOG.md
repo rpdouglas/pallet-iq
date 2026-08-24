@@ -45,6 +45,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-037 | Verify pricing comps (Kijiji/eBay) actually resolve before trusting them            | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -2189,3 +2190,53 @@ architectural tradeoff; reuses `ADR-0009`'s existing `restock_lots` design
 and `docs/design/components.md`'s existing Data table pattern. The
 "unified sourcing view" question flagged above as deferred would need one
 if it's ever picked up, per `ADR-0009`'s own note - not this ticket.
+
+## PALLETIQ-040: Fix restock.ca scraper category field sometimes containing item title, not category
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ found via
+`PALLETIQ-039`'s live verification against real `mrt-pallet-iq` data, not
+a report or a test failure. Of 55 unique `category` values across 512
+live active `restock_lots` documents, 21 (~38%) are actually
+item-specific product names (e.g. `"14-inch Wheel Covers - Silver Finish
+
+- Part Number KT1061-14S/L"`, `"Ionic Table Desks - 48 X 2"`, `"Offices
+  To Go Reception Suites - 84" x 72" x 42.5" - Absolute Acajou"`) rather
+than genuine categories (`"Automotive"`, `"Bicycles"`, `"Electronics"`,
+etc.). Root cause is in `functions/src/restock-scraper/parseLotListPage.ts`'s
+category-extraction logic - some category pages apparently don't expose
+a genuine category breadcrumb the parser can read, and it falls back to
+something too specific (likely the listing's own title or a sub-heading).
+Not a `PALLETIQ-039`UI defect -`DiscoveredLotsPage.tsx`correctly
+renders whatever`category` string is actually stored, per that ticket's
+  own scope.
+
+_In scope:_ fix `parseLotListPage.ts`'s category extraction so it
+reliably captures a genuine category (or a documented, honest fallback
+value like `"Uncategorized"` if the source page truly has none) instead
+of a mis-parsed title/sub-heading. Fixture-based test coverage using the
+real captured examples above (matching `PALLETIQ-031`'s own precedent of
+testing against a real captured title format, not a synthetic one). No
+manual backfill of already-stored `restock_lots` docs needed -
+`scrapeRestockLots` re-fetches and updates every still-active lot on its
+existing hourly schedule (confirmed working via `PALLETIQ-032`'s own live
+verification: a normal run updates hundreds of existing docs), so a
+corrected extractor self-heals every currently-active lot within one
+scrape cycle; only lots that close before the next scrape keep a
+stale/wrong category, a low-value one-time inaccuracy in already-`closed`
+data with no live consumer, not worth a special backfill script for.
+
+_Out of scope:_ `DiscoveredLotsPage.tsx`/any UI change - it already
+correctly displays whatever is stored, nothing to fix there. A manual
+backfill migration for existing docs (see above - not needed). The
+broader "unified sourcing view" question `PALLETIQ-039`'s own scope note
+flagged as deferred - unrelated to this data-quality fix.
+
+_Firestore/RBAC impact:_ none - `restock_lots`' schema/rules are
+unchanged; `category` stays a plain `string` field, this only changes
+what value the scraper computes for it.
+
+_UI pattern notes:_ none - no UI code touched.
+
+_ADR:_ not needed - a scraper parsing-logic bug fix within the existing
+`ADR-0009` design, not a new architectural decision, matching
+`PALLETIQ-031`'s own precedent for the same file.
