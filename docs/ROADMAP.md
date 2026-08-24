@@ -109,3 +109,11 @@ Phase 4 section for the full rationale.
 
 Image analysis / pallet fill-level estimation, white-labeling + Enterprise
 API access, offline mode, market forecasting / demand trend prediction.
+
+**Added 2026-08-24, via `docs/reports/2026-08-24-target-vision-gap-analysis.md`:**
+bid guidance / max-bid calculation (the `bids` collection named in
+`docs/projects/PROJ-PALLETIQ.md`'s original Phase 1 data model, §Data Model) —
+found never built and never explicitly re-homed to a later phase; flagging it
+here now as a deliberate deferral rather than leaving it silently dropped.
+Most relevant once Track B (`ADR-0009`'s B-Stock/Direct Liquidation manual
+watchlist) or a similar auction-based source is actually in active use.
