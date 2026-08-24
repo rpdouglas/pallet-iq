@@ -1,4 +1,4 @@
-# ADR-0014: Discovered-lot import bridge + lot-level profitability scoring
+# ADR-0015: Discovered-lot import bridge + lot-level profitability scoring
 
 **Status:** Proposed
 **Date:** 2026-08-24

@@ -46,8 +46,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0014`)      | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0014`)   | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)      | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)   | Buyer         | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -2335,7 +2335,7 @@ existing status-badge pattern (queued/processing/completed/failed) rather
 than inventing a new one; `docs/design/components.md`'s Data table pattern
 (already in use on this page per `PALLETIQ-039`) is otherwise unchanged.
 
-_ADR:_ written — [`ADR-0014`](../adr/0014-discovered-lot-import-and-profitability-scoring.md).
+_ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
 
 ## PALLETIQ-042: Score imported lot for profitability via text-based pricing research
 
@@ -2364,7 +2364,7 @@ input is already text-only), and calls the **existing, unmodified**
 `unitCost × quantity`, reusing `PALLETIQ-009`'s existing landed-cost
 calculation) into a lot-level profitability score/margin, written back to
 the import. Must decide and ship a per-import SKU research cap or sampling
-strategy before completion (flagged in `ADR-0014` as a real open question,
+strategy before completion (flagged in `ADR-0015` as a real open question,
 not deferred again). UI reuses `docs/design/explainable-scoring.md`'s
 existing score-badge + factor-breakdown + provenance-labeling pattern (the
 same instantiation `ADR-0011`'s saleability score already uses) — no new
@@ -2389,4 +2389,4 @@ _UI pattern notes:_ `docs/design/explainable-scoring.md`'s existing
 score-badge pattern, reused verbatim — no new pattern to audit for Check IV
 beyond confirming correct reuse.
 
-_ADR:_ written — [`ADR-0014`](../adr/0014-discovered-lot-import-and-profitability-scoring.md).
+_ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
