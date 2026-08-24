@@ -1,4 +1,5 @@
 import type { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import type { PricingResearchLegs } from '../pricing/priceResearch'
 import type { PricingResult, PricingStatus } from '../pricing/types'
 import type { SaleabilityResult } from '../saleability/computeSaleability'
 
@@ -70,6 +71,14 @@ export interface ItemScanDoc {
   pricingStatus: PricingStatus
   pricing: PricingResult | null
   pricingError: string | null
+  // PALLETIQ-045. Persisted as soon as each pricing research leg succeeds,
+  // so a Cloud Tasks retry after a synthesis-only failure doesn't re-pay
+  // for already-successful grounded research calls - see
+  // pricing/priceResearch.ts's researchPricingLegs. Cleared on a fresh
+  // priceItemScan request (priceItemScan.ts) - the leg-reuse optimization
+  // is for the same retry chain, not across unrelated, possibly
+  // days-apart manual re-price requests.
+  pricingResearchLegs: PricingResearchLegs | null
   // PALLETIQ-027 / ADR-0011. Computed once background enrichment settles
   // (see enrichItemScanPricing.ts) - a separate status lifecycle from
   // pricingStatus above, since the "instant" pricing result and the

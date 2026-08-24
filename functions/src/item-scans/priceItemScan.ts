@@ -46,6 +46,12 @@ export const priceItemScan = onCall<PriceItemScanRequest, Promise<void>>(async (
 
   await scanRef.update({
     pricingStatus: 'pricing',
+    // PALLETIQ-045. A brand-new manually-triggered pricing request
+    // shouldn't silently reuse a stale, possibly days-old partial
+    // research result - the leg-reuse optimization in
+    // priceItemScanWorker.ts is for the same Cloud Tasks retry chain,
+    // not across unrelated requests.
+    pricingResearchLegs: null,
     updatedAt: FieldValue.serverTimestamp(),
   } satisfies Partial<ItemScanDoc>)
 

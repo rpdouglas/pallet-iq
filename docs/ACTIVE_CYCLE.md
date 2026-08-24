@@ -2720,3 +2720,43 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   change). `firestore-rules-auditor` and `design-system-auditor` both ran
   clean (the latter's one finding fixed before merge, drift #3 above).
   Check II: n/a, no Gemini/Vertex call site in this diff.
+
+- **2026-08-24 — PALLETIQ-045 closed.** First of three tickets executing
+  `docs/reports/2026-08-24-gemini-cost-audit.md`'s recommendations (the
+  owner asked to implement the report, not just read it) - `046`/`047`
+  cover usage metering/free-tier caps and the model choice separately.
+
+  **Shipped exactly per the `BACKLOG.md` scope note, one small drift:**
+  structured Gemini usage logging, the pricing retry-amplification fix,
+  and the `priceItemScanWorker.ts` memory bump all landed as scoped. The
+  one drift, not scope-changing: logging `response.usageMetadata` needed
+  a small shared helper (`gemini/usageLogging.ts`, new file, not named in
+  the original scope note) rather than three inline `logger.info` calls -
+  `usageMetadata` is a class instance in `@google/genai`'s types, and
+  ESLint's `no-misused-spread` correctly rejected spreading it directly
+  (would silently drop the class prototype). Picking the five fields
+  explicitly in one shared function, reused by all three call sites, was
+  the cleaner fix and avoided tripling the field-picking code - a genuine
+  implementation improvement, not a scope change.
+
+  **The retry-fix's correctness detail worth recording:** a leg is only
+  ever persisted to `ItemScanDoc.pricingResearchLegs` when it _genuinely
+  succeeded_ (`settleLeg`'s flag is `null`) - a failed leg's fallback
+  default is deliberately never persisted there, so a later retry
+  correctly retries it instead of silently treating a failure as done.
+  This is stricter than the scope note's literal "only rerun what's
+  missing" wording (which could be read as "missing OR failed" being
+  conflated) - worth calling out explicitly since it's the detail that
+  makes the fix actually safe.
+
+  Full checklist clean: `functions` `npm run build`/`lint`/`vitest run`
+  (283/283, up from 275) and repo-root `format:check`/`lint`/`typecheck`/
+  `npm test` (210/210, unaffected - no frontend/root code touched).
+  `firestore-rules-auditor`: n/a, no Firestore rules/collection change
+  (`pricingResearchLegs` is a new field on the existing `item_scans` doc
+  shape, already covered by that collection's existing rules). Check II:
+  n/a, no new Gemini/Vertex call site - the three existing ones
+  (`identifyItem.ts`/`priceResearch.ts`/`generateListingCopy.ts`) are
+  unchanged in shape, still each inside its own Cloud-Tasks-dispatched
+  worker. Live deployment/verification deferred until `046`/`047` also
+  land, per the owner's request to verify all three together.

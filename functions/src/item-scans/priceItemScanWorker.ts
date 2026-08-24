@@ -8,7 +8,7 @@ import {
   deriveSaleabilityInputsFromPricing,
   mapPriceResearchToPricingResult,
 } from '../pricing/mapPriceResearch'
-import { researchPrice } from '../pricing/priceResearch'
+import { researchPricingLegs, synthesizePricing } from '../pricing/priceResearch'
 import type { PricingResult, ProductPriceCacheDoc } from '../pricing/types'
 import { verifyPricingComps } from '../pricing/verifyComps'
 import { computeSaleability } from '../saleability/computeSaleability'
@@ -43,6 +43,12 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
     // noticeably longer than identifyItem's single grounded call - same
     // generous headroom as processItemScan.ts's own Gemini-call worker.
     timeoutSeconds: 300,
+    // PALLETIQ-045. Explicit, matching sibling workers' precedent
+    // (processItemScan.ts/processManifestImport.ts, both bumped after past
+    // OOM incidents) - this is the heaviest, longest-running, most
+    // Gemini-call-dense worker in the app and was previously left on the
+    // platform default (256MiB).
+    memory: '512MiB',
     secrets: [geminiApiKey],
   },
   async (request) => {
@@ -87,7 +93,30 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
         // retrySaleabilityScore.ts does for an already-priced scan.
         saleabilityInputs = deriveSaleabilityInputsFromPricing(pricing, candidate.condition)
       } else {
-        const research = await researchPrice(geminiApiKey.value(), candidate)
+        // PALLETIQ-045. Reuse any leg that already succeeded on a prior
+        // attempt in this same retry chain, instead of re-paying for it -
+        // see researchPricingLegs's own header comment.
+        const previousLegs = scanData.pricingResearchLegs ?? null
+        const { merged, legs, legFailureFlags } = await researchPricingLegs(
+          geminiApiKey.value(),
+          candidate,
+          previousLegs,
+        )
+
+        // Persist as soon as computed - if synthesis below fails and
+        // Cloud Tasks retries, the next attempt reads this back and skips
+        // whatever already succeeded here.
+        await scanRef.update({
+          pricingResearchLegs: legs,
+          updatedAt: FieldValue.serverTimestamp(),
+        } satisfies Partial<ItemScanDoc>)
+
+        const research = await synthesizePricing(
+          geminiApiKey.value(),
+          candidate,
+          merged,
+          legFailureFlags,
+        )
         const mapped = mapPriceResearchToPricingResult(research, candidate)
         // PALLETIQ-037. Verify comp URLs before caching/storing - a
         // cache write should never persist an unverified link, since
@@ -107,6 +136,9 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
       await scanRef.update({
         pricingStatus: 'priced',
         pricing,
+        // PALLETIQ-045. No longer needed once priced - clears the scratch
+        // retry-recovery state rather than leaving it stale on the doc.
+        pricingResearchLegs: null,
         saleabilityStatus: 'scored',
         saleabilityScore: saleability,
         updatedAt: FieldValue.serverTimestamp(),

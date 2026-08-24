@@ -17,8 +17,12 @@ vi.mock('firebase-admin/firestore', () => ({
   FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
 }))
 
-const mockResearchPrice = vi.fn<(...args: unknown[]) => Promise<unknown>>()
-vi.mock('../pricing/priceResearch', () => ({ researchPrice: mockResearchPrice }))
+const mockResearchPricingLegs = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+const mockSynthesizePricing = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+vi.mock('../pricing/priceResearch', () => ({
+  researchPricingLegs: mockResearchPricingLegs,
+  synthesizePricing: mockSynthesizePricing,
+}))
 
 const mockVerifyPricingComps = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 vi.mock('../pricing/verifyComps', () => ({ verifyPricingComps: mockVerifyPricingComps }))
@@ -49,16 +53,32 @@ const CANDIDATE = {
 const COMPLETED_SCAN = {
   selectedCandidateIndex: 0,
   candidates: [CANDIDATE],
+  pricingResearchLegs: null,
 }
 
-const FULL_RESEARCH_RESPONSE = {
+const MERGED_LEGS = {
   retail: { priceCad: 180, source: 'canadiantire.ca', url: null },
+  openBox: { priceCad: 145, basis: 'calculated' as const },
   kijiji: {
     newSealed: { low: 130, high: 150, sampleSize: 2, examples: [] },
     used: { low: 80, high: 110, sampleSize: 1, examples: [] },
   },
   ebaySold: { priceCad: 100, sampleSize: 4, thin: false, exchangeRateUsed: 1.35, examples: [] },
-  openBox: { priceCad: 145, basis: 'calculated' as const },
+}
+
+const LEGS_RESULT = {
+  merged: MERGED_LEGS,
+  legs: {
+    retailOpenBox: { retail: MERGED_LEGS.retail, openBox: MERGED_LEGS.openBox },
+    kijiji: MERGED_LEGS.kijiji,
+    ebaySold: MERGED_LEGS.ebaySold,
+  },
+  legFailureFlags: [],
+  callsMade: 3,
+}
+
+const FULL_RESEARCH_RESPONSE = {
+  ...MERGED_LEGS,
   bottomLine: { priceCad: 100, low: 85, high: 115, rationale: 'Anchored on eBay sold comps.' },
   dataQuality: { flags: [] },
 }
@@ -69,7 +89,8 @@ function resetMocks() {
   mockCacheGet.mockReset()
   mockCacheSet.mockReset()
   mockDoc.mockClear()
-  mockResearchPrice.mockReset()
+  mockResearchPricingLegs.mockReset()
+  mockSynthesizePricing.mockReset()
   mockVerifyPricingComps.mockReset()
   // Passthrough default - most tests don't care about comp verification
   // specifically; the dedicated test below overrides this per-case.
@@ -100,18 +121,27 @@ describe('priceItemScanWorker', () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
     mockCacheGet.mockResolvedValueOnce({ exists: false })
-    mockResearchPrice.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
+    mockResearchPricingLegs.mockResolvedValueOnce(LEGS_RESULT)
+    mockSynthesizePricing.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
 
     await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
 
-    expect(mockResearchPrice).toHaveBeenCalledWith('fake-key', CANDIDATE)
+    expect(mockResearchPricingLegs).toHaveBeenCalledWith('fake-key', CANDIDATE, null)
+    expect(mockSynthesizePricing).toHaveBeenCalledWith('fake-key', CANDIDATE, MERGED_LEGS, [])
     const cacheSetArg = mockCacheSet.mock.calls[0][0] as ProductPriceCacheDoc
     expect(cacheSetArg.pricing.msrp).toBe(180)
     expect(cacheSetArg.pricing.salePrice).toBe(100)
 
-    const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    // Two scan-doc updates on a cache miss: the interim leg-persistence
+    // write (PALLETIQ-045), then the final pricing/saleability write.
+    expect(mockUpdate).toHaveBeenCalledTimes(2)
+    const legsUpdateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    expect(legsUpdateArg.pricingResearchLegs).toEqual(LEGS_RESULT.legs)
+
+    const updateArg = mockUpdate.mock.calls[1][0] as Partial<ItemScanDoc>
     expect(updateArg.pricingStatus).toBe('priced')
     expect(updateArg.pricing?.msrp).toBe(180)
+    expect(updateArg.pricingResearchLegs).toBeNull()
     expect(updateArg.saleabilityStatus).toBe('scored')
     expect(typeof updateArg.saleabilityScore?.score).toBe('number')
 
@@ -121,11 +151,31 @@ describe('priceItemScanWorker', () => {
     )
   })
 
+  it("passes the scan doc's previously-persisted legs through to researchPricingLegs", async () => {
+    resetMocks()
+    const previousLegs = {
+      retailOpenBox: { retail: MERGED_LEGS.retail, openBox: MERGED_LEGS.openBox },
+      kijiji: null,
+      ebaySold: null,
+    }
+    mockGet.mockResolvedValueOnce({
+      data: () => ({ ...COMPLETED_SCAN, pricingResearchLegs: previousLegs }),
+    })
+    mockCacheGet.mockResolvedValueOnce({ exists: false })
+    mockResearchPricingLegs.mockResolvedValueOnce({ ...LEGS_RESULT, callsMade: 2 })
+    mockSynthesizePricing.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
+
+    await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
+
+    expect(mockResearchPricingLegs).toHaveBeenCalledWith('fake-key', CANDIDATE, previousLegs)
+  })
+
   it('caches and stores the verified pricing, not the pre-verification mapped result', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
     mockCacheGet.mockResolvedValueOnce({ exists: false })
-    mockResearchPrice.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
+    mockResearchPricingLegs.mockResolvedValueOnce(LEGS_RESULT)
+    mockSynthesizePricing.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
     mockVerifyPricingComps.mockResolvedValueOnce({
       msrp: 180,
       salePrice: 100,
@@ -144,7 +194,7 @@ describe('priceItemScanWorker', () => {
     await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
 
     const cacheSetArg = mockCacheSet.mock.calls[0][0] as ProductPriceCacheDoc
-    const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    const updateArg = mockUpdate.mock.calls[1][0] as Partial<ItemScanDoc>
     expect(cacheSetArg.pricing.factors).toEqual([
       { label: '1 comp link(s) could not be verified', direction: 'down', explanation: null },
     ])
@@ -173,11 +223,15 @@ describe('priceItemScanWorker', () => {
 
     await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
 
-    expect(mockResearchPrice).not.toHaveBeenCalled()
+    expect(mockResearchPricingLegs).not.toHaveBeenCalled()
+    expect(mockSynthesizePricing).not.toHaveBeenCalled()
     expect(mockCacheSet).not.toHaveBeenCalled()
     // PALLETIQ-037: a cache hit's comps were already verified at write
     // time - no need to re-verify (and re-fetch) on every hit.
     expect(mockVerifyPricingComps).not.toHaveBeenCalled()
+    // A cache hit makes exactly one scan-doc update (no interim leg write
+    // - there was nothing new to research).
+    expect(mockUpdate).toHaveBeenCalledTimes(1)
     const updateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
     expect(updateArg.pricingStatus).toBe('priced')
     expect(updateArg.pricing?.waterfallStepsUsed).toEqual(['cache'])
@@ -195,19 +249,20 @@ describe('priceItemScanWorker', () => {
         updatedAt: { toMillis: () => Date.now() - THIRTY_ONE_DAYS_MS },
       }),
     })
-    mockResearchPrice.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
+    mockResearchPricingLegs.mockResolvedValueOnce(LEGS_RESULT)
+    mockSynthesizePricing.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
 
     await priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' }))
 
-    expect(mockResearchPrice).toHaveBeenCalled()
+    expect(mockResearchPricingLegs).toHaveBeenCalled()
     expect(mockCacheSet).toHaveBeenCalled()
   })
 
-  it('marks the scan failed and rethrows when research itself fails', async () => {
+  it('marks the scan failed and rethrows when the research legs themselves fail', async () => {
     resetMocks()
     mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
     mockCacheGet.mockResolvedValueOnce({ exists: false })
-    mockResearchPrice.mockRejectedValueOnce(new Error('Gemini timed out'))
+    mockResearchPricingLegs.mockRejectedValueOnce(new Error('Gemini timed out'))
 
     await expect(
       priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' })),
@@ -220,6 +275,29 @@ describe('priceItemScanWorker', () => {
         saleabilityStatus: 'failed',
         saleabilityError: 'Gemini timed out',
       }),
+    )
+    // Never reached the leg-persistence step, since the legs call itself failed.
+    expect(mockSynthesizePricing).not.toHaveBeenCalled()
+  })
+
+  it('marks the scan failed and rethrows when synthesis fails, but the legs are already persisted', async () => {
+    resetMocks()
+    mockGet.mockResolvedValueOnce({ data: () => COMPLETED_SCAN })
+    mockCacheGet.mockResolvedValueOnce({ exists: false })
+    mockResearchPricingLegs.mockResolvedValueOnce(LEGS_RESULT)
+    mockSynthesizePricing.mockRejectedValueOnce(new Error('synthesis call failed'))
+
+    await expect(
+      priceItemScanWorker.run(request({ tenantId: 'tenant-a', scanId: 's1' })),
+    ).rejects.toThrow('synthesis call failed')
+
+    // The legs were persisted before synthesis was attempted - a Cloud
+    // Tasks retry will read them back and skip re-running them.
+    const legsUpdateArg = mockUpdate.mock.calls[0][0] as Partial<ItemScanDoc>
+    expect(legsUpdateArg.pricingResearchLegs).toEqual(LEGS_RESULT.legs)
+
+    expect(mockUpdate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ pricingStatus: 'failed', pricingError: 'synthesis call failed' }),
     )
   })
 })

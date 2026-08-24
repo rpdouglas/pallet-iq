@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai'
 import { z } from 'zod'
 import { CONDITION_GRADES } from '../item-scans/types'
 import type { ItemScanCandidate } from '../item-scans/types'
+import { logGeminiCall } from './usageLogging'
 
 const MODEL = 'gemini-3.6-flash'
 
@@ -92,6 +93,8 @@ export async function identifyItem(
       tools: [{ googleSearch: {} }],
     },
   })
+
+  logGeminiCall({ callSite: 'identifyItem', model: MODEL, grounded: true, response })
 
   const text = response.text
   if (!text) {
