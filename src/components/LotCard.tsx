@@ -1,4 +1,4 @@
-import { ExternalLink, FileText, Trash2 } from 'lucide-react'
+import { ExternalLink, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from './Badge'
 import { Button } from './Button'
@@ -33,28 +33,15 @@ export function LotCard({
 }: LotCardProps) {
   return (
     <div className="rounded-xl bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2">
-        <a
-          href={lot.productUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="text-brand-blue inline-flex items-center gap-1 font-medium hover:underline"
-        >
-          {lot.title}
-          <ExternalLink size={14} />
-        </a>
-        {lot.manifestUrl ? (
-          <a
-            href={lot.manifestUrl}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={`Manifest for ${lot.title}`}
-            className="text-slate-gray hover:text-brand-blue"
-          >
-            <FileText size={14} />
-          </a>
-        ) : null}
-      </div>
+      <a
+        href={lot.productUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="text-brand-blue inline-flex items-center gap-1 font-medium hover:underline"
+      >
+        {lot.title}
+        <ExternalLink size={14} />
+      </a>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Badge tone="slate">{lot.category}</Badge>
@@ -107,7 +94,7 @@ export function LotCard({
               >
                 Imported
               </Link>
-            ) : lot.manifestUrl ? (
+            ) : lot.hasManifest ? (
               <div className="flex flex-col items-end gap-1">
                 <Button
                   className="min-h-11"

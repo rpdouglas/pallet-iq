@@ -47,7 +47,7 @@ describe('restockLotsActions', () => {
       warehouse: 'ON1',
       productUrl: 'https://restock.ca/lot/1011402',
       imageUrl: 'https://restock.ca/img/1011402.jpg',
-      manifestUrl: null,
+      hasManifest: false,
       firstSeenAt: { toMillis: () => 1_000 },
     }
     getDocs.mockResolvedValueOnce({ docs: [{ id: '1011402', data: () => stored }] })

@@ -18,6 +18,6 @@ export interface RestockLot {
   warehouse: string | null
   productUrl: string
   imageUrl: string | null
-  manifestUrl: string | null
+  hasManifest: boolean
   firstSeenAt: Timestamp
 }

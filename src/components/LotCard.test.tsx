@@ -22,7 +22,7 @@ const LOT: RestockLot = {
   warehouse: 'ON1',
   productUrl: 'https://restock.ca/lot/1011500',
   imageUrl: null,
-  manifestUrl: 'https://restock.ca/lot/1011500/manifest.pdf',
+  hasManifest: true,
   firstSeenAt: timestamp(2_000),
 }
 
@@ -102,8 +102,8 @@ describe('LotCard', () => {
     expect(screen.getByText('Import failed')).toBeInTheDocument()
   })
 
-  it('shows an em dash instead of an Import button when there is no manifestUrl', () => {
-    renderCard({ lot: { ...LOT, manifestUrl: null } })
+  it('shows an em dash instead of an Import button when there is no manifest', () => {
+    renderCard({ lot: { ...LOT, hasManifest: false } })
 
     expect(screen.queryByRole('button', { name: 'Import' })).not.toBeInTheDocument()
     expect(screen.getByText('—')).toBeInTheDocument()

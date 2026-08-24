@@ -44,7 +44,7 @@ const OLDER_LOT: RestockLot = {
   warehouse: 'ON1',
   productUrl: 'https://restock.ca/lot/1011402',
   imageUrl: null,
-  manifestUrl: null,
+  hasManifest: false,
   firstSeenAt: timestamp(1_000),
 }
 
@@ -61,7 +61,7 @@ const NEWER_LOT: RestockLot = {
   warehouse: 'ON1',
   productUrl: 'https://restock.ca/lot/1011500',
   imageUrl: null,
-  manifestUrl: 'https://restock.ca/lot/1011500/manifest.pdf',
+  hasManifest: true,
   firstSeenAt: timestamp(2_000),
 }
 
@@ -117,7 +117,6 @@ describe('DiscoveredLotsPage', () => {
 
     expect(table.getByText('$599.00')).toBeInTheDocument()
     expect(table.getByText('$320.00')).toBeInTheDocument()
-    expect(table.getByLabelText('Manifest for Bosch cordless tool set')).toBeInTheDocument()
   })
 
   it('also renders the same lots as cards for narrow viewports', async () => {

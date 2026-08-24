@@ -106,7 +106,7 @@ export async function seedRestockLot(overrides: {
       warehouse: null,
       productUrl: `https://restock.ca/lot/${overrides.id}`,
       imageUrl: null,
-      manifestUrl: null,
+      hasManifest: false,
       status: 'active',
       firstSeenAt: now,
       lastSeenAt: now,

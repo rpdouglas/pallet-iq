@@ -237,6 +237,37 @@ describe('restock_lots (cross-tenant)', () => {
   })
 })
 
+describe('restock_lots/{lotId}/manifestItems (cross-tenant)', () => {
+  it('allows any authenticated user to read regardless of tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+    const memberOfB = testEnv.authenticatedContext('buyer-b', {
+      tenantId: TENANT_B,
+      role: 'buyer',
+    })
+
+    await assertSucceeds(
+      memberOfA.firestore().doc('restock_lots/1016710/manifestItems/item-1').get(),
+    )
+    await assertSucceeds(
+      memberOfB.firestore().doc('restock_lots/1016710/manifestItems/item-1').get(),
+    )
+  })
+
+  it('denies client writes even from an owner', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc('restock_lots/1016710/manifestItems/item-1').set({ UPC: 'fake' }),
+    )
+  })
+})
+
 describe('product_price_cache (cross-tenant)', () => {
   it('allows any authenticated user to read regardless of tenant', async () => {
     const memberOfA = testEnv.authenticatedContext('buyer-a', {
