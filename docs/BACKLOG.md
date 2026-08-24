@@ -46,6 +46,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-038 | Speed up pricing research: split the single Gemini call into parallel legs          | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                              | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)      | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)   | Buyer         | 4     | Planned     | P2       |
 
 ## Adding a ticket
 
@@ -2268,3 +2270,123 @@ still-active lot automatically. Full checklist clean: `functions` build/
 lint/`vitest run` (227/227, up from 218) and repo-root format/lint/
 typecheck/`npm test` (192/192, unaffected). No `firestore.rules`/UI
 change, as scoped.
+
+## PALLETIQ-041: Import discovered restock.ca lot's manifest into tenant inventory
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ `PALLETIQ-039`'s
+own scope note named and deferred this exact idea — "convert a discovered
+lot into a real purchase/import... a plausible future bridge, not this
+ticket's scope." Requested directly by the owner: an "Import" button on
+`DiscoveredLotsPage.tsx` for a `restock_lots` entry that pulls its manifest
+into the tenant's own inventory via the existing manifest-import pipeline.
+Sequenced before `PALLETIQ-042` (profitability scoring), which depends on
+this ticket's output (a completed tenant-scoped import) and cannot start
+first.
+
+_Pulled forward from Phase 4, same track as `PALLETIQ-020`/`021`/`031`/
+`032`/`039`/`040`:_ "automated vendor ingestion" already named in
+`docs/projects/PROJ-PALLETIQ.md`'s Phase 4 bullets, running as a parallel
+track, not gated by Phase 2/3 — see `ADR-0009`/`docs/ROADMAP.md`'s Phase 4
+pull-forward note.
+
+_In scope:_ a new Buyer/Owner-gated `onCall` (`enqueueDiscoveredLotImport`)
+that validates the target `restock_lots/{lotId}` doc (`status: 'active'`,
+non-null `manifestUrl`), writes a `queued` `imports/{importId}` doc (new
+optional `sourceRestockLotId` field), and enqueues a Cloud Tasks worker —
+never an inline fetch on the request path. The worker: fetches
+`manifestUrl` server-side from an allowlisted restock.ca host only (the URL
+always comes from the `restock_lots` doc, never client input), validates
+`Content-Type`/magic bytes against CSV/XLSX (rejecting PDF or any other
+format with an explicit "manifest not available in a supported format"
+failure status — no PDF-parsing work in this ticket), enforces `ADR-0008`'s
+existing size cap, uploads accepted content to the tenant's standard
+manifest Storage path, then hands off to the **existing, unmodified**
+`processManifestImport.ts`. Auto-provisions (get-or-create, idempotent) a
+per-tenant `vendors/restock-ca` doc (`manifestFormat: 'csv'`, name
+"Restock.ca (auto-imported)") the first time a tenant uses this feature —
+`PALLETIQ-022` already confirmed restock.ca's real manifest shape is CSV.
+Passes `restock_lots.price` through as `totalPurchasePrice`, reusing
+`ADR-0010`'s existing flat-rate-per-unit allocation unchanged. UI: an
+"Import" button + status affordance (queued/processing/completed/failed,
+mirroring `item_scans`' existing status-badge pattern) on
+`DiscoveredLotsPage.tsx`.
+
+_Out of scope, explicitly deferred:_ PDF manifest parsing (no PDF-parsing
+capability exists in the codebase; ship CSV/XLSX only, revisit if real
+usage shows PDF is common); any change to `fetchManifestLink.ts`'s
+never-verified-against-a-real-page manifest-link detection; the
+profitability scoring itself (`PALLETIQ-042`); editing/retrying a failed
+import beyond today's existing "re-upload as new import" UX
+(`ADR-0010`'s existing limitation, unchanged); the "unified sourcing view"
+question `ADR-0009`/`PALLETIQ-039` already deferred — this bridges one
+discovered lot into one import on explicit buyer action, not a merged read
+model.
+
+_Firestore/RBAC impact:_ `imports/{importId}` gains an optional
+`sourceRestockLotId: string | null` field — no rules change (still
+`isOwnerOrBuyer` write, same as today). New `tenants/{tenantId}/
+vendors/restock-ca` docs get created by this flow — existing `vendors`
+rules (`isOwnerOrBuyer` write, per `ADR-0006`/`ADR-0007` lineage) already
+cover it, confirmed at close via `firestore-rules-auditor`, not assumed
+here. No new collection.
+
+_UI pattern notes:_ button + status affordance reuses `item_scans`'
+existing status-badge pattern (queued/processing/completed/failed) rather
+than inventing a new one; `docs/design/components.md`'s Data table pattern
+(already in use on this page per `PALLETIQ-039`) is otherwise unchanged.
+
+_ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
+
+## PALLETIQ-042: Score imported lot for profitability via text-based pricing research
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ requested
+directly by the owner alongside `PALLETIQ-041`, using "a similar pricing
+mechanism to the one used for single items" (the Treasure Hunter pipeline,
+`ADR-0011`/`0012`/`0013`). **Depends on `PALLETIQ-041`** — needs a
+completed, tenant-scoped import with line items to score; cannot start
+first.
+
+_Pulled forward from Phase 4:_ "pricing intelligence engine," already named
+in `docs/projects/PROJ-PALLETIQ.md`'s Phase 4 bullets — same pull-forward
+posture as `PALLETIQ-041`/`ADR-0009`/`ADR-0011`.
+
+_In scope:_ a new Buyer/Owner-gated `onCall`
+(`enqueueLotProfitabilityScore`), callable once an import (from
+`PALLETIQ-041` or any regular manual upload) has `status: 'completed'`.
+Enqueues a Cloud Tasks worker — never inline, per governance Check II. The
+worker reads the import's `lineItems`, deduplicates by SKU/UPC (one
+research call per distinct SKU, not per unit), builds an
+`ItemScanCandidate`-shaped value directly from manifest fields for each
+distinct line item (no Gemini vision call, no photo — `priceResearch.ts`'s
+input is already text-only), and calls the **existing, unmodified**
+`priceResearch.ts` once per distinct SKU. Aggregates projected resale value
+(Σ `bottomLine.priceCad × quantity` per SKU) against landed cost (Σ
+`unitCost × quantity`, reusing `PALLETIQ-009`'s existing landed-cost
+calculation) into a lot-level profitability score/margin, written back to
+the import. Must decide and ship a per-import SKU research cap or sampling
+strategy before completion (flagged in `ADR-0015` as a real open question,
+not deferred again). UI reuses `docs/design/explainable-scoring.md`'s
+existing score-badge + factor-breakdown + provenance-labeling pattern (the
+same instantiation `ADR-0011`'s saleability score already uses) — no new
+pattern.
+
+_Out of scope, explicitly deferred:_ condition grading of manifest line
+items (manifests don't state condition; this ticket must default/flag it
+rather than guess, a real limitation to surface in the UI, not silently
+paper over); changing `priceResearch.ts`'s research logic or SOP itself;
+usage-metering/rate-limiting enforcement beyond the per-import SKU cap
+this ticket ships (same flagged-not-blocking posture `ADR-0011` used for
+`item_scans` cost); scoring lots imported before this ticket ships without
+a manual re-trigger (no backfill).
+
+_Firestore/RBAC impact:_ profitability result written to
+`imports/{importId}` (or a new `imports/{importId}/profitability` subdoc,
+left to implementation) — `isOwnerOrBuyer` write, same as today, no new
+collection expected. Confirmed at close via `firestore-rules-auditor`, not
+assumed here.
+
+_UI pattern notes:_ `docs/design/explainable-scoring.md`'s existing
+score-badge pattern, reused verbatim — no new pattern to audit for Check IV
+beyond confirming correct reuse.
+
+_ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
