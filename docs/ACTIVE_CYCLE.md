@@ -51,9 +51,14 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-  `PALLETIQ-041`/`043`/`050`/`051` closed 2026-08-24 (see Drift notes).
-  `PALLETIQ-044` (found via `041`'s own live-verification pass) is open
-  but not started. `PALLETIQ-003` is shelved, not active — see below.
+- **`PALLETIQ-052`** — Source restock.ca manifest data from the embedded
+  page table, not a file URL (`ADR-0018`). Opened 2026-08-24 while
+  investigating a user report that Discovered Lots import "keeps
+  failing" — see Drift notes for the full finding. Design/implementation
+  not started yet.
+
+  `PALLETIQ-041`/`043`/`044`/`050`/`051` closed 2026-08-24 (see Drift
+  notes). `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -3088,3 +3093,68 @@ none`, table renders exactly as it did before this ticket - no
   (`functions/.secret.local`, `functions/.env.local`) are gitignored and
   left in place, matching the documented local-dev pattern rather than
   deleted after use.
+
+- **2026-08-24 — `PALLETIQ-044` closed narrower than scoped;
+  `PALLETIQ-052` opened.** User report: "when I click to import a
+  manifest from the discovered lots page, it keeps failing." Traced
+  directly to the already-diagnosed `PALLETIQ-044` bug (opened during
+  `PALLETIQ-041`'s live-verification, never implemented):
+  `extractManifestLink`'s raw `.includes('manifest')` substring match
+  picked restock.ca's own site-wide nav link to
+  `/furniture/unmanifested-furniture/` (contains "manifest" as a
+  substring of "unmanifested") on every lot detail page, so all ~500
+  real active `restock_lots` docs shared the identical wrong
+  `manifestUrl`. Fixed with a `\bmanifests?\b` word-boundary regex
+  (excludes "unmanifested," still matches real singular/plural manifest
+  links), 2 new regression tests using the real confirmed URL, shipped
+  via PR, and deployed `scrapeRestockLots` to `mrt-pallet-iq` so the
+  ongoing hourly scrape uses the fix for newly-discovered lots.
+
+  **Then, before running the planned backfill, a much bigger finding
+  surfaced.** Minted a real access token (via the same
+  `firebase-tools`-stored-refresh-token exchange this session's
+  credential-minting pattern already used, but this time going straight
+  to Google's `oauth2googleapis.com/token` endpoint directly with
+  `firebase-tools`' own public client id/secret rather than through its
+  internal `auth.getAccessToken()` helper, which errored with an
+  unrelated internal `Cannot read properties of undefined (reading
+'sort')` - the direct token-endpoint exchange is a cleaner, more
+  robust variant of the established pattern worth reusing next time)
+  and ran the fixed extraction against real lot `1011402`'s live page as
+  a dry run. It returned `null`, not a corrected link - for every lot
+  checked before the dry run was stopped. Fetched the raw page directly
+  to understand why: **restock.ca has no downloadable manifest file
+  anywhere on these pages.** The manifest is a real HTML table (columns:
+  UPC, Merchant SKU, QTY, TITLE, MSRP, Extended) already embedded in the
+  server-rendered page, inside
+  `<script type="text/template" id="manifest-template">` - revealed by a
+  "Load manifest" button (`initializeLazyManifest()`/`loadManifestContent()`
+  in an inline `<script>`) and exported to XLSX **entirely client-side
+  in the browser** via a bundled `XLSX.utils.aoa_to_sheet(manifestData)`
+  call - no server URL is ever requested for a file. This invalidates
+  the `manifestUrl`-points-to-a-fetchable-file model the whole feature
+  has been built on since `PALLETIQ-020` - not a regression, a wrong
+  assumption present from the start (the module's own header comment
+  already flagged exactly this risk, unverified against a real page
+  until now).
+
+  Correctly stopped short of running the backfill - under the old
+  model, "backfilling" would only replace one wrong `manifestUrl` with
+  `null` across all 513 currently-active lots, which doesn't restore
+  the feature, just changes the failure mode (from a "Try again" button
+  with a clear error to a silent "—"/no-manifest state). Reported the
+  finding to the user rather than unilaterally redesigning the pipeline
+  under `PALLETIQ-044`'s existing scope. User agreed: keep the regex fix
+  (correct and already deployed, no reason to revert), skip the
+  backfill under the current model, treat the real fix as its own
+  design change. `PALLETIQ-044` closed on its actual, narrower
+  accomplishment; `PALLETIQ-052` (`ADR-0018`, not yet written) opened
+  for parsing the embedded table directly - design/implementation is
+  this cycle's next work, starting with confirming the
+  `#manifest-template` pattern holds across more than the one Furniture
+  lot checked so far.
+
+  Scratch artifacts from the dry run (`backfill-manifest-urls.mjs`, the
+  minted token, the fetched page HTML, `backfill-changes.json`) live
+  only in this session's scratchpad directory - never committed, and
+  the token expires within the hour regardless.
