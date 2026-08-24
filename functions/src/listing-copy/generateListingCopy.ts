@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import { z } from 'zod'
+import { logGeminiCall } from '../gemini/usageLogging'
 import type { ItemScanCandidate } from '../item-scans/types'
 import type { PricingResult } from '../pricing/types'
 import type { SaleabilityResult } from '../saleability/computeSaleability'
@@ -77,6 +78,8 @@ export async function generateListingCopy(
     model: MODEL,
     contents: [buildPrompt(candidate, pricing, saleability)],
   })
+
+  logGeminiCall({ callSite: 'generateListingCopy', model: MODEL, grounded: false, response })
 
   const text = response.text
   if (!text) {

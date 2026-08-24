@@ -65,6 +65,7 @@ export const enqueueItemScan = onCall<EnqueueItemScanRequest, Promise<{ scanId: 
       pricingStatus: 'not_priced',
       pricing: null,
       pricingError: null,
+      pricingResearchLegs: null,
       saleabilityStatus: 'not_scored',
       saleabilityScore: null,
       saleabilityError: null,

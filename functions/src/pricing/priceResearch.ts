@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai'
 import { z } from 'zod'
+import { logGeminiCall } from '../gemini/usageLogging'
 import type { ItemScanCandidate } from '../item-scans/types'
 
 const MODEL = 'gemini-3.6-flash'
@@ -72,13 +73,13 @@ const retailOpenBoxLegSchema = z.object({
     basis: z.enum(['listing', 'calculated']).nullable(),
   }),
 })
-type RetailOpenBoxLeg = z.infer<typeof retailOpenBoxLegSchema>
+export type RetailOpenBoxLeg = z.infer<typeof retailOpenBoxLegSchema>
 
 const kijijiLegSchema = z.object({
   newSealed: listingBandSchema,
   used: listingBandSchema,
 })
-type KijijiLeg = z.infer<typeof kijijiLegSchema>
+export type KijijiLeg = z.infer<typeof kijijiLegSchema>
 
 const ebaySoldLegSchema = z.object({
   priceCad: z.number().nullable(),
@@ -87,7 +88,20 @@ const ebaySoldLegSchema = z.object({
   exchangeRateUsed: z.number().nullable(),
   examples: z.array(compExampleSchema),
 })
-type EbaySoldLeg = z.infer<typeof ebaySoldLegSchema>
+export type EbaySoldLeg = z.infer<typeof ebaySoldLegSchema>
+
+// PALLETIQ-045. Persisted onto ItemScanDoc.pricingResearchLegs as soon as
+// each leg succeeds - a Cloud Tasks retry after a synthesis-only failure
+// reads this back and skips any leg already present here, rather than
+// re-paying for 3 already-successful grounded research calls. Only ever
+// holds a leg that genuinely succeeded (see settleLeg's flag) - a failed
+// leg's fallback default is never persisted here, so it's correctly
+// retried, not silently treated as done.
+export interface PricingResearchLegs {
+  retailOpenBox: RetailOpenBoxLeg | null
+  kijiji: KijijiLeg | null
+  ebaySold: EbaySoldLeg | null
+}
 
 const synthesisResponseSchema = z.object({
   bottomLine: z.object({
@@ -187,7 +201,7 @@ Respond with ONLY a single JSON object (no markdown code fences, no commentary, 
 }`
 }
 
-interface MergedLegs {
+export interface MergedLegs {
   retail: PriceResearchResponse['retail']
   openBox: PriceResearchResponse['openBox']
   kijiji: PriceResearchResponse['kijiji']
@@ -237,12 +251,15 @@ async function runLeg<T>(
   prompt: string,
   schema: z.ZodType<T>,
   useTools: boolean,
+  legName: string,
 ): Promise<T> {
   const response = await ai.models.generateContent({
     model: MODEL,
     contents: [prompt],
     config: useTools ? { tools: [{ googleSearch: {} }, { urlContext: {} }] } : {},
   })
+
+  logGeminiCall({ callSite: legName, model: MODEL, grounded: useTools, response })
 
   const text = response.text
   if (!text) {
@@ -269,32 +286,74 @@ function settleLeg<T>(
   return { data: fallback, flag: `${legName} research failed: ${message}` }
 }
 
-// PALLETIQ-035/038 / ADR-0012/0013. Replaces the deterministic eBay/Keepa/
-// PriceCharting/Discogs/Google Books waterfall with live-research Gemini
-// calls modeled on the owner's proven pricing SOP
+export interface PricingLegsResult {
+  merged: MergedLegs
+  legs: PricingResearchLegs
+  legFailureFlags: string[]
+  /** How many new Gemini calls this invocation actually made (0-3) - legs
+   * reused from `previousLegs` don't count, since no call was made for them. */
+  callsMade: number
+}
+
+// PALLETIQ-035/038/045 / ADR-0012/0013. Replaces the deterministic eBay/
+// Keepa/PriceCharting/Discogs/Google Books waterfall with live-research
+// Gemini calls modeled on the owner's proven pricing SOP
 // (docs/projects/SOP-Pricing-Research-v1.4.docx). Originally one
 // sequential call doing all five SOP steps in a single model turn
 // (PALLETIQ-035); split by PALLETIQ-038/ADR-0013 into three concurrent
-// research legs (retail+openBox, kijiji, ebaySold - each independent
-// per the SOP, run via Promise.allSettled so one leg's failure degrades
-// to null/empty/thin rather than sinking the whole price) plus a fourth,
-// tools-free synthesis call that applies the SOP's synthesis rules to
-// whichever legs succeeded. Worst-case wall-clock drops from the sum of
-// all steps to roughly max(three legs) + synthesis. Same overall
-// PriceResearchResponse shape as before - callers (priceItemScanWorker.ts,
-// mapPriceResearch.ts) are unaffected by this internal restructuring.
-// Governance Check II: only ever runs inside priceItemScanWorker's
-// Cloud-Tasks-dispatched worker, never inline on a user-facing request.
-export async function researchPrice(
+// research legs (retail+openBox, kijiji, ebaySold - each independent per
+// the SOP, run via Promise.allSettled so one leg's failure degrades to
+// null/empty/thin rather than sinking the whole price). Split again by
+// PALLETIQ-045 from a single researchPrice() into this function plus
+// synthesizePricing() below: the old all-in-one shape meant a synthesis-
+// only failure on Cloud Tasks retry re-ran all 3 already-successful,
+// already-paid grounded research legs from scratch (worst case 12 Gemini
+// calls for one logical price, 9 of them wasted -
+// docs/reports/2026-08-24-gemini-cost-audit.md). `previousLegs` (read from
+// ItemScanDoc.pricingResearchLegs by the caller) lets a retry skip any leg
+// that already succeeded. Governance Check II: only ever runs inside
+// priceItemScanWorker's Cloud-Tasks-dispatched worker, never inline on a
+// user-facing request.
+export async function researchPricingLegs(
   apiKey: string,
   candidate: ItemScanCandidate,
-): Promise<PriceResearchResponse> {
+  previousLegs: PricingResearchLegs | null,
+): Promise<PricingLegsResult> {
   const ai = new GoogleGenAI({ apiKey })
+  let callsMade = 0
+
+  function runOrReuse<T>(
+    previous: T | null | undefined,
+    prompt: string,
+    schema: z.ZodType<T>,
+    legName: string,
+  ): Promise<T> {
+    if (previous) {
+      return Promise.resolve(previous)
+    }
+    callsMade += 1
+    return runLeg(ai, prompt, schema, true, legName)
+  }
 
   const [retailOpenBoxSettled, kijijiSettled, ebaySoldSettled] = await Promise.allSettled([
-    runLeg(ai, buildRetailOpenBoxPrompt(candidate), retailOpenBoxLegSchema, true),
-    runLeg(ai, buildKijijiPrompt(candidate), kijijiLegSchema, true),
-    runLeg(ai, buildEbaySoldPrompt(candidate), ebaySoldLegSchema, true),
+    runOrReuse(
+      previousLegs?.retailOpenBox,
+      buildRetailOpenBoxPrompt(candidate),
+      retailOpenBoxLegSchema,
+      'priceResearch:retailOpenBox',
+    ),
+    runOrReuse(
+      previousLegs?.kijiji,
+      buildKijijiPrompt(candidate),
+      kijijiLegSchema,
+      'priceResearch:kijiji',
+    ),
+    runOrReuse(
+      previousLegs?.ebaySold,
+      buildEbaySoldPrompt(candidate),
+      ebaySoldLegSchema,
+      'priceResearch:ebaySold',
+    ),
   ])
 
   const retailOpenBox = settleLeg(retailOpenBoxSettled, 'Retail/open-box', DEFAULT_RETAIL_OPEN_BOX)
@@ -312,15 +371,41 @@ export async function researchPrice(
     ebaySold: ebaySold.data,
   }
 
-  // No fallback here, deliberately - a synthesis failure still fails the
-  // whole price (there's no bottom line without it), same all-or-nothing
-  // behavior the single-call design already had for this one step. Left
-  // to throw so priceItemScanWorker.ts's existing catch/retry handles it.
+  return {
+    merged,
+    // Only a genuinely-succeeded leg is persisted (flag === null) - a
+    // failed leg's fallback default must never be treated as "done" on a
+    // later retry, or it would silently never be retried.
+    legs: {
+      retailOpenBox: retailOpenBox.flag === null ? retailOpenBox.data : null,
+      kijiji: kijiji.flag === null ? kijiji.data : null,
+      ebaySold: ebaySold.flag === null ? ebaySold.data : null,
+    },
+    legFailureFlags,
+    callsMade,
+  }
+}
+
+// No fallback here, deliberately - a synthesis failure still fails the
+// whole price (there's no bottom line without it), same all-or-nothing
+// behavior the single-call design already had for this one step. Left to
+// throw so priceItemScanWorker.ts's existing catch/retry handles it - a
+// retry only re-runs this cheap, tools-free call, never the 3 research
+// legs above (see PricingLegsResult/previousLegs).
+export async function synthesizePricing(
+  apiKey: string,
+  candidate: ItemScanCandidate,
+  merged: MergedLegs,
+  legFailureFlags: string[],
+): Promise<PriceResearchResponse> {
+  const ai = new GoogleGenAI({ apiKey })
+
   const synthesis = await runLeg(
     ai,
     buildSynthesisPrompt(candidate, merged, legFailureFlags),
     synthesisResponseSchema,
     false,
+    'priceResearch:synthesis',
   )
 
   const finalResponse: PriceResearchResponse = {
