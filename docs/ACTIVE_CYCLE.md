@@ -2488,9 +2488,21 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   (`enqueueItemScan.ts`/`priceItemScan.ts`/`enqueueListingCopy.ts`) only
   call `taskQueue(...).enqueue(...)`, never the Gemini call or the
   worker directly. Result: 3/3 compliant chains, 0 violations - Check II
-  holds. Live end-to-end invocation via the `Agent` tool itself (not
-  just a manual walk-through of its written steps) is still worth a
-  spot-check next session once the definition is actually loaded.
+  holds.
+
+  **Confirmed again via a real live invocation, not just the manual
+  walk-through.** The new agent definition became loadable partway
+  through this same session (a later message showed it in the `Agent`
+  tool's available-types list, the same "loads at startup" limitation
+  resolving itself once whatever triggers a reload happened) - dispatched
+  it for real and it independently reproduced the identical result (3/3
+  compliant, 0 violations), including catching the same
+  `identifyItem`-name-collision nuance unprompted and separately noting
+  `retrySaleabilityScore.ts` (a fourth `onCall` in the same folder) makes
+  no Gemini call at all and correctly isn't a Check II concern. Two
+  independent passes - one manual, one the actual built subagent -
+  agreeing is stronger evidence than either alone that the procedure is
+  sound, not just that it happened to read correctly once.
 
   **Live-verified twice before merge - the actual Gemini call, and the
   actual page/RBAC, both against real `mrt-pallet-iq` data, not just
