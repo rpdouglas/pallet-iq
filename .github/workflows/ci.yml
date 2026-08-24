@@ -72,6 +72,43 @@ jobs:
 
       - run: npm run test:storage-rules
 
+  e2e:
+    name: Playwright e2e (emulator-backed)
+    # PALLETIQ-051/ADR-0017. Non-blocking while this new integration
+    # surface (emulator seam, seed helper, build/serve wiring) earns a
+    # track record - not in deploy-hosting's needs, not a required check
+    # in branch protection yet. Revisit once green for a stretch.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - run: npm ci
+
+      - run: npm ci
+        working-directory: functions
+
+      - run: npx playwright install --with-deps chromium
+
+      - name: Dummy params/secrets for the functions emulator's cold start
+        run: |
+          echo "GEMINI_API_KEY=dummy" >> functions/.secret.local
+          echo "STRIPE_SECRET_KEY=dummy" >> functions/.secret.local
+          echo "STRIPE_WEBHOOK_SECRET=dummy" >> functions/.secret.local
+          echo "STRIPE_PRO_PRICE_ID=price_dummy" >> functions/.env.local
+
+      - run: npm run test:e2e
+
   functions:
     name: Cloud Functions lint, typecheck, test, build
     runs-on: ubuntu-latest

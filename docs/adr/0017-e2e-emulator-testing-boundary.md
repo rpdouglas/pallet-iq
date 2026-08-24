@@ -113,7 +113,24 @@ jobs. Revisit to blocking once it's been green for a stretch.
   repo-documented mechanism for feeding `defineSecret` values to the
   functions emulator — future tickets adding a new `defineSecret` need to
   extend this file's dummy values too, or the `e2e` job's functions
-  emulator will fail at cold start.
+  emulator will fail at cold start. The same applies to plain
+  `defineString`/`defineInt`/`defineBoolean` params with no default (e.g.
+  `STRIPE_PRO_PRICE_ID`) — those need a dummy value in
+  `functions/.env.local` instead, or the functions emulator refuses to
+  load _any_ function (it prompts interactively for the missing value,
+  which fails outright in CI/non-interactive mode). Found live while
+  standing this up, not anticipated in the original plan.
+- The Firebase emulators (Java-backed) require **JDK 21+** specifically
+  (firebase-tools rejects older majors outright) — already satisfied in CI
+  via `setup-java@v5`, but a real constraint for anyone running
+  `npm run test:e2e` locally on an older JDK.
+- `vite preview`'s Node HTTP server resolves the bare hostname `localhost`
+  to whichever address its host's resolver prefers first, which is not
+  guaranteed to be IPv4 - on at least one environment tested during this
+  ticket, it bound only `::1`, making a hardcoded `127.0.0.1` webServer
+  URL in `playwright.config.ts` fail to connect. Fixed by using
+  `http://localhost:4173` (works for both) instead of `127.0.0.1`. Worth
+  remembering if this ever needs to bind explicitly again.
 - Two parallel copies of "what does a new tenant look like" now exist —
   `functions/src/auth/createTenant.ts` (real) and `e2e/support/seed.ts`
   (test fixture) — with no shared code between them. A future change to

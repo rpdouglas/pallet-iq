@@ -8,12 +8,10 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { getFunctions, httpsCallable } from 'firebase/functions'
+import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
-import { app, db, storage } from '../firebase'
+import { db, functions, storage } from '../firebase'
 import type { ImportErrorRecord, ImportSummary, LineItem } from '../../types/manifest'
-
-const functions = getFunctions(app)
 
 // Client-generated so the file can be uploaded to Storage at a path
 // containing this ID *before* enqueueManifestImport is called - see

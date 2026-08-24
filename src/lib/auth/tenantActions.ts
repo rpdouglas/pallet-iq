@@ -1,8 +1,6 @@
-import { getFunctions, httpsCallable } from 'firebase/functions'
-import { app, auth } from '../firebase'
+import { httpsCallable } from 'firebase/functions'
+import { auth, functions } from '../firebase'
 import type { Role } from '../../types/auth'
-
-const functions = getFunctions(app)
 
 /**
  * Forces a fresh ID token immediately after a claims-changing call resolves

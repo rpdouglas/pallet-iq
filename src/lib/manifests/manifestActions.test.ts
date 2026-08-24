@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('../firebase', () => ({ db: {}, storage: {}, app: {} }))
+vi.mock('../firebase', () => ({ db: {}, storage: {}, functions: {} }))
 
 const collection = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => path)
 const doc = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown) => ({
@@ -32,8 +32,7 @@ const httpsCallableFn = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const httpsCallable = vi.fn<(...args: unknown[]) => (data: unknown) => Promise<unknown>>(
   () => httpsCallableFn,
 )
-const getFunctions = vi.fn<(...args: unknown[]) => unknown>()
-vi.mock('firebase/functions', () => ({ getFunctions, httpsCallable }))
+vi.mock('firebase/functions', () => ({ httpsCallable }))
 
 const {
   newImportId,
@@ -76,7 +75,7 @@ describe('manifestActions', () => {
 
     const result = await enqueueManifestImport(params)
 
-    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'enqueueManifestImport')
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'enqueueManifestImport')
     expect(httpsCallableFn).toHaveBeenCalledWith(params)
     expect(result).toEqual({ importId: 'import-1' })
   })

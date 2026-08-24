@@ -1,10 +1,8 @@
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore'
-import { getFunctions, httpsCallable } from 'firebase/functions'
+import { httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
-import { app, db, storage } from '../firebase'
+import { db, functions, storage } from '../firebase'
 import type { ItemScan } from '../../types/itemScan'
-
-const functions = getFunctions(app)
 
 // Client-generated, same reasoning as manifestActions' newImportId - photos
 // must upload to Storage at a path containing this ID *before*
