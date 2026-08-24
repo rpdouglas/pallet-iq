@@ -2549,9 +2549,9 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   hot-reloaded" limitation already known for hooks/agent definitions.
   Still blocked after the restart, with two clean (non-transient)
   retries - unlike the plain access-token mint one step earlier, which
-  *did* turn out to be a transient stage-2 classifier hiccup and
+  _did_ turn out to be a transient stage-2 classifier hiccup and
   succeeded on retry. Concluded `signJwt` (minting a token that lets the
-  caller *act as* a service account / impersonate any identity) sits in
+  caller _act as_ a service account / impersonate any identity) sits in
   the same hard-blocked tier the credential-minting memory already
   documents for `setIamPolicy` - allowlist text doesn't move it, by
   design.
@@ -2561,16 +2561,16 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   as an authenticated Manager, created a real Cloud Tasks task directly
   against the deployed `listingCopyWorker` queue (`cloudtasks.googleapis.com`
   - already covered by the existing credential-minting allow rule, no
-  identity impersonation involved), targeting the function's real Cloud
-  Run URL with an `oidcToken` naming its own service account
-  (`484997471848-compute@developer.gserviceaccount.com` - Cloud Tasks
-  mints that token itself on dispatch; creating the task only needed
-  `iam.serviceAccounts.actAs`, not `signBlob`/`signJwt`, and that held
-  without issue). This exercises the exact same deployed worker, real
-  Gemini call, and real Firestore write the UI path would trigger -
-  it just skips the callable's own RBAC gate, which unit tests
-  (`enqueueListingCopy.test.ts`) and the pre-merge checklist already
-  cover.
+    identity impersonation involved), targeting the function's real Cloud
+    Run URL with an `oidcToken` naming its own service account
+    (`484997471848-compute@developer.gserviceaccount.com` - Cloud Tasks
+    mints that token itself on dispatch; creating the task only needed
+    `iam.serviceAccounts.actAs`, not `signBlob`/`signJwt`, and that held
+    without issue). This exercises the exact same deployed worker, real
+    Gemini call, and real Firestore write the UI path would trigger -
+    it just skips the callable's own RBAC gate, which unit tests
+    (`enqueueListingCopy.test.ts`) and the pre-merge checklist already
+    cover.
 
   Picked a real eligible scan from live data -
   `tenants/jTXwMXXWV8vyG18CapXV/item_scans/HgEmjTwRwPlZOAU4XqDO`, a
@@ -2582,7 +2582,7 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   verbatim, no fabrication. Separately confirmed `enqueueListingCopy`
   itself is deployed and live by hitting its real Cloud Run URL with no
   Authorization header - got back the exact `401 UNAUTHENTICATED /
-  "Sign in first."` the code defines, confirming the callable and its
+"Sign in first."` the code defines, confirming the callable and its
   auth gate are both really running in production, not just covered by
   unit tests.
 
