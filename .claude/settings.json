@@ -12,5 +12,8 @@
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "media-pipeline@media-pipeline-marketplace": true
   }
 }
