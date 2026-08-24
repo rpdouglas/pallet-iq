@@ -2803,3 +2803,35 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   Functions, which bypasses client rules). Check II: n/a, no new Gemini/
   Vertex call site. Live deployment/verification deferred until `047`
   also lands, per the owner's request to verify all three together.
+
+- **2026-08-24 — PALLETIQ-047 closed. Completes the 3-ticket run executing
+  `docs/reports/2026-08-24-gemini-cost-audit.md`** (`045` cost-visibility
+  logging + pricing retry fix; `046` usage metering + free-tier cap;
+  `047` this one - the model choice). Shipped exactly per the `BACKLOG.md`
+  scope note, no drift: `const MODEL = 'gemini-3.6-flash'` →
+  `'gemini-2.5-flash'` in the three real Gemini call sites
+  (`gemini/identifyItem.ts`, `pricing/priceResearch.ts`,
+  `listing-copy/generateListingCopy.ts`), nothing else touched. Recorded
+  explicitly, as scoped, as a **direct decision, not a formally validated
+  one** - the owner chose to skip a before/after accuracy comparison and
+  rely on `045`'s new structured logging plus their own monitoring to
+  catch a regression, if any. No ADR, per the scope note's own reasoning:
+  a swappable model-string parameter within `ADR-0011`/`0012`/`0013`'s
+  already-decided architecture, trivially revertible.
+
+  Full checklist clean: `functions` `npm run build`/`lint`/`vitest run`
+  (293/293, unaffected - no test asserts a specific model string) and
+  repo-root `format:check`/`lint`/`typecheck`/`npm test` (210/210,
+  unaffected). `firestore-rules-auditor`/Check IV: n/a, no rules/UI
+  change. Check II: n/a, no new Gemini/Vertex call site, all three
+  existing ones unchanged in shape.
+
+  **Live deployment/verification for all three of `045`/`046`/`047`
+  happens next**, together, per the owner's own request - deploying
+  `enqueueItemScan`/`processItemScan`/`priceItemScan`/
+  `priceItemScanWorker`/`enqueueListingCopy`/`listingCopyWorker` to
+  `mrt-pallet-iq` and confirming against real data: the structured logs
+  actually appear, the usage counter actually increments, the retry-fix
+  actually skips already-succeeded legs, the free-tier cap actually
+  rejects over the limit, and `gemini-2.5-flash` produces sane output for
+  a real identify + price call.
