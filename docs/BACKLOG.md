@@ -35,7 +35,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-027 | Treasure Hunter: category-specialist pricing + saleability score                    | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-028 | Treasure Hunter: outcome-data flywheel into `product_intelligence`                  | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-029 | Treasure Hunter: fashion/sneaker category via compliant paid vendor                 | Buyer         | 4     | Planned     | P2       |
-| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Planned     | P2       |
+| PALLETIQ-030 | Treasure Hunter: listing title/description generation from scan record              | Store Manager | 4     | Done        | P2       |
 | PALLETIQ-031 | Fix restock.ca scraper dropping lots with prefixed lot numbers (e.g. `105-XXXXXX`)  | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-032 | Fix restock.ca scraper OOM-crashing on every run past the first                     | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-033 | Treasure Hunter: dedicated saleability-only retry (not a full pricing re-run)       | Buyer         | 2     | Done        | P2       |
@@ -1660,6 +1660,42 @@ _ADR:_ written - [`ADR-0014`](../adr/0014-listing-copy-generation.md),
 superseding this note's own stale `ai_tasks`/inventory-linkage
 assumptions; originating plan still `ADR-0011`/`treasure-hunter-plan.md`
 §8.
+
+_Close-out (2026-08-24):_ shipped exactly per `ADR-0014`, no further
+drift. `generateListingCopy.ts` (a text-only Gemini call, no photos
+re-sent) + `enqueueListingCopy.ts`/`listingCopyWorker.ts` (the same
+dedicated-onCall-plus-`onTaskDispatched`-worker pair
+`identifyItem.ts`/`priceResearch.ts` already established) + three new
+`item_scans` fields (`listingCopyStatus`/`listingCopy`/
+`listingCopyError`). New `ScannedItemsPage.tsx` at `/scanned-items`
+(Owner/Manager-gated route and nav item), reusing the Data table pattern
+and a new `TextAreaField.tsx` (the multi-line `TextField.tsx` mirror this
+ticket's own scope note flagged as a documented gap). 33 new tests
+(8 `generateListingCopy` + 11 `enqueueListingCopy` + 6
+`listingCopyWorker` + 2 `itemScanActions` + 6 `ScannedItemsPage`).
+Check IV (`design-system-auditor`, dispatched against all four
+new/changed UI files): clean pass, no violations - confirmed
+`TextAreaField.tsx` faithfully mirrors `TextField.tsx`, the Data table
+pattern matches `WatchlistPage.tsx`/`DiscoveredLotsPage.tsx` precedent,
+touch targets/RBAC-omission/mobile treatment all correct. No
+`firestore.rules` change, as scoped.
+
+**Live-verified twice before merge, not just unit-tested.** (1) The
+actual Gemini call, against real data via the compiled output: a
+genuinely thin-data fair-condition item correctly produced honest,
+undersold-appropriate copy ("sold as-is for parts, repair, or a rebuild
+project") without fabricating anything beyond the given `$15 CAD` price;
+a second run with `salePrice: null` correctly produced copy with zero
+dollar figures, confirming the "don't invent a price" instruction holds.
+(2) The actual page/RBAC via a real Playwright session against real
+`mrt-pallet-iq` Firestore (pre-deploy, so scoped to what's live-testable
+without the not-yet-deployed callable - the "Generate listing copy"
+click-through itself is covered in the post-merge live-verification
+pass instead): signed in as a real Manager, confirmed `/scanned-items`
+renders a real priced scan correctly with the nav item visible; signed
+in as a real Buyer, confirmed the route redirects away and the nav item
+is correctly absent - the RBAC boundary holds in both directions, not
+just per the Check IV audit's static read of the code.
 
 _Scope note on `PALLETIQ-031` (2026-08-22) — Planning gate only, not started:_
 

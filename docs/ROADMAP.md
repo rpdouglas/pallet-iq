@@ -81,14 +81,18 @@ phase, tracked in `docs/BACKLOG.md` - all **Done**. `PALLETIQ-039` (the
 `restock_lots` browse UI `PALLETIQ-020` itself deferred) and `040` (a
 scraper category-field data-quality fix found via `039`'s own live
 verification) are the same pull-forward, both **Done** as of this
-update. `PALLETIQ-028`/
-`029`/`030` (the later half of the "Treasure Hunter" item-identification
-track — real eBay sold-comps/outcome-data flywheel, fashion/sneaker
-categories, and the first "beyond pricing" listing-copy feature) are a
-slice of this phase's "Pricing intelligence engine" and "Listing copy
-generation" bullets pulled forward the same way (see `ADR-0011`;
-`PALLETIQ-025`/`026`/`027`, the earlier half of the same track, are noted
-under Phase 2 instead). All of these run as a parallel track alongside
+update. `PALLETIQ-028`/`029`/`030` are the later half of the "Treasure
+Hunter" item-identification track (real eBay sold-comps/outcome-data
+flywheel, fashion/sneaker categories, and the first "beyond pricing"
+listing-copy feature) - a slice of this phase's "Pricing intelligence
+engine" and "Listing copy generation" bullets pulled forward the same
+way (see `ADR-0011`; `PALLETIQ-025`/`026`/`027`, the earlier half of the
+same track, are noted under Phase 2 instead). `PALLETIQ-030` (listing
+copy generation, `ADR-0014`) is **Done**; `028`/`029` stay **Planned**,
+each blocked on external vendor/API access their own scope notes
+require confirmed first (eBay Marketplace Insights approval, a
+compliant paid fashion/sneaker data vendor) - not engineering-ready
+work. All of these run as a parallel track alongside
 Phase 2 — not blocking or blocked by it — so don't read this phase's ⚪
 status as meaning no work has started; see `ADR-0009`/`ADR-0011` and
 `docs/projects/PROJ-PALLETIQ.md`'s Phase 4 section for the full rationale.

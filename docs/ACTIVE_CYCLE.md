@@ -2398,3 +2398,93 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   manifest-import form field with zero live coverage) is deliberately not
   chased here - low-stakes, cheap to fold into any future manifest-import
   live check instead of a standalone pass.
+
+- **2026-08-24 — PALLETIQ-030 closed** ("Treasure Hunter: listing
+  title/description generation from scan record" - the first "beyond
+  pricing" feature, and the first ticket in this track for a persona
+  other than Buyer). Requested directly by the owner right after the
+  backlog review that confirmed it was the only remaining ready-to-build
+  ticket (`PALLETIQ-028`/`029` both stay blocked on external vendor/API
+  access, per their own scope notes).
+
+  **Drift, resolved before implementation, not after:** this ticket
+  already had a scope note from 2026-08-22 (written alongside the
+  original `PALLETIQ-025`-`030` batch, before any of them shipped) built
+  on two assumptions that turned out stale once checked against the
+  actual codebase - it said the work would "extend the existing
+  `ai_tasks` pipeline" and surface the draft "on the inventory item [the
+  scan is] associated with." Neither held: `ai_tasks` (`ADR-0004`) was
+  never actually adopted by either real Gemini call site that shipped
+  since (`PALLETIQ-025`/`035` each built their own dedicated worker
+  instead) - `ADR-0004` itself got a dated addendum and its `Status`
+  flipped from a never-updated `Proposed` to `Accepted` (its core
+  Cloud-Tasks-over-Firestore-trigger decision _is_ exactly what's
+  followed; only the shared-collection prediction was wrong). And no
+  link has ever existed anywhere in the codebase between an `item_scans`
+  doc and an `InventoryItem` - `docs/personas/store-manager.md` had
+  already quietly settled this by specifying Manager reads `item_scans`
+  directly, which `ADR-0014` (written before implementation started)
+  made the official decision. Both corrections landed in `docs/BACKLOG.md`
+  and a new `ADR-0014` before any code was written, not discovered
+  mid-implementation and patched around.
+
+  **Shipped exactly per `ADR-0014`.** `generateListingCopy.ts` - the
+  third real Gemini call site in the codebase, text-only (no photos,
+  no search grounding - a writing task over already-gathered data, not a
+  research task), following the same dedicated-`onCall`-plus-
+  `onTaskDispatched`-worker shape `identifyItem.ts`/`priceResearch.ts`
+  already established. Three new `item_scans` fields
+  (`listingCopyStatus`/`listingCopy`/`listingCopyError`), Owner/Manager-
+  gated (`enqueueListingCopy.ts`'s own RBAC check, matching
+  `priceItemScan.ts`'s precedent). New `ScannedItemsPage.tsx` at
+  `/scanned-items` - the first Manager-only page in the app - reusing the
+  established Data table pattern, plus a new `TextAreaField.tsx`
+  (`TextField.tsx`'s multi-line mirror, closing the "editable AI draft"
+  pattern gap this ticket's own scope note flagged). 33 new tests across
+  5 files. No `firestore.rules` change - `item_scans`' existing
+  `read: isTenantMember` rule already covered Manager.
+
+  **Governance:** Check IV (`design-system-auditor`, dispatched against
+  all four new/changed UI files) - clean pass, no violations. Check III
+  (RBAC in UI and rules) - first real exercise of this check for the
+  Manager role specifically; nav item and route use the same `owner`/
+  `manager` role set, nav item omitted from the DOM entirely for other
+  roles (not hidden), confirmed both by the audit and by a live check
+  (see below). Check II (async AI boundary) - this is the trigger point
+  `CLAUDE.md`'s own governance notes already named ("worth building
+  [`async-ai-boundary-auditor`] once a third AI call site lands") - now
+  three real sites exist (`identifyItem.ts`, `priceResearch.ts`,
+  `generateListingCopy.ts`), all following the identical Cloud-Tasks-
+  worker pattern by inspection, but the subagent itself is still not
+  built. Flagging this explicitly rather than letting the note go stale
+  a second time - worth building the next time a fourth site lands, or
+  sooner if manual review starts missing something these three didn't.
+  No new `firestore.rules`, so `firestore-rules-auditor` wasn't
+  dispatched (no new collection, no rules-file diff).
+
+  **Live-verified twice before merge - the actual Gemini call, and the
+  actual page/RBAC, both against real `mrt-pallet-iq` data, not just
+  mocks.** (1) `generateListingCopy` run directly via the compiled
+  output against two real cases: a genuinely thin-data, fair-condition
+  item (the same live-tested Bosch drill from earlier today's
+  retroactive audit pass) produced honest, appropriately-hedged copy -
+  "sold as-is for parts, repair, or a rebuild project" - using the real
+  `$15 CAD` price without embellishing anything beyond what was given;
+  a second run with `salePrice: null` produced copy with zero dollar
+  figures anywhere, confirming the "don't invent a price" prompt
+  instruction actually holds against the real model, not just in a
+  mocked test. (2) A real Playwright session against real `mrt-pallet-iq`
+  Firestore (pre-deploy - the callable itself isn't live yet, so this
+  covered what's testable without it): signed in as a real Manager,
+  confirmed `/scanned-items` renders a real seeded priced scan correctly
+  with the nav item present; signed in as a real Buyer in a second
+  session, confirmed the route redirects away to `/` and the nav item is
+  correctly absent from the DOM. The RBAC boundary was watched holding in
+  both directions live, not just read statically off the code. The
+  "Generate listing copy" click-through itself (the one piece needing the
+  deployed callable) is scoped to the post-merge live-verification pass,
+  same pattern every other Gemini-call ticket this session has followed.
+
+  Full checklist clean: `functions` `npm run build`/`lint`/`vitest run`
+  (252/252, up from 227) and repo-root `format:check`/`lint`/`typecheck`/
+  `npm test` (200/200, up from 192).

@@ -11,6 +11,7 @@ import { ItemScanPage } from './pages/ItemScanPage'
 import { ManifestDetailPage } from './pages/ManifestDetailPage'
 import { ManifestsPage } from './pages/ManifestsPage'
 import { OnboardingPage } from './pages/OnboardingPage'
+import { ScannedItemsPage } from './pages/ScannedItemsPage'
 import { SignInPage } from './pages/SignInPage'
 import { SignUpPage } from './pages/SignUpPage'
 import { VendorsPage } from './pages/VendorsPage'
@@ -64,6 +65,14 @@ function App() {
           element={
             <RequireRole roles={['owner', 'buyer']}>
               <ItemScanPage />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/scanned-items"
+          element={
+            <RequireRole roles={['owner', 'manager']}>
+              <ScannedItemsPage />
             </RequireRole>
           }
         />

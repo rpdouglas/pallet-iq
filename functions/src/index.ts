@@ -42,3 +42,9 @@ export { priceItemScanWorker } from './item-scans/priceItemScanWorker'
 // PALLETIQ-033 / ADR-0011, simplified to a synchronous recompute by
 // PALLETIQ-035 / ADR-0012 (no more separate slow data source to re-fetch).
 export { retrySaleabilityScore } from './item-scans/retrySaleabilityScore'
+
+// PALLETIQ-030 / ADR-0014. Owner/Manager-triggered, not automatic - unlike
+// pricing, there's no reason to generate copy for every scan the instant
+// it's priced.
+export { enqueueListingCopy } from './item-scans/enqueueListingCopy'
+export { listingCopyWorker } from './item-scans/listingCopyWorker'

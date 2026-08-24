@@ -4,6 +4,7 @@ import {
   Building2,
   Camera,
   FileSpreadsheet,
+  FileText,
   Gavel,
   LayoutDashboard,
   Menu,
@@ -42,6 +43,16 @@ const NAV_ITEMS: NavItem[] = [
 // needs the same reflection in the UI) - omitted from the DOM for other
 // roles rather than shown-and-disabled, per docs/design/rbac-ui-patterns.md.
 const SCAN_NAV_ITEM: NavItem = { to: '/scan', label: 'Scan item', icon: Camera }
+
+// PALLETIQ-030 / ADR-0014. Owner/Manager only - enqueueListingCopy's own
+// RBAC gate, reflected here per Check III (item_scans' own read rule is
+// broader - isTenantMember - but that's pre-existing from PALLETIQ-025,
+// not a boundary this ticket introduces or narrows).
+const SCANNED_ITEMS_NAV_ITEM: NavItem = {
+  to: '/scanned-items',
+  label: 'Scanned items',
+  icon: FileText,
+}
 
 function navLinkClassName({ isActive }: { isActive: boolean }): string {
   // Pallet-IQ-Design-System.md §4 Navigation: Brand Blue pill + white text
@@ -91,7 +102,12 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { role } = useAuth()
   const canScan = role === 'owner' || role === 'buyer'
-  const navItems = canScan ? [...NAV_ITEMS, SCAN_NAV_ITEM] : NAV_ITEMS
+  const canManageListings = role === 'owner' || role === 'manager'
+  const navItems = [
+    ...NAV_ITEMS,
+    ...(canScan ? [SCAN_NAV_ITEM] : []),
+    ...(canManageListings ? [SCANNED_ITEMS_NAV_ITEM] : []),
+  ]
 
   return (
     <div className="md:flex md:min-h-svh">
