@@ -4,13 +4,12 @@ import { CONDITION_GRADES } from '../item-scans/types'
 import type { ItemScanCandidate } from '../item-scans/types'
 import { logGeminiCall } from './usageLogging'
 
-// PALLETIQ-047. Switched from gemini-3.6-flash per
-// docs/reports/2026-08-24-gemini-cost-audit.md - cheaper tokens and a far
-// more generous free Google Search grounding tier. A direct decision, not
-// formally validated against real scans - watch this call site's
-// structured logs (gemini/usageLogging.ts, PALLETIQ-045) and real
-// identification accuracy for a regression.
-const MODEL = 'gemini-2.5-flash'
+// PALLETIQ-047 attempted switching to gemini-2.5-flash but reverted
+// immediately - live-verification found the real API rejects it for this
+// project ("no longer available to new users", 404), even though it's
+// still listed with pricing on Google's public pricing page. See that
+// ticket's close-out drift note for the full account.
+const MODEL = 'gemini-3.6-flash'
 
 // Confidence threshold above which the top candidate auto-resolves the
 // scan; below it, the Buyer is shown the top candidates to pick from
