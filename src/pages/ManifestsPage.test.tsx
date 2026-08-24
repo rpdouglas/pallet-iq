@@ -64,6 +64,7 @@ const IMPORT: ImportSummary = {
   freightCost: 0,
   otherFees: 0,
   totalPurchasePrice: null,
+  sourceRestockLotId: null,
 }
 
 function renderPage(role: Role) {
