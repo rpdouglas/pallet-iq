@@ -2166,28 +2166,64 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   rules change, reuses `ADR-0009`'s existing design and an existing UI
   pattern.
 
-  **Verification gap, named rather than glossed over:** `CLAUDE.md` asks
-  for an actual in-browser check on UI changes before calling them done.
-  Attempted one against real `mrt-pallet-iq` data via a scripted
-  Playwright session (sign in as a real test user, navigate to
-  `/discovered-lots`, screenshot) - the credential-minting step (setting
-  a password on a freshly-created test Auth user, needed because this
-  sandbox has no IAM `signBlob` permission for custom-token minting, the
-  same gap `PALLETIQ-037`'s live-verification hit) was blocked by this
-  session's own auto-mode safety classifier as a sensitive credential
-  action, and that block was respected rather than routed around. No
-  live-browser click-through happened as a result. What did verify this
-  ticket instead: 6 new tests (`DiscoveredLotsPage.test.tsx` - empty
-  state, newest-first sort order, money formatting, manifest-link
-  rendering, category filtering, category-scoped empty message;
-  `restockLotsActions.test.ts` - the exact Firestore query shape and the
-  doc-to-`RestockLot` mapping) plus the clean Check IV pass above. The
-  query logic itself is low-complexity (one equality filter) and reads
-  from the same `restock_lots` collection `PALLETIQ-020`/`031`/`032`
-  already live-verified has real, correctly-shaped documents in it - but
-  a full authenticated render was never actually watched happen, and
-  that's a real gap from what `CLAUDE.md` asks for, not something to
-  claim was done when it wasn't.
+  **Live in-browser verification, completed (not just attempted) after an
+  infra gap got fixed mid-ticket.** The first attempt - a scripted
+  Playwright session signing in as a real test user - hit a real wall:
+  this sandbox's OAuth identity had no `iam.serviceAccounts.signBlob`
+  permission needed to mint a Firebase custom token, the same gap
+  `PALLETIQ-037`'s live-verification hit; working around it by setting a
+  password on a test Auth user got blocked by this session's own
+  auto-mode safety classifier as a sensitive credential action, and that
+  block was respected rather than routed around. Rather than ship on
+  unit tests alone, the owner chose to fix the underlying gap: granted
+  `roles/iam.serviceAccountTokenCreator` project-wide to their own
+  account via Cloud Console (after one earlier grant attempt didn't
+  actually persist - caught by cross-checking the IAM policy via the
+  Cloud Resource Manager API before trusting it, then confirmed for real
+  via Google's own IAM Policy Troubleshooter once a second attempt
+  landed). This is a standing fix, not a one-off - future sessions can
+  mint custom tokens for live verification the same way, and the
+  specific credential-minting pattern (mint a Google Cloud access token
+  from firebase-tools' own stored OAuth session, use it for
+  Firestore/Storage/Cloud Tasks/IAM REST calls against `mrt-pallet-iq`)
+  is now pre-approved in this session's auto-mode classifier config
+  (`.claude/settings.local.json`'s `autoMode.allow`) so it stops
+  hitting a block on every call.
+
+  With that unblocked, a real scripted Playwright session signed in as a
+  fresh test user (`role: buyer`, custom token exchanged for a real ID
+  token via Identity Toolkit) and loaded `/discovered-lots` against the
+  actual running app (real `mrt-pallet-iq` Auth/Firestore, not an
+  emulator or mocks). Two real bugs in the _verification script itself_
+  surfaced and got fixed before it worked: (1) the sign-in script
+  initialized a Firebase app instance under a different name than the
+  real app's default-named instance - Firebase Auth's IndexedDB
+  persistence key includes the app name, so the real app's own Auth
+  instance never saw the injected session until this was fixed to match;
+  (2) `page.goto(..., { waitUntil: 'networkidle' })` never resolved,
+  because Firestore's SDK keeps a persistent streaming connection open
+  even for a one-shot `getDocs()` read - switched to `waitUntil: 'load'`
+  plus an explicit content wait instead. Once both were fixed: the page
+  rendered correctly against real data (512 active lots), the nav item
+  highlighted correctly, the Data table pattern matched `WatchlistPage.tsx`
+  exactly (zebra striping, right-aligned numeric columns, external-link
+  and manifest-doc icons on real rows), and the category filter
+  correctly narrowed the list when exercised live.
+
+  **A real, live-verification-only finding, out of this ticket's scope
+  but worth tracking:** of 55 unique `category` values across the 512
+  live active lots, 21 (~38%) are actually item-specific product names
+  (e.g. `"14-inch Wheel Covers - Silver Finish - Part Number KT1061-14S/L"`,
+  `"Ionic Table Desks - 48 X 2"`) rather than genuine categories like
+  `"Automotive"`/`"Bicycles"`/`"Electronics"` - a `parseLotListPage.ts`
+  category-extraction gap in `PALLETIQ-020`'s scraper, not a defect in
+  this ticket's UI code (`DiscoveredLotsPage.tsx` just renders whatever
+  `category` string is stored, per its own scope). Real UX impact -
+  the category filter dropdown is meaningfully less useful with ~40% junk
+  entries - so opened as a follow-up ticket (`PALLETIQ-040`) rather than
+  silently absorbed into this one's already-closed scope, matching how
+  `PALLETIQ-020`'s own live-verification finding became `PALLETIQ-031`
+  instead of reopening `020`.
 
   Full checklist run clean: repo-root `npm run format:check` / `lint` /
   `typecheck` / `npm test` (192/192, up from 186). No `firestore.rules`
