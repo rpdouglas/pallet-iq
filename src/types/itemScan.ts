@@ -71,6 +71,14 @@ export interface SaleabilityResult {
   factors: PricingFactor[]
 }
 
+// PALLETIQ-030 / ADR-0014.
+export type ListingCopyStatus = 'not_generated' | 'generating' | 'generated' | 'failed'
+
+export interface ListingCopy {
+  title: string
+  description: string
+}
+
 // PALLETIQ-025 / ADR-0011. Mirrors functions/src/item-scans/types.ts's
 // ItemScanDoc - kept as a plain client-side interface (id added on read),
 // not re-exported from functions, since the two packages don't share a
@@ -88,4 +96,7 @@ export interface ItemScan {
   saleabilityStatus: SaleabilityStatus
   saleabilityScore: SaleabilityResult | null
   saleabilityError: string | null
+  listingCopyStatus: ListingCopyStatus
+  listingCopy: ListingCopy | null
+  listingCopyError: string | null
 }

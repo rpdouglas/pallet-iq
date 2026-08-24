@@ -8,12 +8,23 @@ const doc = vi.fn<(...args: unknown[]) => unknown>((_db: unknown, path: unknown)
   path,
 }))
 const getDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+const getDocs = vi.fn<(...args: unknown[]) => Promise<unknown>>()
 const updateDoc = vi.fn<(...args: unknown[]) => Promise<unknown>>()
+const query = vi.fn<(...args: unknown[]) => unknown>((ref: unknown, ...clauses: unknown[]) => ({
+  ref,
+  clauses,
+}))
+const where = vi.fn<(...args: unknown[]) => unknown>(
+  (field: unknown, op: unknown, value: unknown) => ({ field, op, value }),
+)
 vi.mock('firebase/firestore', () => ({
   collection,
   doc,
   getDoc,
+  getDocs,
   updateDoc,
+  query,
+  where,
 }))
 
 const ref = vi.fn<(...args: unknown[]) => unknown>((_storage: unknown, path: unknown) => path)
@@ -34,6 +45,8 @@ const {
   getItemScan,
   selectItemScanCandidate,
   priceItemScan,
+  enqueueListingCopy,
+  listPricedItemScans,
 } = await import('./itemScanActions')
 
 describe('itemScanActions', () => {
@@ -109,5 +122,26 @@ describe('itemScanActions', () => {
 
     expect(httpsCallable).toHaveBeenCalledWith(undefined, 'priceItemScan')
     expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
+  })
+
+  it('enqueueListingCopy calls the callable with the given scanId', async () => {
+    httpsCallableFn.mockResolvedValueOnce({ data: null })
+
+    await enqueueListingCopy('scan-1')
+
+    expect(httpsCallable).toHaveBeenCalledWith(undefined, 'enqueueListingCopy')
+    expect(httpsCallableFn).toHaveBeenCalledWith({ scanId: 'scan-1' })
+  })
+
+  it('listPricedItemScans queries item_scans filtered to pricingStatus == priced', async () => {
+    getDocs.mockResolvedValueOnce({
+      docs: [{ id: 'scan-1', data: () => ({ status: 'completed', pricingStatus: 'priced' }) }],
+    })
+
+    const result = await listPricedItemScans('tenant-a')
+
+    expect(collection).toHaveBeenCalledWith({}, 'tenants/tenant-a/item_scans')
+    expect(where).toHaveBeenCalledWith('pricingStatus', '==', 'priced')
+    expect(result).toEqual([{ id: 'scan-1', status: 'completed', pricingStatus: 'priced' }])
   })
 })

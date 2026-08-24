@@ -1,4 +1,4 @@
-import { collection, doc, getDoc, updateDoc } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref, uploadBytes } from 'firebase/storage'
 import { app, db, storage } from '../firebase'
@@ -71,4 +71,25 @@ export async function priceItemScan(scanId: string): Promise<void> {
 export async function retrySaleabilityScore(scanId: string): Promise<void> {
   const call = httpsCallable<{ scanId: string }, null>(functions, 'retrySaleabilityScore')
   await call({ scanId })
+}
+
+// PALLETIQ-030 / ADR-0014. Owner/Manager-triggered - enqueue-only, the
+// generated copy arrives via the item_scans doc once listingCopyWorker
+// finishes, same polling pattern as pricing/saleability.
+export async function enqueueListingCopy(scanId: string): Promise<void> {
+  const call = httpsCallable<{ scanId: string }, null>(functions, 'enqueueListingCopy')
+  await call({ scanId })
+}
+
+// PALLETIQ-030 / ADR-0014. ScannedItemsPage.tsx's browse list - every
+// priced scan in the tenant, not just ones with generated copy yet
+// (that's what the page's own "Generate listing copy" action is for). A
+// single equality filter on pricingStatus, sorted client-side - same
+// no-composite-index choice PALLETIQ-039's listActiveRestockLots made,
+// reasonable at this collection's per-tenant scale.
+export async function listPricedItemScans(tenantId: string): Promise<ItemScan[]> {
+  const snap = await getDocs(
+    query(collection(db, `tenants/${tenantId}/item_scans`), where('pricingStatus', '==', 'priced')),
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<ItemScan, 'id'>) }))
 }

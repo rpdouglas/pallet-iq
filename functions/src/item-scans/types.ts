@@ -4,6 +4,14 @@ import type { SaleabilityResult } from '../saleability/computeSaleability'
 
 export type SaleabilityStatus = 'not_scored' | 'scoring' | 'scored' | 'failed'
 
+// PALLETIQ-030 / ADR-0014.
+export type ListingCopyStatus = 'not_generated' | 'generating' | 'generated' | 'failed'
+
+export interface ListingCopy {
+  title: string
+  description: string
+}
+
 export type ItemScanStatus = 'queued' | 'processing' | 'completed' | 'failed'
 
 export const CONDITION_GRADES = ['new', 'like_new', 'good', 'fair', 'damaged_for_parts'] as const
@@ -71,6 +79,15 @@ export interface ItemScanDoc {
   saleabilityStatus: SaleabilityStatus
   saleabilityScore: SaleabilityResult | null
   saleabilityError: string | null
+  // PALLETIQ-030 / ADR-0014. A separate status lifecycle from pricing/
+  // saleability above, same reasoning - listing-copy generation is its
+  // own independently-triggerable, independently-failable step, not
+  // folded into either of the others. Owner/Manager-triggered, not
+  // automatic - unlike pricing, there's no reason to generate copy for
+  // every scan the instant it's priced.
+  listingCopyStatus: ListingCopyStatus
+  listingCopy: ListingCopy | null
+  listingCopyError: string | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

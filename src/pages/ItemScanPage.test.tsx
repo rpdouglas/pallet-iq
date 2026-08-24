@@ -129,6 +129,9 @@ function baseScan(overrides: Partial<ItemScan> = {}): ItemScan {
     saleabilityStatus: 'not_scored',
     saleabilityScore: null,
     saleabilityError: null,
+    listingCopyStatus: 'not_generated',
+    listingCopy: null,
+    listingCopyError: null,
     ...overrides,
   }
 }
