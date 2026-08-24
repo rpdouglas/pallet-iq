@@ -2277,3 +2277,46 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   `npx vitest run` (227/227, up from 218) and repo-root
   `format:check`/`lint`/`typecheck`/`npm test` (192/192, unaffected -
   this ticket touched no frontend code).
+
+- **2026-08-24 — `PALLETIQ-039`/`040` merged and deployed (PR #77),
+  live-verified against real production infrastructure, not just dev.**
+  `scrapeRestockLots` redeployed (an existing function updated, not a
+  fresh create - no IAM-invoker-gap risk regardless). `deploy-hosting`
+  in `.github/workflows/ci.yml` auto-deployed the frontend on the merge
+  push to `main` per its existing `push`-to-`main`-only trigger
+  (`PALLETIQ-015`'s design) - confirmed green in the Actions run, not
+  assumed.
+
+  **`PALLETIQ-040`'s fix confirmed live, not just simulated against a
+  snapshot.** Triggered a real `scrapeRestockLots` run via the Cloud
+  Scheduler API against the newly-deployed function (same technique
+  `PALLETIQ-020`/`031`/`032` already established) and polled Cloud
+  Logging directly for its terminal line: `fetched 10 page(s), 0 new,
+512 updated, 0 closed` - every currently-active lot re-normalized with
+  the shipped heuristic in one pass, confirming the "no backfill needed,
+  the next hourly run self-heals" claim from this ticket's own close-out
+  holds in practice, not just in theory. Only warnings logged were the 5
+  unparsed-title cards already expected from `PALLETIQ-031`'s documented
+  ~2% residual rate (2+2+1 across pages 8-10) - unrelated to this
+  change, since `PALLETIQ-040` only touches post-match category
+  normalization, not `TITLE_PATTERN` itself. Zero errors.
+
+  **`PALLETIQ-039`'s page confirmed live against the real deployed site**
+  (`https://mrt-pallet-iq.web.app/discovered-lots`, not `localhost`) via
+  the same Playwright-sign-in technique used during implementation,
+  pointed at production instead of the dev server. Rendered correctly
+  (screenshot reviewed), and the category dropdown - now reflecting the
+  post-`PALLETIQ-040`-rescrape data - showed 41 options total (40 unique
+  categories + the "All categories" default, matching the earlier
+  dev-time simulation exactly), included `"Uncategorized"`, and had
+  **zero** remaining options containing a digit or `"` - every case the
+  shipped heuristic is actually designed to catch is now clean in real
+  production data. The borderline non-digit product names the ticket's
+  own close-out already named as an accepted precision limit (e.g.
+  `"Castor End Tables - White"`) do still appear as their own entries,
+  exactly as documented - not a surprise, not a regression.
+
+  All test-artifact cleanup done (test Firebase Auth users deleted after
+  each live-verification pass; no stray `restock_lots` docs created,
+  since this check only read/triggered against real, already-existing
+  scraper output rather than writing test fixtures into it).
