@@ -3,7 +3,9 @@ import { z } from 'zod'
 import { logGeminiCall } from '../gemini/usageLogging'
 import type { ItemScanCandidate } from '../item-scans/types'
 
-const MODEL = 'gemini-3.6-flash'
+// PALLETIQ-047. See gemini/identifyItem.ts's identical comment for why -
+// same direct, not formally validated, cost-driven decision.
+const MODEL = 'gemini-2.5-flash'
 
 const compExampleSchema = z.object({
   title: z.string(),

@@ -4,7 +4,13 @@ import { CONDITION_GRADES } from '../item-scans/types'
 import type { ItemScanCandidate } from '../item-scans/types'
 import { logGeminiCall } from './usageLogging'
 
-const MODEL = 'gemini-3.6-flash'
+// PALLETIQ-047. Switched from gemini-3.6-flash per
+// docs/reports/2026-08-24-gemini-cost-audit.md - cheaper tokens and a far
+// more generous free Google Search grounding tier. A direct decision, not
+// formally validated against real scans - watch this call site's
+// structured logs (gemini/usageLogging.ts, PALLETIQ-045) and real
+// identification accuracy for a regression.
+const MODEL = 'gemini-2.5-flash'
 
 // Confidence threshold above which the top candidate auto-resolves the
 // scan; below it, the Buyer is shown the top candidates to pick from

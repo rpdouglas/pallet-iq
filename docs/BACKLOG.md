@@ -52,6 +52,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
+| PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
 
 ## Adding a ticket
 
@@ -2666,3 +2667,45 @@ surface.
 _ADR:_ not needed - wires up an already-decided mechanism
 (`incrementUsage`, `PALLETIQ-003`/`ADR-0005`) to already-decided plan
 tiers (`SubscriptionPlan`, same ADR); no new tradeoff being made.
+
+## PALLETIQ-047: Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ third and
+last of three tickets executing
+`docs/reports/2026-08-24-gemini-cost-audit.md` (`045`/`046` already
+shipped). Per the report's live-verified pricing
+(ai.google.dev/gemini-api/docs/pricing): `gemini-2.5-flash` costs less per
+token ($0.30/$2.50 per MTok in/out vs `gemini-3.6-flash`'s $0.75/$3.75)
+and gives a far more generous free Google Search grounding tier (1,500
+requests/day, ~45,000/month-equivalent, vs `gemini-3.6-flash`'s flat
+5,000/month) - significant since 4 of the app's ~6 Gemini calls per item
+scan are grounded. `gemini-3.6-flash`'s token price is also scheduled to
+double on 2027-01-01. **Decided directly with the owner: flip the `MODEL`
+constant directly, no separate before/after validation script or A/B
+comparison** - this is a direct decision, not a formally validated one,
+recorded honestly as such so it's an easy revert if `045`'s new
+structured Gemini-call logging or the owner's own monitoring surfaces a
+real identification/pricing-quality regression afterward.
+
+_In scope:_ change `const MODEL = 'gemini-3.6-flash'` to `const MODEL =
+'gemini-2.5-flash'` in `gemini/identifyItem.ts`, `pricing/priceResearch.ts`,
+and `listing-copy/generateListingCopy.ts` - the only three real Gemini
+call sites in the codebase.
+
+_Out of scope, explicitly deferred:_ a formal side-by-side accuracy
+comparison against real past scans (considered, declined by the owner -
+see above); reverting if a regression surfaces later is a fresh, separate
+ticket, not pre-planned here; any other generation-config change
+(temperature, `thinkingConfig`, structured-output mode - all still unset,
+per the cost audit's own "no generation config is set anywhere" finding,
+untouched by this ticket).
+
+_Firestore/RBAC impact:_ none - a model-string constant change only, no
+schema/rules/RBAC surface touched.
+
+_UI pattern notes:_ none - no UI surface changes.
+
+_ADR:_ not needed - a swappable model-string parameter within
+`ADR-0011`/`0012`/`0013`'s already-decided identification/pricing
+architecture, not a new architectural decision. Easily revertible (three
+one-line constant changes) if the direct decision above turns out wrong.
