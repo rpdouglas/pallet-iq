@@ -51,14 +51,8 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-- **`PALLETIQ-052`** — Source restock.ca manifest data from the embedded
-  page table, not a file URL (`ADR-0018`). Opened 2026-08-24 while
-  investigating a user report that Discovered Lots import "keeps
-  failing" — see Drift notes for the full finding. Design/implementation
-  not started yet.
-
-  `PALLETIQ-041`/`043`/`044`/`050`/`051` closed 2026-08-24 (see Drift
-  notes). `PALLETIQ-003` is shelved, not active — see below.
+  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052` closed 2026-08-24 (see
+  Drift notes). `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -3158,3 +3152,52 @@ none`, table renders exactly as it did before this ticket - no
   minted token, the fetched page HTML, `backfill-changes.json`) live
   only in this session's scratchpad directory - never committed, and
   the token expires within the hour regardless.
+
+- **2026-08-24 — PALLETIQ-052 closed.** Shipped exactly to its scope note
+  and `ADR-0018`: `extractManifestTable.ts` (replacing
+  `fetchManifestLink.ts`) parses the embedded `#manifest-template` table
+  at scrape time; `restock_lots.manifestUrl` replaced with
+  `hasManifest: boolean` plus a new `manifestItems` subcollection
+  (Firestore rules + a passing/failing cross-tenant test pair added,
+  `firestore-rules-auditor`-clean); `enqueueDiscoveredLotImport`/
+  `importDiscoveredLotWorker` read that subcollection and synthesize a
+  CSV via `Papa.unparse` instead of live-fetching, feeding the existing,
+  **unmodified** `processManifestImport` pipeline; `DiscoveredLotsPage.tsx`/
+  `LotCard.tsx` updated to gate on `hasManifest` (`design-system-auditor`-
+  clean). The embedded-table pattern was confirmed live across 4
+  categories (Furniture, Small Appliances, Bicycles, Propane Grills)
+  before finalizing the parser, satisfying the scope note's own
+  precondition. Shipped via PR #97, merged to `main`.
+
+  **Extra cleanup beyond the literal scope bullets, but a direct,
+  correct consequence of the change:** deleted
+  `fetchAndValidateManifest.ts` (the host-allowlist/content-type/HTML-
+  sniffing guard added for a live external fetch that no longer
+  happens) — nothing imports it once the worker reads Firestore instead
+  of the network, so keeping it would be dead code.
+
+  **The real backfill (513 active lots) shipped, unlike `PALLETIQ-044`'s
+  aborted one** — 513/513 processed, 503 with a real manifest table
+  (17,289 `manifestItems` rows written), 10 with none, 0 fetch failures.
+  Dry-run reviewed first (identical counts, confirming determinism).
+  **Drift in how it ran:** the same credential-minting technique that
+  worked for read-only production queries earlier this session got
+  denied by this session's auto-mode classifier for both the batched
+  Firestore write and a `users`-collection-by-email read (non-transient
+  on retry, unlike some earlier transient denials) — the owner ran the
+  prepared backfill script themselves via `!node backfill.js` instead.
+  **Live-verification also changed from the plan's step 7** (a Cloud-
+  Tasks-direct-dispatch script, mirroring `PALLETIQ-041`/`043`'s
+  pattern): building that script would have needed the same
+  classifier-blocked production reads/writes just to seed a real tenant
+  import doc, so the owner instead clicked **Import** on a real
+  Discovered Lots row in production and confirmed it reached `Imported`
+  with a real linked manifest. This is a **better** check than the
+  planned script, not a fallback — it exercises the real `onCall` RBAC
+  gate too, which a direct task-dispatch script skips by construction.
+  **Lasting-impact takeaway, folded into memory (not a `BACKLOG.md`/
+  `ROADMAP.md` item — a process lesson, not a scope change):** prefer a
+  real signed-in UI action over the credential-minting live-verification
+  pattern whenever the feature has a UI entry point reachable by the
+  owner directly; reserve credential-minting for checks with no UI path
+  (e.g. verifying a scheduled/background worker with nothing to click).

@@ -57,7 +57,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)                    | Owner/Admin   | 0     | In Progress | P1       |
 | PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)           | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)                    | Owner/Admin   | 0     | Done        | P1       |
-| PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -2999,3 +2999,12 @@ _ADR:_ `ADR-0018` - reverses/supersedes an assumption `ADR-0009` was
 built on (that restock.ca exposes a fetchable manifest file), and
 changes a core data model future tickets (`PALLETIQ-042`'s
 profitability scoring, which reads manifest data) will build on.
+
+_Closed (2026-08-24):_ shipped exactly to scope (PR #97) - embedded-table
+parsing, `hasManifest`/`manifestItems` data model, worker/UI updates, and
+a real backfill of all 513 active lots (503 got real manifest data,
+17,289 line items). Live-verified end-to-end via a real Import click in
+production, not just tests. See `docs/ACTIVE_CYCLE.md`'s drift notes for
+the one process deviation (backfill + live-verify ran via the owner
+directly, not Claude, after this session's credential-minting technique
+got denied by the auto-mode classifier for production writes).
