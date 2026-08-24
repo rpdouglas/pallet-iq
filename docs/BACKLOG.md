@@ -54,6 +54,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
 | PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
 | PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
+| PALLETIQ-049 | Enable GCP billing export + budget alert (Console setup, owner action)              | Owner/Admin   | 0     | In Progress | P1       |
 
 ## Adding a ticket
 
@@ -2759,3 +2760,36 @@ _UI pattern notes:_ none.
 
 _ADR:_ not needed - reverts `PALLETIQ-047`'s own non-architectural
 constant change back to its prior, already-decided value.
+
+## PALLETIQ-049: Enable GCP billing export + budget alert (Console setup, owner action)
+
+_Scope note (2026-08-24) — in progress, owner action required:_ this is
+P0.1 from `docs/reports/2026-08-24-gemini-cost-audit.md` - the one
+recommendation that's Console configuration, not code. Nobody had real
+$/day cost visibility before that audit; this is the prerequisite for
+measuring whether `PALLETIQ-045`-`048`'s changes (or any future cost
+change) actually helped, instead of guessing.
+
+_In scope:_ the step-by-step how-to lives at
+`docs/runbooks/gcp-billing-export-and-budget-alert.md` (this ticket
+ships that runbook doc). The actual GCP Console actions themselves -
+enabling detailed billing export to BigQuery for `mrt-pallet-iq`
+(billing account `015773-4893BC-1DB3A1`) and creating a budget alert -
+are the owner's own action, not something committed to this repo. Close
+this ticket once both are confirmed live (checkable read-only via the
+BigQuery/Cloud Billing Budget APIs, per the runbook's own "Verifying
+it's live" section - no need to just take it on faith).
+
+_Out of scope:_ any Terraform/programmatic automation of the billing
+export or budget resources - unnecessary ceremony for a one-time setup
+step on a single project; a query against the resulting BigQuery table
+becoming a recurring dashboard/report is a natural future ticket, not
+this one.
+
+_Firestore/RBAC impact:_ none - GCP-account-level configuration outside
+Firestore/this app entirely.
+
+_UI pattern notes:_ none.
+
+_ADR:_ not needed - a one-time ops setup step with a documented runbook,
+not an architectural decision.
