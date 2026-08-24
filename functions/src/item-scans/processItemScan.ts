@@ -2,6 +2,7 @@ import { logger } from 'firebase-functions/v2'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { getStorage } from 'firebase-admin/storage'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
+import { recordGeminiCalls } from '../billing/geminiUsage'
 import { geminiApiKey } from '../gemini/params'
 import { identifyItem } from '../gemini/identifyItem'
 import type { PhotoInput } from '../gemini/identifyItem'
@@ -83,6 +84,7 @@ export const processItemScan = onTaskDispatched<ProcessItemScanPayload>(
         geminiApiKey.value(),
         photos,
       )
+      await recordGeminiCalls(tenantId, 1)
 
       await scanRef.update({
         status: 'completed',

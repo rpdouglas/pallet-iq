@@ -16,6 +16,10 @@ vi.mock('../listing-copy/generateListingCopy', () => ({
 
 vi.mock('../gemini/params', () => ({ geminiApiKey: { value: () => 'fake-key' } }))
 
+vi.mock('../billing/geminiUsage', () => ({
+  recordGeminiCalls: vi.fn(() => Promise.resolve()),
+}))
+
 const { listingCopyWorker } = await import('./listingCopyWorker')
 
 function request(data: unknown) {

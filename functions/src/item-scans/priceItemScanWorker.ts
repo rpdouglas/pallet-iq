@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions/v2'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
+import { recordGeminiCalls } from '../billing/geminiUsage'
 import { geminiApiKey } from '../gemini/params'
 import { computeCacheKey } from '../pricing/cacheKey'
 import {
@@ -97,7 +98,7 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
         // attempt in this same retry chain, instead of re-paying for it -
         // see researchPricingLegs's own header comment.
         const previousLegs = scanData.pricingResearchLegs ?? null
-        const { merged, legs, legFailureFlags } = await researchPricingLegs(
+        const { merged, legs, legFailureFlags, callsMade } = await researchPricingLegs(
           geminiApiKey.value(),
           candidate,
           previousLegs,
@@ -110,6 +111,10 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
           pricingResearchLegs: legs,
           updatedAt: FieldValue.serverTimestamp(),
         } satisfies Partial<ItemScanDoc>)
+        // PALLETIQ-046. Recorded now, before synthesis - these calls
+        // already happened and billed regardless of what synthesis does
+        // next.
+        await recordGeminiCalls(tenantId, callsMade)
 
         const research = await synthesizePricing(
           geminiApiKey.value(),
@@ -117,6 +122,7 @@ export const priceItemScanWorker = onTaskDispatched<PriceItemScanWorkerPayload>(
           merged,
           legFailureFlags,
         )
+        await recordGeminiCalls(tenantId, 1)
         const mapped = mapPriceResearchToPricingResult(research, candidate)
         // PALLETIQ-037. Verify comp URLs before caching/storing - a
         // cache write should never persist an unverified link, since

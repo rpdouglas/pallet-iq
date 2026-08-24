@@ -19,6 +19,10 @@ vi.mock('firebase-admin/functions', () => ({
   getFunctions: () => ({ taskQueue: mockTaskQueue }),
 }))
 
+vi.mock('../billing/geminiUsage', () => ({
+  checkGeminiCallCap: vi.fn(() => Promise.resolve()),
+}))
+
 const { enqueueItemScan } = await import('./enqueueItemScan')
 
 function request<T>(data: T, auth: CallableRequest['auth']): CallableRequest<T> {
