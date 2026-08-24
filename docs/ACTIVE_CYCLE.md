@@ -46,7 +46,13 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-None currently in flight. `PALLETIQ-003` is shelved, not active — see below.
+- **`PALLETIQ-041`** — Import discovered restock.ca lot's manifest into
+  tenant inventory (`ADR-0015`). Started 2026-08-24.
+- **`PALLETIQ-043`** — Dismiss a discovered restock.ca lot from the
+  tenant's Discovered Lots list. Started 2026-08-24, alongside
+  `PALLETIQ-041` (same page, requested together).
+
+`PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
