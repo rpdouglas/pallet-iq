@@ -1600,38 +1600,66 @@ instead of raw manifest text, per the plan's section 8 argument that this
 is "new uses of work that's already being done," not new identification
 work.
 
-_In scope:_ a Gemini text-generation call (extends the existing `ai_tasks`
-pipeline with a new task type, reuses `PALLETIQ-025`'s `GEMINI_API_KEY`)
-that takes a completed `item_scans` doc and produces a draft listing title
+_Corrected 2026-08-24, before implementation starts:_ two assumptions
+below turned out stale once checked against the actual shipped codebase
+(`PALLETIQ-025`/`035` postdate this note) - see `ADR-0014`'s Consequences
+section for the full account. (1) There is no `ai_tasks` pipeline to
+extend in practice - both real Gemini call sites built since bypass it
+entirely with their own dedicated worker + dedicated status fields
+directly on their own feature's doc, and `ADR-0004` has been amended to
+say so. (2) There is no link anywhere in the codebase between an
+`item_scans` doc and an `InventoryItem` - "surfaced on the inventory item
+it's associated with" was never actually buildable as stated. The
+corrected _In scope_/_Firestore-RBAC_/_UI pattern_ sections below replace
+the originals rather than layering a second, conflicting version.
 
-- description, surfaced to Store Manager on the inventory item it's
-  associated with (first read access to `item_scans` for a persona other
-  than Buyer — see RBAC below). Editable before use, not auto-published
-  anywhere (no marketplace integrations exist yet, Phase 4's own later
-  bullet).
+_In scope:_ a new `generateListingCopy` `onTaskDispatched` Cloud Tasks
+worker (the same dedicated-worker pattern `identifyItem.ts`/
+`priceResearch.ts` actually established, not `ai_tasks`) making a
+**text-only** Gemini call - no photos re-sent, just the already-stored
+candidate/pricing/saleability fields - triggered by a new
+`enqueueListingCopy` `onCall` (Owner/Manager only). New `item_scans`
+fields: `listingCopyStatus`, `listingCopy: {title, description} | null`,
+`listingCopyError` (see `ADR-0014`). A new Manager-facing page (route TBD
+at implementation) - the first Manager-only UI surface in the app -
+listing the tenant's completed + priced `item_scans` (reusing the
+existing Data table pattern) with a "Generate listing copy" action per
+row; the generated draft displays as an editable text area plus a
+"regenerate" action, editable before use, not auto-published anywhere (no
+marketplace integrations exist yet, Phase 4's own later bullet).
 
 _Out of scope, deferred:_ keywords/SEO tags, defect descriptions, bundle
 suggestions, cross-listing recommendations, the ROI calculator, and aging-
 inventory alerts — all named in the plan's section 8 as further reusable
 outputs of the same engine, each its own future ticket once this first one
 validates the pattern; any marketplace integration to actually publish a
-listing (separate, unstarted Phase 4 bullet).
+listing (separate, unstarted Phase 4 bullet); linking `item_scans` to
+`InventoryItem` (a real, separate architectural decision `ADR-0014`
+explicitly declined to make here - the ROI calculator bullet above would
+need it, this ticket doesn't).
 
-_Firestore/RBAC impact:_ `item_scans`' `read` rule (`isTenantMember`,
-`PALLETIQ-025`) already covers Store Manager — no rule change. If a
-generated listing draft is persisted rather than shown ephemerally, it
-lands on the existing `inventory` doc's write path (`isOwnerOrManagerOrWarehouse`
-from `PALLETIQ-011` already includes Manager) — confirm the exact field
-shape at implementation time.
+_Firestore/RBAC impact:_ `item_scans`' existing `read: isTenantMember`
+rule already covers Store Manager - no rule change needed for reading.
+The new `listingCopyStatus`/`listingCopy`/`listingCopyError` fields are
+Cloud-Tasks-worker-write-only via the Admin SDK, same shape as every
+other status field already on this doc - no new client write rule
+needed. `enqueueListingCopy`'s own RBAC gate (Owner/Manager) lives in the
+callable itself, matching `priceItemScan.ts`'s own Owner/Buyer gate
+precedent.
 
 _UI pattern notes:_ no documented pattern yet for an AI-generated,
-user-editable text draft — flagging this gap now rather than inventing one
-silently; likely a text-area pre-filled with the generated draft plus a
-"regenerate" action, but worth a `docs/design/components.md` addition if
-this recurs (the plan's section 8 lists several more features that would
-reuse the same "editable AI draft" pattern).
+user-editable text draft - flagging this gap now rather than inventing
+one silently; a text-area pre-filled with the generated draft plus a
+"regenerate" action is the plan, worth a `docs/design/components.md`
+addition if this recurs (the plan's section 8 lists several more
+features that would reuse the same "editable AI draft" pattern). Also
+the first real Manager-only page - first live exercise of governance
+Check III for this specific role.
 
-_ADR:_ written — shared `ADR-0011`, see `PALLETIQ-025`.
+_ADR:_ written - [`ADR-0014`](../adr/0014-listing-copy-generation.md),
+superseding this note's own stale `ai_tasks`/inventory-linkage
+assumptions; originating plan still `ADR-0011`/`treasure-hunter-plan.md`
+§8.
 
 _Scope note on `PALLETIQ-031` (2026-08-22) — Planning gate only, not started:_
 

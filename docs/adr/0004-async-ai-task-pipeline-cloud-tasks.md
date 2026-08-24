@@ -1,6 +1,6 @@
 # ADR-0004: Async AI task pipeline uses Cloud Tasks, with a new `ai_tasks` collection
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-08
 
 ## Context
@@ -108,3 +108,25 @@ narrowly-scoped service account invokes it), not left open.
   `processX` worker pattern rather than inventing their own — the `type`
   field exists specifically so real task types can be added without a
   schema change.
+
+**Addendum (2026-08-24, found scoping `PALLETIQ-030`):** this last point
+didn't hold in practice. Both real Gemini call sites built since this ADR
+— `identifyItem.ts` (`PALLETIQ-025`, `processItemScan.ts` worker) and
+`priceResearch.ts` (`PALLETIQ-035`, `priceItemScanWorker.ts`) — bypass
+`ai_tasks` entirely: each writes its own dedicated status fields
+(`status`/`pricingStatus`/`saleabilityStatus`, etc.) directly onto its own
+feature's document (`item_scans`) via its own dedicated
+`onTaskDispatched` worker, rather than creating an `ai_tasks` doc and
+polling a shared `type` field. `ai_tasks` still exists and is still
+correctly rules-tested (Check I), but its only real occupant is the
+original `PALLETIQ-004` dummy task — it never became the shared substrate
+this ADR predicted. **The core decision this ADR made — Cloud Tasks over
+a Firestore-triggered function — is exactly what every real call site
+follows**, so `Status` is flipped to `Accepted` accordingly; only the
+"future task types share this collection" prediction was wrong. The
+pattern that actually emerged (dedicated status fields + a dedicated
+worker per feature, directly on that feature's own document) is the one
+`PALLETIQ-030` follows too — see `ADR-0014`. Worth keeping `ai_tasks`
+around for the dummy task and Check I test coverage rather than deleting
+it, but treat "dedicated per-feature worker" as the real precedent for
+any new Gemini call site, not this collection.
