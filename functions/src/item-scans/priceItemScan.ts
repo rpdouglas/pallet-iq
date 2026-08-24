@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { getFunctions } from 'firebase-admin/functions'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import { checkGeminiCallCap } from '../billing/geminiUsage'
 import type { ItemScanDoc } from './types'
 
 interface PriceItemScanRequest {
@@ -25,6 +26,9 @@ export const priceItemScan = onCall<PriceItemScanRequest, Promise<void>>(async (
   if (role !== 'owner' && role !== 'buyer') {
     throw new HttpsError('permission-denied', 'Only an Owner or Buyer can price a scan.')
   }
+  // PALLETIQ-046. Before any Cloud Tasks dispatch - a capped tenant fails
+  // fast here, not later via a `failed` status.
+  await checkGeminiCallCap(tenantId)
 
   const { scanId } = request.data
   if (typeof scanId !== 'string' || !scanId) {

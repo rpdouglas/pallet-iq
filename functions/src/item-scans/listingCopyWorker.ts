@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions/v2'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
+import { recordGeminiCalls } from '../billing/geminiUsage'
 import { geminiApiKey } from '../gemini/params'
 import { generateListingCopy } from '../listing-copy/generateListingCopy'
 import type { ItemScanDoc } from './types'
@@ -55,6 +56,7 @@ export const listingCopyWorker = onTaskDispatched<ListingCopyWorkerPayload>(
         scanData.pricing,
         scanData.saleabilityScore,
       )
+      await recordGeminiCalls(tenantId, 1)
 
       await scanRef.update({
         listingCopyStatus: 'generated',

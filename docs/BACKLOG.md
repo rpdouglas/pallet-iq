@@ -51,6 +51,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list          | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Done        | P1       |
+| PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
 
 ## Adding a ticket
 
@@ -2614,3 +2615,54 @@ never rendered, internal bookkeeping only.
 _ADR:_ not needed - a bug fix + observability addition using the existing
 Cloud Tasks retry/cache-first pricing shape unchanged, not a new
 architectural decision.
+
+## PALLETIQ-046: Wire up Gemini usage metering and a free-tier monthly call cap
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ second of
+three tickets executing `docs/reports/2026-08-24-gemini-cost-audit.md`
+(`045` shipped cost-visibility logging + the pricing retry fix; `047`
+covers the model choice separately). `billing/incrementUsage.ts`
+(`PALLETIQ-003`/`ADR-0005`) is fully built - atomically bumps
+`tenants/{tenantId}/subscriptions/current.usage[key]` - but has zero
+callers anywhere in the codebase, so a free-tier tenant and a pro-tier
+tenant have identical, unmetered Gemini access today. Free-tier cap value
+(100 calls/month) decided directly with the owner, not guessed.
+
+_In scope:_ (a) call `incrementUsage()` from all three Gemini call sites
+(`processItemScan.ts`, `priceItemScanWorker.ts`, `listingCopyWorker.ts`),
+via a new shared `billing/geminiUsage.ts` helper keyed by month (e.g.
+`geminiCalls_2026_08`) for an automatic reset with no new scheduled job -
+`priceItemScanWorker.ts` records the actual number of Gemini calls made
+this invocation (0 on a cache hit; otherwise whatever `researchPricingLegs`
+
+- `synthesizePricing` actually ran, per `PALLETIQ-045`'s split), not a
+  flat count, so a partially-reused retry doesn't overcount. (b) A free-tier
+  cap of 100 Gemini calls/month (pro stays uncapped - `Infinity`), enforced
+  by a `checkGeminiCallCap(tenantId)` helper in the same module, called at
+  the top of the three `onCall` entry points (`enqueueItemScan.ts`,
+  `priceItemScan.ts`, `enqueueListingCopy.ts`) **before** the Cloud Tasks
+  dispatch - a capped tenant gets a clear `resource-exhausted` rejection
+  immediately, not a `failed` status discovered later. Cap value is a
+  hardcoded constant, not Firestore-configurable - no real need for that
+  complexity yet.
+
+_Out of scope, explicitly deferred:_ Firestore-configurable per-tenant cap
+overrides (a hardcoded constant is enough until there's a real reason to
+tune one tenant without a deploy); any change to Stripe billing/checkout
+itself (`PALLETIQ-003`, still shelved); the Gemini model choice
+(`PALLETIQ-047`); a per-import SKU cap for lot scoring (`PALLETIQ-042`, not
+built yet, own future cap).
+
+_Firestore/RBAC impact:_ none - `tenants/{tenantId}/subscriptions/current`
+and its `isOwner`-write-only rule already exist unchanged
+(`incrementUsage`/`checkGeminiCallCap` both run via the Admin SDK inside
+Cloud Functions, which bypasses client rules entirely - no new read/write
+path for any client role).
+
+_UI pattern notes:_ none - the cap rejection surfaces as a callable error
+message on the existing scan/price/listing-copy actions, no new UI
+surface.
+
+_ADR:_ not needed - wires up an already-decided mechanism
+(`incrementUsage`, `PALLETIQ-003`/`ADR-0005`) to already-decided plan
+tiers (`SubscriptionPlan`, same ADR); no new tradeoff being made.

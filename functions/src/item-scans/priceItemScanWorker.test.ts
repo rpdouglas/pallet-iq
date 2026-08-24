@@ -29,6 +29,10 @@ vi.mock('../pricing/verifyComps', () => ({ verifyPricingComps: mockVerifyPricing
 
 vi.mock('../gemini/params', () => ({ geminiApiKey: { value: () => 'fake-key' } }))
 
+vi.mock('../billing/geminiUsage', () => ({
+  recordGeminiCalls: vi.fn(() => Promise.resolve()),
+}))
+
 const { priceItemScanWorker } = await import('./priceItemScanWorker')
 
 function request(data: unknown) {

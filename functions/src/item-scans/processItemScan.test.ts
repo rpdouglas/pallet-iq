@@ -28,6 +28,10 @@ vi.mock('../gemini/params', () => ({
   geminiApiKey: { value: () => 'fake-key' },
 }))
 
+vi.mock('../billing/geminiUsage', () => ({
+  recordGeminiCalls: vi.fn(() => Promise.resolve()),
+}))
+
 const CANDIDATE = {
   itemName: 'Instant Pot Duo 6-Quart',
   brand: 'Instant Pot',

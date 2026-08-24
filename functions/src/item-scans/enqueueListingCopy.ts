@@ -1,6 +1,7 @@
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
 import { getFunctions } from 'firebase-admin/functions'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
+import { checkGeminiCallCap } from '../billing/geminiUsage'
 import type { ItemScanDoc } from './types'
 
 interface EnqueueListingCopyRequest {
@@ -31,6 +32,9 @@ export const enqueueListingCopy = onCall<EnqueueListingCopyRequest, Promise<void
         'Only an Owner or Store Manager can generate listing copy.',
       )
     }
+    // PALLETIQ-046. Before any Cloud Tasks dispatch - a capped tenant
+    // fails fast here, not later via a `failed` status.
+    await checkGeminiCallCap(tenantId)
 
     const { scanId } = request.data
     if (typeof scanId !== 'string' || !scanId) {
