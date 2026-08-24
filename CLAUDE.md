@@ -57,6 +57,7 @@ Three standing checks apply across every phase:
 | `docs/adr/`                      | Architecture Decision Records                                                            |
 | `docs/design/`                   | Design system + addenda — source of truth for UI (Check IV)                              |
 | `docs/reports/`                  | Standalone analysis/investigation reports (e.g. cost audits) — not ticket- or ADR-scoped |
+| `docs/runbooks/`                 | Step-by-step operational how-tos for manual/Console-only actions (billing, infra setup)  |
 
 ## Conventions
 
@@ -65,6 +66,11 @@ Three standing checks apply across every phase:
   `docs/reports/`, named `YYYY-MM-DD-short-slug.md`, as plain Markdown — not a
   published Artifact. Still lands via a feature branch + PR like any other docs
   change (see below), not a direct commit.
+- **Operational runbooks** (a manual GCP Console setup, a recurring ops
+  task with no code to write) go in `docs/runbooks/`, named
+  `short-slug.md` (no date prefix — these are living reference docs,
+  re-editable in place, not point-in-time snapshots like reports). Same
+  branch + PR flow as any other docs change.
 
 - **Never commit or push directly to `main`.** Always work on a feature
   branch (`git checkout -b palletiq-NNN-short-slug`) and land changes via PR

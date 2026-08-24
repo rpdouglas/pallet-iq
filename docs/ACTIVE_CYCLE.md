@@ -46,10 +46,15 @@ the process itself, not product-scoped work. Logged here per Check
 
 ## Tickets in flight
 
-None currently in flight. `PALLETIQ-041`/`043` closed 2026-08-24 (see
-Drift notes). `PALLETIQ-044` (found via `041`'s own live-verification
-pass) is open but not started. `PALLETIQ-003` is shelved, not active —
-see below.
+- **`PALLETIQ-049`** — Enable GCP billing export + budget alert
+  (`docs/runbooks/gcp-billing-export-and-budget-alert.md`). Runbook
+  shipped 2026-08-24; the actual Console setup is the owner's own action,
+  not yet confirmed done. Close once verified live via the runbook's own
+  read-only check.
+
+`PALLETIQ-041`/`043` closed 2026-08-24 (see Drift notes). `PALLETIQ-044`
+(found via `041`'s own live-verification pass) is open but not started.
+`PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
