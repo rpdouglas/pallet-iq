@@ -2320,3 +2320,81 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   each live-verification pass; no stray `restock_lots` docs created,
   since this check only read/triggered against real, already-existing
   scraper output rather than writing test fixtures into it).
+
+- **2026-08-24 — Retroactive live-browser audit + verification pass across
+  the Treasure Hunter capture/pricing track (`PALLETIQ-025`/`026`/`027`/
+  `033`/`034`/`035`/`036`), prompted by the owner asking whether anything
+  had shipped without live testing because the credential-minting infra
+  simply wasn't set up yet.** An audit (reading every closed UI-touching
+  ticket's own close-out record) confirmed the pattern: `PALLETIQ-006`/
+  `007`/`008`/`009`/`010`/`011`/`016`/`019`/`021`/`039` all got a real
+  authenticated Playwright session; `PALLETIQ-034` and `036` explicitly
+  named the missing capability as the reason they shipped on unit tests +
+  Check IV only ("no logged-in browser session readily available," "no
+  claude-in-chrome, authenticated capture screen"); `PALLETIQ-025`/`026`/
+  `027`/`033`/`035` shipped on scripted API/Firestore-level checks, never
+  an actual browser render. Not new drift on any of these tickets - they
+  were correctly closed against the QA bar available at the time; this is
+  closing a gap that `PALLETIQ-039`'s own IAM fix just made possible, not
+  re-litigating a past decision.
+
+  **Live-verified the full capture → identify → price → saleability
+  journey in one real Playwright session** against the real `mrt-pallet-iq`
+  Auth/Firestore/Storage/Functions stack (dev server, not the deployed
+  site - no code changed here, purely a verification pass): signed in as
+  a real test Buyer, uploaded two real product photos (public-domain
+  Wikimedia Commons cordless-drill photos) via the "Choose from device"
+  multi-file input `PALLETIQ-034` added, clicked "Identify item," and
+  watched every stage resolve for real - not simulated:
+  - **Capture (`PALLETIQ-034`/`036`):** both photos uploaded and rendered
+    as thumbnails correctly - the exact multi-photo path `PALLETIQ-034`
+    fixed (a second photo previously could silently fail to add) worked
+    cleanly. The `PALLETIQ-036` compression pipeline and the "Identifying
+    item… / Usually takes under a minute" expectation-setting copy both
+    rendered as designed.
+  - **Identify (`PALLETIQ-025`):** the real Gemini vision call correctly
+    identified "Bosch 3650 14.4V Cordless Drill Driver" at 95% confidence
+    from the photo (matching the real product photographed), auto-selected
+    it (no low-confidence picker needed), and rendered `CandidateCard`
+    with every field populated correctly.
+  - **Price (`PALLETIQ-026`/`027`/`035`):** pricing auto-started and
+    `PricingPanel` rendered correctly. This run happened to be a genuine
+    stress case for the SOP's degradation path - two different real
+    drills' photos in one scan (an unrealistic input, chosen deliberately
+    to exercise the multi-photo path, not a single real item) gave Gemini
+    nothing to find real comps against - and it handled that exactly as
+    designed: no fabricated numbers, an honest "extreme data thinness
+    required a speculative nominal price floor" rationale, and every
+    `down`-direction factor correctly explained (no retail found, no
+    Kijiji comps, eBay sold thin/unavailable). A better real-world
+    demonstration of the degradation path than a clean-data run would
+    have been.
+  - **Saleability (`PALLETIQ-027`/`033`):** `SaleabilityPanel` rendered
+    correctly with a 63 score and a coherent factor breakdown (thin comp
+    sample, no specialist signal, condition, competing listings). The
+    `PALLETIQ-033` retry-button path itself wasn't exercised - saleability
+    succeeded on the first try, so there was no failure state to trigger
+    it from - but its underlying logic (`deriveSaleabilityInputsFromPricing`
+    recomputing without re-running pricing) is already unit-tested;
+    forcing an artificial failure just to click the retry button wasn't
+    judged worth the extra complexity here.
+
+  **Zero browser console errors or page errors** across the entire
+  session (both hooked and logged explicitly, not just visually
+  inspected). All screenshots reviewed - photo thumbnails, the
+  identifying skeleton, the final `CandidateCard`/`PricingPanel`/
+  `SaleabilityPanel` stack - matched the design system with no visible
+  defects. Test artifacts fully cleaned up after: the test Firebase Auth
+  user, the `item_scans` Firestore doc, and both uploaded Storage photos
+  were all deleted (not just the Auth user, matching `PALLETIQ-025`'s own
+  original "test tenant/user/Storage objects/Firestore docs all cleaned
+  up" standard).
+
+  No code changes resulted from this pass - it's a governance-record
+  update only, confirming the shipped UI genuinely works end-to-end for a
+  real signed-in user, closing the audit's top two priority gaps
+  (`PALLETIQ-034`/`036`, and the `025`/`026`/`027`/`033`/`035` journey).
+  The audit's remaining lower-priority item (`PALLETIQ-022`, a
+  manifest-import form field with zero live coverage) is deliberately not
+  chased here - low-stakes, cheap to fold into any future manifest-import
+  live check instead of a standalone pass.
