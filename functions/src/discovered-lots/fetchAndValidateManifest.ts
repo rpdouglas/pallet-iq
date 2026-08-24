@@ -11,6 +11,26 @@ const XLSX_CONTENT_TYPES = new Set([
   'application/vnd.ms-excel',
 ])
 
+// Live-verification finding (PALLETIQ-041, 2026-08-24): every real
+// restock_lots.manifestUrl in production is actually the same category
+// listing PAGE, not a manifest file - fetchManifestLink.ts's extraction
+// (PALLETIQ-020) is matching a false-positive "unmanifested-furniture"
+// nav link, a pre-existing bug out of this ticket's scope to fix. The
+// fetched content is real HTML with no NUL byte in the first 8KB -
+// validateCsv's weak heuristic (not-zip, no-null-byte) would wrongly
+// accept it if Content-Type were merely ambiguous rather than explicitly
+// rejected. These are content types that unambiguously mean "not a
+// spreadsheet" - rejected before ever reaching validateFile, not left to
+// the ambiguous-guess fallback below.
+const DEFINITELY_UNSUPPORTED_CONTENT_TYPE_PREFIXES = [
+  'text/html',
+  'application/pdf',
+  'application/json',
+  'text/xml',
+  'application/xml',
+  'image/',
+]
+
 export type FetchManifestResult =
   { ok: true; buffer: Buffer; format: ManifestFormat } | { ok: false; error: string }
 
@@ -18,11 +38,30 @@ function isAllowedHost(url: URL): boolean {
   return url.hostname === ALLOWED_HOST || url.hostname.endsWith(`.${ALLOWED_HOST}`)
 }
 
-function guessFormat(contentType: string | null): ManifestFormat | null {
-  const type = (contentType ?? '').split(';')[0].trim().toLowerCase()
-  if (CSV_CONTENT_TYPES.has(type)) return 'csv'
-  if (XLSX_CONTENT_TYPES.has(type)) return 'xlsx'
+function normalizedContentType(contentType: string | null): string {
+  return (contentType ?? '').split(';')[0].trim().toLowerCase()
+}
+
+function isDefinitelyUnsupported(contentType: string): boolean {
+  return DEFINITELY_UNSUPPORTED_CONTENT_TYPE_PREFIXES.some((prefix) =>
+    contentType.startsWith(prefix),
+  )
+}
+
+function guessFormat(contentType: string): ManifestFormat | null {
+  if (CSV_CONTENT_TYPES.has(contentType)) return 'csv'
+  if (XLSX_CONTENT_TYPES.has(contentType)) return 'xlsx'
   return null
+}
+
+// Defense in depth on top of the Content-Type check above - a real HTML
+// error/redirect page could in principle arrive with a missing or wrong
+// Content-Type, and validateCsv's own heuristic wouldn't catch it (no NUL
+// byte, no ZIP signature). Sniffs the same way any browser/curl -I would:
+// the first non-whitespace bytes of a real HTML document.
+function looksLikeHtml(buffer: Buffer): boolean {
+  const head = buffer.subarray(0, 512).toString('utf8').trimStart().toLowerCase()
+  return head.startsWith('<!doctype html') || head.startsWith('<html')
 }
 
 // PALLETIQ-041 / ADR-0015. SSRF-safe by construction, not by validation-
@@ -63,7 +102,15 @@ export async function fetchAndValidateManifest(manifestUrl: string): Promise<Fet
     return { ok: false, error: 'Manifest exceeds the maximum file size.' }
   }
 
-  const guessedFormat = guessFormat(response.headers.get('content-type'))
+  const contentType = normalizedContentType(response.headers.get('content-type'))
+  if (isDefinitelyUnsupported(contentType) || looksLikeHtml(buffer)) {
+    return {
+      ok: false,
+      error: 'Manifest not available in a supported format (CSV or XLSX required).',
+    }
+  }
+
+  const guessedFormat = guessFormat(contentType)
   // restock.ca's real manifest shape is confirmed CSV (PALLETIQ-022), so an
   // ambiguous/unrecognized Content-Type still tries csv first rather than
   // giving up - xlsx stays a fallback for the cases the header does say so.

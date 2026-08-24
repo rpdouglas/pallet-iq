@@ -117,4 +117,32 @@ describe('fetchAndValidateManifest', () => {
     const result = await fetchAndValidateManifest('https://www.restock.ca/manifest.pdf')
     expectFailure(result, /not available in a supported format/i)
   })
+
+  // Real live-verification finding (2026-08-24): every restock_lots.manifestUrl
+  // in production actually points to a category listing page, not a real
+  // manifest - a pre-existing fetchManifestLink.ts bug, out of this ticket's
+  // scope to fix. The real response has no NUL byte in its first 8KB, so
+  // validateCsv's weak heuristic alone would wrongly accept it - this must be
+  // rejected via Content-Type/content sniffing before ever reaching
+  // validateFile.
+  it('rejects a real HTML category page (text/html, no NUL byte) rather than accepting it as CSV', async () => {
+    const htmlBody =
+      '<!DOCTYPE html>\n<html><head><title>Unmanifested Furniture</title></head></html>'
+    mockFetch.mockResolvedValueOnce(
+      fakeResponse({ contentType: 'text/html; charset=UTF-8', body: htmlBody }),
+    )
+
+    const result = await fetchAndValidateManifest(
+      'https://www.restock.ca/furniture/unmanifested-furniture/',
+    )
+    expectFailure(result, /not available in a supported format/i)
+  })
+
+  it('rejects HTML content even when Content-Type is missing/ambiguous', async () => {
+    const htmlBody = '<html><body>redirected</body></html>'
+    mockFetch.mockResolvedValueOnce(fakeResponse({ contentType: null, body: htmlBody }))
+
+    const result = await fetchAndValidateManifest('https://www.restock.ca/manifest')
+    expectFailure(result, /not available in a supported format/i)
+  })
 })
