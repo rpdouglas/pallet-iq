@@ -2835,3 +2835,77 @@ shouldAdvanceTime: true })` - found and fixed a real mock-queue-bleed
   actually skips already-succeeded legs, the free-tier cap actually
   rejects over the limit, and `gemini-2.5-flash` produces sane output for
   a real identify + price call.
+
+- **2026-08-24 — Live-verification of `PALLETIQ-045`/`046`/`047`, and
+  `PALLETIQ-048` closed (the real incident it found).** All six affected
+  functions (`enqueueItemScan`/`processItemScan`/`priceItemScan`/
+  `priceItemScanWorker`/`enqueueListingCopy`/`listingCopyWorker`) deployed
+  to `mrt-pallet-iq` together, then exercised against real data via this
+  session's Cloud-Tasks-direct-dispatch pattern (full auth UI
+  click-through stayed blocked - same `signJwt` classifier issue as
+  `PALLETIQ-030`'s pass, not re-attempted).
+
+  **`PALLETIQ-047`'s model choice broke production - found immediately,
+  fixed in minutes, its own ticket (`PALLETIQ-048`) records the
+  revert.** The very first live pricing run on the newly-deployed
+  `gemini-2.5-flash` came back with a real 404 from Google's actual API:
+  _"This model models/gemini-2.5-flash is no longer available to new
+  users."_ - despite that model still being listed with current pricing
+  on Google's own public pricing page, which is exactly what
+  `PALLETIQ-047`'s decision was based on. Reverted `gemini/identifyItem.ts`/
+  `pricing/priceResearch.ts`/`listing-copy/generateListingCopy.ts` back to
+  `gemini-3.6-flash` and redeployed the three affected functions
+  immediately - ahead of any git/PR process, since every real
+  identify/price/listing-copy request was failing 100% in the window
+  between the two deploys. **Lesson recorded for future model-choice
+  decisions in this codebase: a model appearing on Google's pricing page
+  is not proof it's actually available to this project** - verify with a
+  real call before committing, not just a pricing-page read.
+
+  **Everything else `045`/`046` shipped is now confirmed working against
+  real production data, not just unit tests:**
+  - _Structured logging (`045`)_: a real pricing run produced exactly the
+    expected 4 `gemini_call` log entries (3 legs + synthesis), each with
+    real `usageMetadata` token counts. **A genuinely new finding this
+    logging immediately surfaced**: `toolUsePromptTokenCount` (grounding
+    search results + fetched page content) ran as high as **96,282
+    tokens on a single eBay-sold leg call** (vs. a ~1,500-token prompt) -
+    the grounding/`urlContext` tool's actual token cost is far larger
+    than the cost report's token-count estimates assumed, and is likely
+    the single largest real cost component, on top of the flat
+    per-request grounding fee the report already flagged. Also confirmed
+    `thoughtsTokenCount` is non-zero on every call (no `thinkingConfig` is
+    set anywhere) - the model spends real, billed reasoning tokens by
+    default, answering a question the cost report left open. Worth its
+    own follow-up investigation later (not opened as a ticket now - no
+    concrete fix proposed yet, just a real data point worth having).
+  - _Retry-amplification fix (`045`)_: proved directly, not just
+    inferred - seeded `ItemScanDoc.pricingResearchLegs` with an
+    unmistakable fake retail-open-box leg (`$999`/`$888`,
+    `source: "FAKE-SEED-SOURCE"`), cleared the tenant's
+    `product_price_cache` entry for the test candidate first (the cache
+    check happens before the retry-fix logic and would otherwise mask the
+    test), then dispatched. The final priced result used the fake seed
+    verbatim (`msrp: 999`, a factor literally reading _"Retail price
+    found via FAKE-SEED-SOURCE"_, and the synthesis step's own output
+    flagging _"Retail seed price ($999 CAD) appears significantly
+    inflated/outlier"_) while the two legs left `null` in the seed ran
+    fresh with real Kijiji/eBay data - definitive proof the skip-already-
+    succeeded-legs logic works in production, not just against mocks.
+  - _Usage metering (`046`)_: `tenants/{tenantId}/subscriptions/current.usage.geminiCalls_2026_08`
+    confirmed incrementing on real calls via direct Firestore reads
+    before/after.
+  - _Free-tier cap (`046`)_: the enforcement logic itself has full unit
+    coverage (10 tests, `billing/geminiUsage.test.ts`) and its data-read
+    path was confirmed live (the same real `subscriptions/current` read
+    above). Full onCall-level live enforcement (an actual signed-in free-
+    tier user hitting the cap) wasn't independently re-verified this pass -
+    same auth-impersonation limitation as everywhere else in this
+    session; not a new gap, just not newly closed either.
+
+  Full checklist clean on `PALLETIQ-048`'s revert: `functions` `npm run
+build`/`lint`/`vitest run` (293/293, unaffected) and repo-root
+  `format:check`/`lint`/`typecheck`/`npm test` (210/210, unaffected). No
+  Firestore rules/UI change. Test artifacts (the synthetic scan doc, the
+  polluted `product_price_cache` entry) deleted after - left nothing
+  behind that wasn't genuine real data already confirmed correct.

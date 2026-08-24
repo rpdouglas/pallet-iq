@@ -5,9 +5,9 @@ import type { ItemScanCandidate } from '../item-scans/types'
 import type { PricingResult } from '../pricing/types'
 import type { SaleabilityResult } from '../saleability/computeSaleability'
 
-// PALLETIQ-047. See gemini/identifyItem.ts's identical comment for why -
-// same direct, not formally validated, cost-driven decision.
-const MODEL = 'gemini-2.5-flash'
+// PALLETIQ-047 attempted, reverted immediately - see
+// gemini/identifyItem.ts's identical comment for why.
+const MODEL = 'gemini-3.6-flash'
 
 const listingCopyResponseSchema = z.object({
   title: z.string().min(1).max(200),

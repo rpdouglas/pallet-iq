@@ -53,6 +53,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Done        | P1       |
 | PALLETIQ-046 | Wire up Gemini usage metering and a free-tier monthly call cap                      | Owner/Admin   | 0     | Done        | P1       |
 | PALLETIQ-047 | Switch Gemini model from gemini-3.6-flash to gemini-2.5-flash                       | Buyer         | 2     | Done        | P2       |
+| PALLETIQ-048 | Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)           | Buyer         | 2     | Done        | P0       |
 
 ## Adding a ticket
 
@@ -2709,3 +2710,52 @@ _ADR:_ not needed - a swappable model-string parameter within
 `ADR-0011`/`0012`/`0013`'s already-decided identification/pricing
 architecture, not a new architectural decision. Easily revertible (three
 one-line constant changes) if the direct decision above turns out wrong.
+
+## PALLETIQ-048: Revert PALLETIQ-047 - gemini-2.5-flash unavailable for this project (404)
+
+_Scope note (2026-08-24) — opened and closed same session, production
+incident, not a planning-only note:_ found during live-verification
+immediately after deploying `PALLETIQ-045`/`046`/`047` together (the
+owner's own requested verification step). A real pricing run against the
+newly-deployed `gemini-2.5-flash` failed with a live 404 from the actual
+Gemini API: _"This model models/gemini-2.5-flash is no longer available
+to new users. Please update your code to use models/gemini-3.6-flash for
+the latest features and improvements."_ - despite `gemini-2.5-flash` still
+being listed with current pricing on Google's own public pricing page
+(ai.google.dev/gemini-api/docs/pricing), which is exactly what
+`PALLETIQ-047`'s decision was based on. **Google's pricing-page listing
+and actual per-project model availability are two different things** -
+worth remembering for any future model-choice decision in this codebase.
+
+**Real production impact, not just a test failure:** the three affected
+functions (`processItemScan`/`priceItemScanWorker`/`listingCopyWorker`)
+were live on `mrt-pallet-iq` with the broken model for a few minutes
+between the `PALLETIQ-047` deploy and this revert - every real
+identify/price/listing-copy request in that window would have failed
+100%. Reverted and redeployed immediately, ahead of this ticket's own
+PR/close-ticket paperwork, since stopping real user-facing failures took
+priority over process ordering - this ticket exists to record that
+emergency response properly, not to plan work not yet done.
+
+_In scope:_ revert `const MODEL = 'gemini-2.5-flash'` back to
+`'gemini-3.6-flash'` in the same three files `PALLETIQ-047` touched
+(`gemini/identifyItem.ts`, `pricing/priceResearch.ts`,
+`listing-copy/generateListingCopy.ts`). Confirmed working via a second
+live pricing run post-revert on the real deployed function (see
+`docs/ACTIVE_CYCLE.md`'s drift note for the full live-verification
+account, including the retry-amplification fix and structured logging
+also confirmed working against real data in the same pass).
+
+_Out of scope:_ investigating whether any _other_ Gemini model besides
+the original `gemini-3.6-flash` is worth trying (a fresh, separate
+decision if `PALLETIQ-047`'s cost motivation is revisited later - not
+re-litigated here); any change to `PALLETIQ-045`/`046`'s logging/metering
+code, which live-verification confirmed works correctly and is unaffected
+by this revert.
+
+_Firestore/RBAC impact:_ none - a model-string constant revert only.
+
+_UI pattern notes:_ none.
+
+_ADR:_ not needed - reverts `PALLETIQ-047`'s own non-architectural
+constant change back to its prior, already-decided value.
