@@ -15,12 +15,12 @@ export const RESTOCK_VENDOR_ID = 'restock-ca'
 
 // PALLETIQ-041 / ADR-0015. Buyer/Owner-gated, matching isOwnerOrBuyer -
 // sourcing/import is Buyer's core daily job (docs/personas/buyer.md), same
-// posture as enqueueManifestImport. Immediate return, no inline fetch -
-// importDiscoveredLotWorker.ts does the actual manifestUrl fetch, never on
-// this request path (governance Check II). format/storagePath below are a
-// best-guess placeholder (restock.ca manifests are confirmed CSV,
-// PALLETIQ-022) - the worker corrects them once it knows the real fetched
-// format.
+// posture as enqueueManifestImport. Immediate return, no inline work -
+// importDiscoveredLotWorker.ts does the actual manifest read/CSV synthesis
+// (PALLETIQ-052 / ADR-0018), never on this request path (governance Check
+// II). format/storagePath below are a best-guess placeholder (restock.ca
+// manifests are synthesized as CSV, PALLETIQ-052) - the worker corrects
+// them once it's written the real file.
 export const enqueueDiscoveredLotImport = onCall<
   EnqueueDiscoveredLotImportRequest,
   Promise<{ importId: string }>
@@ -51,7 +51,7 @@ export const enqueueDiscoveredLotImport = onCall<
   if (lot.status !== 'active') {
     throw new HttpsError('failed-precondition', 'This lot is no longer active.')
   }
-  if (!lot.manifestUrl) {
+  if (!lot.hasManifest) {
     throw new HttpsError('failed-precondition', 'This lot has no manifest to import.')
   }
 

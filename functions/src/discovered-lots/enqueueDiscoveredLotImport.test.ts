@@ -40,7 +40,7 @@ function auth(role: string) {
 
 const activeLot = {
   status: 'active',
-  manifestUrl: 'https://www.restock.ca/manifest.csv',
+  hasManifest: true,
   price: 250,
 }
 
@@ -86,8 +86,8 @@ describe('enqueueDiscoveredLotImport', () => {
     ).rejects.toThrow(/no longer active/i)
   })
 
-  it('rejects a lot with no manifestUrl', async () => {
-    mockGet.mockResolvedValueOnce({ data: () => ({ ...activeLot, manifestUrl: null }) })
+  it('rejects a lot with no manifest', async () => {
+    mockGet.mockResolvedValueOnce({ data: () => ({ ...activeLot, hasManifest: false }) })
 
     await expect(
       enqueueDiscoveredLotImport.run(request({ lotId: 'lot-1' }, auth('buyer'))),

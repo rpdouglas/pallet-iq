@@ -1,7 +1,7 @@
 import { logger } from 'firebase-functions/v2'
 import { onSchedule } from 'firebase-functions/v2/scheduler'
 import { FieldValue, getFirestore } from 'firebase-admin/firestore'
-import { extractManifestLink } from './fetchManifestLink'
+import { extractManifestTable } from './extractManifestTable'
 import { parseLotListPage } from './parseLotListPage'
 import type { ParsedLot, RestockLotDoc } from './types'
 
@@ -50,16 +50,16 @@ async function fetchAllLots(): Promise<{ lots: ParsedLot[]; pagesFetched: number
 // Sequential, not parallel - only runs for genuinely new lots (a handful
 // per hourly run in steady state), and staying polite to restock.ca's
 // servers matters more here than shaving a few seconds off the run.
-async function fetchManifestUrl(productUrl: string): Promise<string | null> {
+async function fetchManifestItems(productUrl: string): Promise<Record<string, string>[]> {
   try {
     const response = await fetch(productUrl, { headers: { 'User-Agent': USER_AGENT } })
     if (!response.ok) {
-      return null
+      return []
     }
-    return extractManifestLink(await response.text(), productUrl)
+    return extractManifestTable(await response.text())
   } catch (err) {
-    logger.warn(`scrapeRestockLots: manifest link fetch failed for ${productUrl}`, err)
-    return null
+    logger.warn(`scrapeRestockLots: manifest page fetch failed for ${productUrl}`, err)
+    return []
   }
 }
 
@@ -119,16 +119,20 @@ export const scrapeRestockLots = onSchedule(
       const ref = collection.doc(lot.lotNumber)
 
       if (!existingDoc) {
-        const manifestUrl = await fetchManifestUrl(lot.productUrl)
+        const manifestItems = await fetchManifestItems(lot.productUrl)
         batch.set(ref, {
           ...lot,
-          manifestUrl,
+          hasManifest: manifestItems.length > 0,
           status: 'active',
           firstSeenAt: FieldValue.serverTimestamp(),
           lastSeenAt: FieldValue.serverTimestamp(),
           updatedAt: FieldValue.serverTimestamp(),
         } satisfies RestockLotDoc)
+        for (const item of manifestItems) {
+          batch.set(ref.collection('manifestItems').doc(), item)
+        }
         createdCount += 1
+        opsInBatch += manifestItems.length
       } else {
         batch.update(ref, {
           ...lot,

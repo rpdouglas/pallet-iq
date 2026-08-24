@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ExternalLink, FileText, PackageSearch, Trash2 } from 'lucide-react'
+import { ExternalLink, PackageSearch, Trash2 } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '../components/Button'
@@ -195,28 +195,15 @@ export function DiscoveredLotsPage() {
                           className={`text-body text-ink-navy ${i % 2 === 1 ? 'bg-cloud-gray' : ''}`}
                         >
                           <td className="px-2 py-2">
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={lot.productUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="text-brand-blue inline-flex items-center gap-1 hover:underline"
-                              >
-                                {lot.title}
-                                <ExternalLink size={14} />
-                              </a>
-                              {lot.manifestUrl ? (
-                                <a
-                                  href={lot.manifestUrl}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  aria-label={`Manifest for ${lot.title}`}
-                                  className="text-slate-gray hover:text-brand-blue"
-                                >
-                                  <FileText size={14} />
-                                </a>
-                              ) : null}
-                            </div>
+                            <a
+                              href={lot.productUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-brand-blue inline-flex items-center gap-1 hover:underline"
+                            >
+                              {lot.title}
+                              <ExternalLink size={14} />
+                            </a>
                           </td>
                           <td className="px-2 py-2">{lot.category}</td>
                           <td className="px-2 py-2">{lot.condition}</td>
@@ -243,7 +230,7 @@ export function DiscoveredLotsPage() {
                                 >
                                   Imported
                                 </Link>
-                              ) : lot.manifestUrl ? (
+                              ) : lot.hasManifest ? (
                                 <div className="flex flex-col items-start gap-1">
                                   <Button
                                     className="min-h-11"

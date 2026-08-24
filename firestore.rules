@@ -292,6 +292,14 @@ service cloud.firestore {
     match /restock_lots/{lotId} {
       allow read: if isSignedIn();
       allow write: if false;
+
+      // PALLETIQ-052 / ADR-0018. Extracted manifest line items for this
+      // lot - same global/Admin-SDK-write-only posture as the parent doc,
+      // populated exclusively by scrapeRestockLots.
+      match /manifestItems/{itemId} {
+        allow read: if isSignedIn();
+        allow write: if false;
+      }
     }
 
     // ---- Cross-tenant: product_price_cache -----------------------------

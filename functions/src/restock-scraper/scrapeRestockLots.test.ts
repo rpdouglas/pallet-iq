@@ -18,7 +18,10 @@ interface FakeDoc {
 
 let existingDocs: FakeDoc[] = []
 const mockCollectionGet = vi.fn(() => Promise.resolve({ docs: existingDocs }))
-const mockDoc = vi.fn((id: string) => ({ id }))
+let subDocCounter = 0
+const mockSubDoc = vi.fn(() => ({ id: `sub-${(subDocCounter++).toString()}` }))
+const mockSubCollection = vi.fn(() => ({ doc: mockSubDoc }))
+const mockDoc = vi.fn((id: string) => ({ id, collection: mockSubCollection }))
 const mockCollection = vi.fn(() => ({ doc: mockDoc, get: mockCollectionGet }))
 
 vi.mock('firebase-admin/firestore', () => ({
@@ -33,8 +36,8 @@ vi.mock('firebase-functions/v2', () => ({
 const mockParseLotListPage = vi.fn()
 vi.mock('./parseLotListPage', () => ({ parseLotListPage: mockParseLotListPage }))
 
-const mockExtractManifestLink = vi.fn()
-vi.mock('./fetchManifestLink', () => ({ extractManifestLink: mockExtractManifestLink }))
+const mockExtractManifestTable = vi.fn()
+vi.mock('./extractManifestTable', () => ({ extractManifestTable: mockExtractManifestTable }))
 
 const { scrapeRestockLots } = await import('./scrapeRestockLots')
 
@@ -74,40 +77,46 @@ function resetMocks() {
   mockBatch.mockClear()
   mockCollectionGet.mockClear()
   mockDoc.mockClear()
+  mockSubDoc.mockClear()
+  mockSubCollection.mockClear()
   mockCollection.mockClear()
   mockParseLotListPage.mockReset()
-  mockExtractManifestLink.mockReset()
+  mockExtractManifestTable.mockReset()
   mockFetch.mockReset()
   existingDocs = []
+  subDocCounter = 0
 }
 
 describe('scrapeRestockLots', () => {
-  it('creates a new lot, fetching its manifest link', async () => {
+  it('creates a new lot, fetching and storing its manifest table', async () => {
     resetMocks()
     mockParseLotListPage.mockReturnValueOnce({ lots: [lot()], totalPages: 1, unparsedCount: 0 })
     mockFetch
       .mockResolvedValueOnce(pageResponse(true)) // category page
-      .mockResolvedValueOnce(pageResponse(true)) // manifest-link detail-page fetch
-    mockExtractManifestLink.mockReturnValueOnce('https://www.restock.ca/manifest.pdf')
+      .mockResolvedValueOnce(pageResponse(true)) // manifest-table detail-page fetch
+    mockExtractManifestTable.mockReturnValueOnce([{ UPC: '123', QTY: '1', TITLE: 'Widget' }])
 
     await scrapeRestockLots.run({ scheduleTime: '2026-01-01T00:00:00Z' })
 
-    expect(mockExtractManifestLink).toHaveBeenCalledTimes(1)
-    expect(mockBatchSet).toHaveBeenCalledTimes(1)
+    expect(mockExtractManifestTable).toHaveBeenCalledTimes(1)
+    // one set for the lot doc, one for the single manifest item
+    expect(mockBatchSet).toHaveBeenCalledTimes(2)
     expect(mockBatchUpdate).not.toHaveBeenCalled()
     const [ref, doc] = mockBatchSet.mock.calls[0] as [{ id: string }, RestockLotDoc]
-    expect(ref).toEqual({ id: '1000001' })
+    expect(ref.id).toBe('1000001')
     expect(doc).toEqual(
       expect.objectContaining({
         lotNumber: '1000001',
-        manifestUrl: 'https://www.restock.ca/manifest.pdf',
+        hasManifest: true,
         status: 'active',
       }),
     )
+    const [, itemDoc] = mockBatchSet.mock.calls[1] as [unknown, Record<string, string>]
+    expect(itemDoc).toEqual({ UPC: '123', QTY: '1', TITLE: 'Widget' })
     expect(mockBatchCommit).toHaveBeenCalledTimes(1)
   })
 
-  it('updates an existing lot without re-fetching its manifest link', async () => {
+  it('updates an existing lot without re-fetching its manifest table', async () => {
     resetMocks()
     existingDocs = [fakeDoc('1000001', 'active')]
     mockParseLotListPage.mockReturnValueOnce({ lots: [lot()], totalPages: 1, unparsedCount: 0 })
@@ -115,13 +124,13 @@ describe('scrapeRestockLots', () => {
 
     await scrapeRestockLots.run({ scheduleTime: '2026-01-01T00:00:00Z' })
 
-    expect(mockExtractManifestLink).not.toHaveBeenCalled()
+    expect(mockExtractManifestTable).not.toHaveBeenCalled()
     expect(mockBatchSet).not.toHaveBeenCalled()
     expect(mockBatchUpdate).toHaveBeenCalledTimes(1)
     const [ref, doc] = mockBatchUpdate.mock.calls[0] as [{ id: string }, Partial<RestockLotDoc>]
-    expect(ref).toEqual({ id: '1000001' })
+    expect(ref.id).toBe('1000001')
     expect(doc).toEqual(expect.objectContaining({ status: 'active' }))
-    expect(doc).not.toHaveProperty('manifestUrl')
+    expect(doc).not.toHaveProperty('hasManifest')
   })
 
   it('closes a previously-active lot that no longer appears in the scrape', async () => {
@@ -189,7 +198,7 @@ describe('scrapeRestockLots', () => {
     expect(mockBatchUpdate).not.toHaveBeenCalled()
   })
 
-  it('skips the manifest-link fetch and leaves it null when the detail-page fetch fails', async () => {
+  it('skips the manifest-table fetch and leaves hasManifest false when the detail-page fetch fails', async () => {
     resetMocks()
     mockParseLotListPage.mockReturnValueOnce({ lots: [lot()], totalPages: 1, unparsedCount: 0 })
     mockFetch
@@ -198,8 +207,23 @@ describe('scrapeRestockLots', () => {
 
     await scrapeRestockLots.run({ scheduleTime: '2026-01-01T00:00:00Z' })
 
-    expect(mockExtractManifestLink).not.toHaveBeenCalled()
+    expect(mockExtractManifestTable).not.toHaveBeenCalled()
+    // only the lot doc itself - no manifest item docs when the fetch fails
+    expect(mockBatchSet).toHaveBeenCalledTimes(1)
     const [, doc] = mockBatchSet.mock.calls[0] as [{ id: string }, RestockLotDoc]
-    expect(doc.manifestUrl).toBeNull()
+    expect(doc.hasManifest).toBe(false)
+  })
+
+  it('sets hasManifest false when the page has no manifest table', async () => {
+    resetMocks()
+    mockParseLotListPage.mockReturnValueOnce({ lots: [lot()], totalPages: 1, unparsedCount: 0 })
+    mockFetch.mockResolvedValueOnce(pageResponse(true)).mockResolvedValueOnce(pageResponse(true))
+    mockExtractManifestTable.mockReturnValueOnce([])
+
+    await scrapeRestockLots.run({ scheduleTime: '2026-01-01T00:00:00Z' })
+
+    expect(mockBatchSet).toHaveBeenCalledTimes(1)
+    const [, doc] = mockBatchSet.mock.calls[0] as [{ id: string }, RestockLotDoc]
+    expect(doc.hasManifest).toBe(false)
   })
 })

@@ -31,9 +31,13 @@ export interface RestockLotDoc {
   productUrl: string
   imageUrl: string | null
   // Populated by a best-effort fetch of the lot detail page for newly-seen
-  // lots only (see fetchManifestLink.ts) - null if no manifest link was
-  // found, not re-fetched on later runs once a lot is already known.
-  manifestUrl: string | null
+  // lots only (see extractManifestTable.ts) - false if no manifest table
+  // was found, not re-fetched on later runs once a lot is already known.
+  // The extracted rows themselves live in the manifestItems subcollection
+  // (PALLETIQ-052 / ADR-0018), not on this doc - DiscoveredLotsPage.tsx
+  // fetches the whole active set client-side with no pagination, so
+  // embedding item rows here would bloat every list-fetched doc.
+  hasManifest: boolean
   status: RestockLotStatus
   firstSeenAt: Timestamp | FieldValue
   lastSeenAt: Timestamp | FieldValue
@@ -41,10 +45,10 @@ export interface RestockLotDoc {
 }
 
 // What parseLotListPage.ts can determine from a category listing page
-// alone - no manifest link (that needs a separate detail-page fetch) and no
+// alone - no manifest data (that needs a separate detail-page fetch) and no
 // Firestore-lifecycle fields (those are attached by scrapeRestockLots.ts's
 // diff step, which knows whether a lot is new/existing/missing).
 export type ParsedLot = Omit<
   RestockLotDoc,
-  'manifestUrl' | 'status' | 'firstSeenAt' | 'lastSeenAt' | 'updatedAt'
+  'hasManifest' | 'status' | 'firstSeenAt' | 'lastSeenAt' | 'updatedAt'
 >
