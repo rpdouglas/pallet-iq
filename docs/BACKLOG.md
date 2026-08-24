@@ -50,6 +50,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)   | Buyer         | 4     | Planned     | P2       |
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list          | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest  | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug              | Buyer         | 2     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -2556,3 +2557,60 @@ surface are unaffected.
 
 _ADR:_ not needed - a bug fix to existing, already-decided scraper logic,
 not a new architectural decision.
+
+## PALLETIQ-045: Log Gemini usage per call site and fix pricing retry-amplification bug
+
+_Scope note (2026-08-24) — Planning gate only, not started:_ found via
+`docs/reports/2026-08-24-gemini-cost-audit.md`, a deep-dive requested
+directly by the owner into why Gemini spend seemed high. Two findings from
+that report, both verified against real code, addressed here; two related
+findings (usage metering, model choice) are split into their own tickets
+(`PALLETIQ-046`/`047`) since they're independently shippable decisions.
+
+_In scope:_ (a) structured per-call Gemini usage logging - one
+`logger.info()` after each `generateContent()` call in
+`gemini/identifyItem.ts`, `pricing/priceResearch.ts` (all 4 legs, via
+`runLeg`), and `listing-copy/generateListingCopy.ts`, recording call site,
+model, whether the call was grounded, and the four `usageMetadata` fields
+the SDK already returns (`promptTokenCount`, `candidatesTokenCount`,
+`toolUsePromptTokenCount`, `thoughtsTokenCount`) - the only way to see
+which pricing leg actually costs the most, since no billing-export or
+logging exists today. (b) Fix a real bug: `pricing/priceResearch.ts`'s 3
+research legs already degrade gracefully to a null/empty default on
+individual failure, but the 4th synthesis call has no fallback and throws
+by design; because `product_price_cache` is only written after full
+success and every Gemini-calling worker retries up to 3x on failure, a
+synthesis-only failure discards 3 already-paid grounded research calls and
+reruns all 4 from scratch (worst case 12 Gemini calls, 9 wasted, for one
+logical price). Fixed by persisting each leg's result onto the scan doc
+(`ItemScanDoc.pricingResearchLegs`, a new optional field) as soon as it
+succeeds, and skipping already-succeeded legs on a Cloud Tasks retry -
+splits `researchPrice()` into `researchPricingLegs()` (skippable, never
+throws) + `synthesizePricing()` (unchanged, still all-or-nothing). Cleared
+on a fresh manually-triggered `priceItemScan` request (not just a Cloud
+Tasks retry of the same attempt), since a stale multi-day-old partial
+result shouldn't silently answer a brand-new pricing request. (c) Bump
+`priceItemScanWorker.ts` to an explicit `memory: '512MiB'`, matching
+sibling workers' established precedent after past OOM incidents - it's the
+heaviest, longest-running (300s), most Gemini-call-dense worker and
+currently defaults to the platform floor (256MiB).
+
+_Out of scope, explicitly deferred:_ wiring `incrementUsage()` and a
+free-tier usage cap (`PALLETIQ-046`); switching the Gemini model
+(`PALLETIQ-047`); enabling GCP's billing export/budget alert (the owner's
+own Console action, not code); a per-import SKU research cap for lot
+scoring (`PALLETIQ-042`, not built yet); investigating prompt caching
+(explicitly flagged "not scheduled" in the cost-audit report, pending real
+prompt-size data this ticket's own logging will surface).
+
+_Firestore/RBAC impact:_ `ItemScanDoc` (`tenants/{tenantId}/item_scans`)
+gains one new optional field, `pricingResearchLegs` - no new collection, no
+rules change (existing `isTenantMember` read / `isOwnerOrBuyer` write on
+`item_scans` already covers it).
+
+_UI pattern notes:_ none - no UI surface changes; `pricingResearchLegs` is
+never rendered, internal bookkeeping only.
+
+_ADR:_ not needed - a bug fix + observability addition using the existing
+Cloud Tasks retry/cache-first pricing shape unchanged, not a new
+architectural decision.
