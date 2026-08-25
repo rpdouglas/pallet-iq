@@ -26,6 +26,14 @@ Runs the full gate a change needs to clear before a PR or ticket close, per
    pure duplication unless there's a specific reason to want the failure signal
    _before_ pushing. Default to trusting CI. Run a command locally only when at
    least one applies:
+
+   **`format:check` is the one exception — a `husky`/`lint-staged` pre-commit
+   hook (`.husky/pre-commit`) already runs `prettier --write` on every staged
+   file before each commit lands, so `format:check` should already be passing
+   by this step regardless of diff size/type; no need to special-case it.** If
+   it does fail here, that means the hook didn't run (e.g. the commit used
+   `--no-verify`, or `npm install` hasn't been run in this environment yet) —
+   fix by running `npm run format` once, not by treating it as expected.
    - the diff is large/risky enough that discovering a CI failure after push
      would be an expensive iterate-fix-push-wait cycle,
    - you're mid-implementation and want a fast local signal, or
