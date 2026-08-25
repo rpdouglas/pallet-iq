@@ -20,6 +20,10 @@ export { stripeWebhook } from './billing/stripeWebhook'
 export { enqueueManifestImport } from './manifests/enqueueManifestImport'
 export { processManifestImport } from './manifests/processManifestImport'
 
+// PALLETIQ-042 / ADR-0015.
+export { enqueueLotProfitabilityScore } from './manifests/enqueueLotProfitabilityScore'
+export { lotProfitabilityWorker } from './manifests/lotProfitabilityWorker'
+
 // PALLETIQ-020 / ADR-0009. restock.ca's Terms of Use/robots.txt were
 // checked and confirmed to permit this before scrapeRestockLots was
 // written - see ADR-0009's Context section. restock.ca only: B-Stock and

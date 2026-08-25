@@ -76,6 +76,14 @@ export async function listLineItems(tenantId: string, importId: string): Promise
   return snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<LineItem, 'id'>) }))
 }
 
+// PALLETIQ-042 / ADR-0015. Enqueue-only - the actual research runs in
+// lotProfitabilityWorker.ts's Cloud-Tasks-dispatched worker, never
+// inline on this request path.
+export async function enqueueLotProfitabilityScore(importId: string): Promise<void> {
+  const call = httpsCallable<{ importId: string }, null>(functions, 'enqueueLotProfitabilityScore')
+  await call({ importId })
+}
+
 export async function listImportErrors(
   tenantId: string,
   importId: string,

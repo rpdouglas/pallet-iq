@@ -1,6 +1,6 @@
 # ADR-0015: Discovered-lot import bridge + lot-level profitability scoring
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-08-24
 
 ## Context
@@ -188,7 +188,14 @@ persona already responsible for `imports`/`manifests`/`item_scans`.
 - Per-import Gemini research cost is now driven by manifest SKU-count, not a
   single buyer action — `PALLETIQ-042` needs to land with the cap/sampling
   decision made, not deferred again; flagged here so `close-ticket` on `042`
-  checks for it explicitly.
+  checks for it explicitly. **Resolved at close:** a fixed 20-distinct-SKU
+  cap per import, highest-value SKUs researched first
+  (`functions/src/manifests/lotProfitability.ts`'s `SKU_RESEARCH_CAP`) — 80
+  Gemini calls max for one profitability-score action, leaving headroom
+  under `PALLETIQ-046`'s 100-call/month free-plan cap. Unresearched SKUs
+  still count toward landed cost but contribute $0 to projected resale
+  value, understating margin conservatively rather than guessing — surfaced
+  explicitly in the score's factor breakdown, not a silent gap.
 - No `firestore.rules` change is anticipated beyond what `isOwnerOrBuyer`
   already covers on `imports`/`manifests`/`vendors` — confirmed at each
   ticket's close via `firestore-rules-auditor`, not assumed here.

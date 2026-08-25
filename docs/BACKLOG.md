@@ -47,7 +47,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-039 | Browse discovered lots UI (restock.ca scraper results)                                    | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category       | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)            | Buyer         | 4     | Done        | P2       |
-| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Planned     | P2       |
+| PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list                | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest        | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug                    | Buyer         | 2     | Done        | P1       |
@@ -2462,6 +2462,20 @@ assumed here.
 _UI pattern notes:_ `docs/design/explainable-scoring.md`'s existing
 score-badge pattern, reused verbatim — no new pattern to audit for Check IV
 beyond confirming correct reuse.
+
+_Closed (2026-08-25):_ shipped exactly to scope. Landed cost aggregated
+against projected resale (Σ distinct-SKU research × quantity, one Gemini
+research call per distinct SKU via the unmodified `priceResearch.ts`,
+sharing the same `product_price_cache` `priceItemScanWorker.ts` uses) into
+a lot-level margin, surfaced via `LotProfitabilityPanel.tsx`'s explainable-
+scoring reuse. The ADR's flagged open question (per-import SKU research
+cap) resolved: 20 distinct SKUs, highest-value first — see
+`docs/ACTIVE_CYCLE.md`'s drift notes for the full reasoning and the two
+small implementation extensions (a description-based dedup fallback tier,
+per-SKU failure isolation) made within the ADR's own stated flexibility.
+`firestore-rules-auditor`/`async-ai-boundary-auditor`/`design-system-auditor`
+all ran clean (one real pre-merge finding from the design audit, fixed
+before merge — a copy-inherited `p-8` that should have been `p-6`).
 
 _ADR:_ written — [`ADR-0015`](../adr/0015-discovered-lot-import-and-profitability-scoring.md).
 

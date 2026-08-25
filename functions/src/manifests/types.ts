@@ -1,7 +1,31 @@
 import type { FieldValue, Timestamp } from 'firebase-admin/firestore'
+import type { PricingFactor } from '../pricing/types'
 
 export type ManifestFormat = 'csv' | 'xlsx'
 export type ImportStatus = 'queued' | 'processing' | 'completed' | 'failed'
+
+// PALLETIQ-042 / ADR-0015.
+export type ProfitabilityStatus = 'not_scored' | 'scoring' | 'scored' | 'failed'
+
+// PALLETIQ-042 / ADR-0015. Lot-level aggregate, not per-SKU detail (the
+// per-SKU PricingResult objects that produced this aren't persisted
+// separately - only their contribution to the aggregate). `skusTotal` can
+// exceed `skusResearched` when the per-import SKU cap
+// (lotProfitability.ts's SKU_RESEARCH_CAP) is hit - unresearched SKUs
+// still count toward totalLandedCost (their cost is known from the
+// manifest) but contribute $0 to projectedResaleValue, which the
+// `factors` breakdown flags explicitly rather than silently understating
+// margin with no explanation.
+export interface LotProfitabilityResult {
+  totalLandedCost: number
+  projectedResaleValue: number
+  projectedProfit: number
+  /** null when totalLandedCost is 0 (nothing to divide by). */
+  marginPct: number | null
+  skusResearched: number
+  skusTotal: number
+  factors: PricingFactor[]
+}
 
 // tenants/{tenantId}/imports/{importId} - job/status record. PALLETIQ-008 /
 // ADR-0006. See docs/adr/0006-manifest-import-parsing-architecture.md.
@@ -31,6 +55,14 @@ export interface ImportDoc {
   // created via the Discovered Lots "Import" button. Traceability only -
   // nothing reads this to change import behavior.
   sourceRestockLotId: string | null
+  // PALLETIQ-042 / ADR-0015. Callable once status is 'completed', for any
+  // import (restock.ca-sourced or a regular manual upload) - not gated on
+  // sourceRestockLotId. Absent (undefined) on imports created before this
+  // shipped - no backfill, per the ADR's own scope note; UI treats
+  // undefined the same as 'not_scored'.
+  profitabilityStatus: ProfitabilityStatus
+  profitability: LotProfitabilityResult | null
+  profitabilityError: string | null
   createdAt: Timestamp | FieldValue
   updatedAt: Timestamp | FieldValue
 }

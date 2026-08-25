@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../lib/auth/useAuth'
 import {
+  enqueueLotProfitabilityScore,
   getImport,
   listImportErrors,
   listLineItems,
@@ -12,7 +13,10 @@ import {
   calculateLandedCostMultiplier,
   calculateTotalPurchaseValue,
 } from '../lib/manifests/landedCost'
+import { Button } from '../components/Button'
 import { LandedCostForm } from '../components/LandedCostForm'
+import { LotProfitabilityPanel } from '../components/LotProfitabilityPanel'
+import { Spinner } from '../components/Spinner'
 
 export function ManifestDetailPage() {
   const { importId } = useParams<{ importId: string }>()
@@ -25,6 +29,11 @@ export function ManifestDetailPage() {
     queryKey: ['imports', tenantId, importId],
     queryFn: () => getImport(tenantId ?? '', importId ?? ''),
     enabled: !!tenantId && !!importId,
+    // PALLETIQ-042: profitability scoring runs async server-side
+    // (lotProfitabilityWorker.ts) - poll while it's in flight, same
+    // posture ManifestsPage.tsx/ScannedItemsPage.tsx already use.
+    refetchInterval: (query) =>
+      query.state.data?.profitabilityStatus === 'scoring' ? 2000 : false,
   })
 
   const lineItemsQuery = useQuery({
@@ -42,6 +51,13 @@ export function ManifestDetailPage() {
   const costsMutation = useMutation({
     mutationFn: (values: { freightCost: number; otherFees: number }) =>
       updateImportCosts(tenantId ?? '', importId ?? '', values),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['imports', tenantId, importId] })
+    },
+  })
+
+  const profitabilityMutation = useMutation({
+    mutationFn: () => enqueueLotProfitabilityScore(importId ?? ''),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['imports', tenantId, importId] })
     },
@@ -96,6 +112,44 @@ export function ManifestDetailPage() {
               </p>
             ) : null}
           </div>
+        ) : null}
+
+        {canManageCosts && importQuery.data?.status === 'completed' ? (
+          <>
+            {importQuery.data.profitabilityStatus === 'scored' && importQuery.data.profitability ? (
+              <LotProfitabilityPanel profitability={importQuery.data.profitability} />
+            ) : (
+              <div className="rounded-xl bg-white p-6 shadow-sm">
+                <h2 className="text-h2 text-ink-navy mb-2 font-semibold">Profitability</h2>
+                {importQuery.data.profitabilityStatus === 'scoring' ? (
+                  <span className="text-label text-brand-blue inline-flex items-center gap-2">
+                    <Spinner className="h-4 w-4" />
+                    Scoring…
+                  </span>
+                ) : (
+                  <div className="flex flex-col items-start gap-1">
+                    <Button
+                      className="min-h-11"
+                      disabled={profitabilityMutation.isPending}
+                      onClick={() => {
+                        profitabilityMutation.mutate()
+                      }}
+                    >
+                      {importQuery.data.profitabilityStatus === 'failed'
+                        ? 'Try again'
+                        : 'Score profitability'}
+                    </Button>
+                    {importQuery.data.profitabilityStatus === 'failed' &&
+                    importQuery.data.profitabilityError ? (
+                      <span className="text-label text-danger">
+                        {importQuery.data.profitabilityError}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         ) : null}
 
         <div className="rounded-xl bg-white p-6 shadow-sm">

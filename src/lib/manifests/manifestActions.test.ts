@@ -38,6 +38,7 @@ const {
   newImportId,
   uploadManifestFile,
   enqueueManifestImport,
+  enqueueLotProfitabilityScore,
   listImports,
   getImport,
   listLineItems,
@@ -78,6 +79,15 @@ describe('manifestActions', () => {
     expect(httpsCallable).toHaveBeenCalledWith({}, 'enqueueManifestImport')
     expect(httpsCallableFn).toHaveBeenCalledWith(params)
     expect(result).toEqual({ importId: 'import-1' })
+  })
+
+  it('enqueueLotProfitabilityScore calls the callable with the given importId', async () => {
+    httpsCallableFn.mockResolvedValueOnce({ data: undefined })
+
+    await enqueueLotProfitabilityScore('import-1')
+
+    expect(httpsCallable).toHaveBeenCalledWith({}, 'enqueueLotProfitabilityScore')
+    expect(httpsCallableFn).toHaveBeenCalledWith({ importId: 'import-1' })
   })
 
   it('listImports maps docs into ImportSummary objects with id', async () => {

@@ -73,6 +73,10 @@ export const enqueueDiscoveredLotImport = onCall<
     otherFees: 0,
     totalPurchasePrice: lot.price,
     sourceRestockLotId: lotId,
+    // PALLETIQ-042 / ADR-0015.
+    profitabilityStatus: 'not_scored',
+    profitability: null,
+    profitabilityError: null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }
