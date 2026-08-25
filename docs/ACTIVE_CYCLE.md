@@ -44,6 +44,26 @@ the process itself, not product-scoped work. Logged here per Check
   audit concluded those were already correct. Report itself was ad hoc
   (delivered inline, not written to `docs/reports/` — a genuinely one-off
   process check, not a standing analysis worth a permanent doc).
+- **PR #101** — Root-caused a recurring `format:check` CI failure the user
+  flagged after hitting it twice in one session (PR #99/#100). `git log
+--all | grep -iE "format|prettier"` found **8** separate "fix
+  formatting" commits since 2026-08-07 — a pattern that predates PR #99's
+  step-3 change by two weeks, not caused by it (that change made the
+  pattern more certain for docs-only diffs specifically, since those are
+  exactly what it told Claude to skip locally, but the underlying
+  "remember to run prettier before committing" instruction was already
+  failing regularly). Root cause: prettier's markdown emphasis-marker
+  normalization and table-column-width re-padding are both essentially
+  impossible to get right by hand, and nothing enforced running the
+  formatter before commit — `format:check` (verify-only) has always run
+  in CI, but nothing local ever ran `format` (auto-fix) automatically.
+  Fixed with a real guardrail instead of another instruction: `husky` +
+  `lint-staged` pre-commit hook (`.husky/pre-commit`, installed
+  automatically via `npm install`'s new `prepare` script) runs
+  `prettier --write` on staged files before every commit, for any
+  committer (Claude Code or a human terminal), not just inside a Claude
+  Code session. `CONTRIBUTING.md`/`pre-pr-check` updated to reflect
+  `format:check` now being a backstop, not something to run by hand.
 - **PR #24** — Fixed a real process bug surfaced by closing `PALLETIQ-001`:
   `pre-pr-check` offered to push/open the PR with no mention of `close-ticket`,
   so the natural sequence was pre-pr-check → push → merge → close-ticket —

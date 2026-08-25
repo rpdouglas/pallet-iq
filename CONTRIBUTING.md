@@ -34,6 +34,13 @@ GitHub-side branch protection below — that's the actual enforcement.
 
 ## Before opening a PR
 
+A `husky`/`lint-staged` pre-commit hook (`.husky/pre-commit`, installed
+automatically via `npm install`'s `prepare` script) runs `prettier --write`
+on every staged file before each commit, so `format:check` below should
+already pass by the time you're here — it's listed as the CI backstop
+(catches a `--no-verify` commit, or an environment where the hook hasn't
+been installed yet), not something you need to run by hand first.
+
 ```bash
 npm run format:check
 npm run lint

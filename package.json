@@ -14,7 +14,8 @@
     "test": "vitest run --exclude firestore.rules.test.ts --exclude storage.rules.test.ts",
     "test:rules": "firebase emulators:exec --only firestore \"vitest run firestore.rules.test.ts\"",
     "test:storage-rules": "firebase emulators:exec --only storage \"vitest run storage.rules.test.ts\"",
-    "test:e2e": "npm --prefix functions run build && firebase emulators:exec --project demo-palletiq --only auth,firestore,storage,functions \"playwright test\""
+    "test:e2e": "npm --prefix functions run build && firebase emulators:exec --project demo-palletiq --only auth,firestore,storage,functions \"playwright test\"",
+    "prepare": "husky"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -50,11 +51,16 @@
     "firebase-admin": "^14.3.0",
     "firebase-tools": "^15.27.0",
     "globals": "^17.11.0",
+    "husky": "^9.1.7",
     "jsdom": "^30.0.1",
+    "lint-staged": "^17.3.0",
     "prettier": "^3.9.6",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.67.0",
     "vite": "^8.2.0",
     "vitest": "^4.1.10"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,md,yml,yaml,css}": "prettier --write"
   }
 }
