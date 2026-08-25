@@ -85,8 +85,9 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052`/`042` closed 2026-08-24/25
-  (see Drift notes). `PALLETIQ-003` is shelved, not active — see below.
+  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052`/`042`/`053` closed
+  2026-08-24/25 (see Drift notes). `PALLETIQ-003` is shelved, not active
+  — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -3293,3 +3294,59 @@ none`, table renders exactly as it did before this ticket - no
   tickets it covers are now Done) - flipped to `Accepted`.
   `docs/personas/buyer.md` gained `enqueueLotProfitabilityScore` to its
   trigger list, per the ADR's own deferred-to-close-out instruction.
+
+- **2026-08-25 — PALLETIQ-053 closed.** Both findings from live-verifying
+  `PALLETIQ-042` against a real production import, fixed per the ticket's
+  scope note (see `docs/BACKLOG.md`):
+  1. **Real bug, root-caused via production Cloud Logging, not guessed.**
+     `functions/src/pricing/cacheKey.ts`'s `computeCacheKey` passed
+     `candidate.barcodeNumber` straight into a Firestore document path
+     with no sanitization. Manifest data commonly uses the literal string
+     `"N/A"` as a no-barcode placeholder; its `/` corrupted the
+     `product_price_cache/upc:${barcodeNumber}` path (3 segments instead
+     of 2) and threw. `lotProfitabilityWorker.ts`'s existing per-SKU
+     failure isolation (`PALLETIQ-042`) caught the throw and silently
+     degraded those SKUs to "not researched" instead of crashing the
+     whole score - which is exactly why this shipped unnoticed: no error
+     surfaced anywhere except a WARNING log line, but it ate roughly half
+     of a real lot's researched SKUs (10 of 21, confirmed via Cloud
+     Logging). Fixed with a new `sanitizeBarcodeNumber` (strips non-digits,
+     falls back to the existing brand|model|itemName fingerprint key if
+     fewer than 6 digits remain) inside the shared `computeCacheKey`
+     itself, not only in the new lot-profitability code path - this
+     function is also called by `priceItemScanWorker.ts` (Treasure Hunter
+     single-item pricing), and a vision-read barcode isn't guaranteed
+     digit-noise-free either, just less likely to hit this.
+  2. **Missing feature, not a bug.** The owner reasonably expected to see
+     each line item's own researched liquidation price in
+     `ManifestDetailPage.tsx`'s table after scoring a lot, not just the
+     lot-level margin/profit rollup `PALLETIQ-042` shipped. The worker
+     already computed a per-SKU sale price during scoring; it was never
+     persisted past the in-memory aggregation step. Fixed by adding
+     `liquidationPrice: number | null` to `LineItemDoc`/`LineItem` and a
+     `writeLiquidationPrices` batch-write step (400-op chunks, under
+     Firestore's 500-op cap) in `lotProfitabilityWorker.ts` that gives
+     every line item an explicit value on every score run - `null` for a
+     group that failed research or was skipped past `SKU_RESEARCH_CAP`,
+     not left stale from a prior run. Table column gated by the existing
+     `canSeeCost` role check, same pattern as the adjacent Unit/Landed
+     cost columns.
+
+  **No drift from the ticket's own scope note** - both fixes shipped
+  exactly as scoped, no additional findings surfaced during
+  implementation.
+
+  **Phase 4 QA/Verification criterion re-checked, not just assumed
+  still true:** "pricing engine respects cached refresh interval... under
+  load" - `CACHE_TTL_MS` (30 days) and `RESEARCH_CONCURRENCY` (5) are
+  both unchanged by this ticket; the fix only changes which cache key a
+  lookup resolves to, not the cache's refresh or concurrency behavior.
+  Verified by reading the diff, not by a fresh load test (none of this
+  ticket's changes touch that behavior).
+
+  `design-system-auditor` and `firestore-rules-auditor` both ran clean
+  (no findings) - the new table column reuses the existing cost-column
+  pattern exactly, and `liquidationPrice` is a new field on the already-
+  tenant-isolated `lineItems` collection (`PALLETIQ-009`/`041`'s existing
+  rule block and test pair), not a new collection, so neither needed new
+  rules/tests work.
