@@ -49,7 +49,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)            | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-053 | Fix UPC-placeholder cache-key bug; show per-item liquidation price in the manifest table  | Buyer         | 4     | Done        | P1       |
-| PALLETIQ-054 | Fix silent Score-profitability failures; add a rescore affordance                         | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-054 | Fix silent Score-profitability failures; add a rescore affordance                         | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list                | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest        | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug                    | Buyer         | 2     | Done        | P1       |
@@ -3089,7 +3089,7 @@ established doc shape, not an architecturally significant decision.
 
 ## PALLETIQ-054: Fix silent Score-profitability failures; add a rescore affordance
 
-_Scope note (2026-08-25) — Planning gate only, not started:_ found while
+_Scope note (2026-08-25, closed same day):_ found while
 investigating a user report of "clicking Score profitability does nothing"
 plus a null "Liquidation price" column (`PALLETIQ-053`). Two related gaps,
 both traced to `src/pages/ManifestDetailPage.tsx`:

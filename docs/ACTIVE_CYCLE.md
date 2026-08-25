@@ -3350,3 +3350,59 @@ none`, table renders exactly as it did before this ticket - no
   tenant-isolated `lineItems` collection (`PALLETIQ-009`/`041`'s existing
   rule block and test pair), not a new collection, so neither needed new
   rules/tests work.
+
+- **2026-08-25 — PALLETIQ-054 closed.** Found while investigating a user
+  report of "clicking Score profitability does nothing" plus a null
+  "Liquidation price" column (`PALLETIQ-053`). Both fixed per the
+  ticket's scope note (see `docs/BACKLOG.md`), UI-only in
+  `ManifestDetailPage.tsx`:
+  1. **Silent-failure bug, root-caused by tracing the mutation, not
+     guessed.** `profitabilityMutation` had no `onError` handler and no
+     JSX read `.isError`/`.error`, so every `HttpsError`
+     `enqueueLotProfitabilityScore.ts` can throw (auth, role, the
+     `PALLETIQ-046` monthly Gemini-usage cap, missing `importId`, import
+     not found, import not yet `completed`) was swallowed - the button
+     just re-enabled with zero feedback, indistinguishable from "nothing
+     happened." Since scoring never completed in that case,
+     `liquidationPrice` never got written either, tying this directly to
+     the second symptom. Fixed by rendering
+     `callableErrorMessage(profitabilityMutation.error)` (reusing the
+     existing helper in `src/lib/auth/errors.ts`, already used by
+     `OnboardingPage.tsx`/`AcceptInvitePage.tsx` - no new error-mapping
+     code written) next to the button in both the not-yet-scored and
+     already-scored branches.
+  2. **Missing affordance, not a bug in the write path.** Once
+     `profitabilityStatus === 'scored'`, the button was replaced entirely
+     by `LotProfitabilityPanel` with no way to re-trigger scoring.
+     `PALLETIQ-053`'s own "out of scope" note assumed re-running "Score
+     profitability" would naturally backfill `liquidationPrice` on
+     already-scored imports - that assumption was wrong, since no UI path
+     back into scoring existed. Any manifest scored before `PALLETIQ-053`
+     shipped per-item writes was permanently stuck with a null column.
+     Fixed with a `ghost`-variant "Rescore" button rendered alongside
+     `LotProfitabilityPanel`, calling the same
+     `profitabilityMutation.mutate()` - no backend change needed,
+     `enqueueLotProfitabilityScore.ts` never branched on the import's
+     _current_ `profitabilityStatus`, only on `status === 'completed'`,
+     so re-invoking it while already `scored` already worked
+     server-side.
+
+  **No drift from the ticket's own scope note** - both fixes shipped
+  exactly as scoped and UI-only, as anticipated; no Firestore/backend
+  change turned out to be needed.
+
+  **Phase 4 QA/Verification criteria re-checked, not assumed still
+  true:** "Cross-tenant benchmark figure excludes any tenant-identifying
+  data" and "pricing engine respects cached refresh interval... under
+  load" - neither applies to this ticket's scope (no benchmarking code,
+  no change to `CACHE_TTL_MS`/`RESEARCH_CONCURRENCY`/rate-limit
+  behavior), same not-applicable posture `PALLETIQ-042`/`053` themselves
+  took for these two criteria.
+
+  `design-system-auditor` ran clean (no findings) - the new Rescore
+  button reuses the existing `ghost` `Button` variant and the page's own
+  `min-h-11` sibling-button sizing, and the new error-message markup is
+  byte-identical to the page's pre-existing `profitabilityError` inline-
+  error pattern, so no new visual pattern was introduced.
+  `firestore-rules-auditor` not run - no Firestore schema, rules, or new
+  collection touched by this ticket.
