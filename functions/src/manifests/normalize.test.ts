@@ -22,6 +22,7 @@ describe('normalizeRow', () => {
         unitCost: 4.5,
         condition: 'New',
         category: 'Electronics',
+        liquidationPrice: null,
       },
     })
   })
@@ -43,6 +44,7 @@ describe('normalizeRow', () => {
         unitCost: 12.99,
         condition: null,
         category: 'Audio',
+        liquidationPrice: null,
       },
     })
   })
@@ -63,6 +65,7 @@ describe('normalizeRow', () => {
         unitCost: 1234.56,
         condition: null,
         category: null,
+        liquidationPrice: null,
       },
     })
   })
@@ -101,6 +104,7 @@ describe('normalizeRow', () => {
         unitCost: 0,
         condition: null,
         category: null,
+        liquidationPrice: null,
       },
     })
   })
@@ -137,6 +141,7 @@ describe('normalizeRow', () => {
         unitCost: 25,
         condition: null,
         category: null,
+        liquidationPrice: null,
       },
     })
   })
@@ -154,6 +159,7 @@ describe('normalizeRow', () => {
           unitCost: 25,
           condition: null,
           category: null,
+          liquidationPrice: null,
         },
       })
     })
@@ -170,6 +176,7 @@ describe('normalizeRow', () => {
           unitCost: 40,
           condition: null,
           category: null,
+          liquidationPrice: null,
         },
       })
     })

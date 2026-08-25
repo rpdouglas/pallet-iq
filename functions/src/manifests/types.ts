@@ -86,6 +86,13 @@ export interface LineItemDoc {
   unitCost: number
   condition: string | null
   category: string | null
+  // PALLETIQ-053. Set null at row-normalization time (no price research
+  // has run yet); written by lotProfitabilityWorker.ts once a lot
+  // profitability score runs - null again if that SKU wasn't researched
+  // (past the per-import cap) or researched with no usable price found,
+  // same "flag, don't guess" posture as the rest of that feature. Every
+  // lineItems doc sharing a dedup group key gets the same value.
+  liquidationPrice: number | null
 }
 
 // tenants/{tenantId}/imports_errors/{errorId} - one per row that failed to

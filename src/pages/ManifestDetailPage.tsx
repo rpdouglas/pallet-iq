@@ -17,6 +17,7 @@ import { Button } from '../components/Button'
 import { LandedCostForm } from '../components/LandedCostForm'
 import { LotProfitabilityPanel } from '../components/LotProfitabilityPanel'
 import { Spinner } from '../components/Spinner'
+import { formatMoney } from '../lib/format'
 
 export function ManifestDetailPage() {
   const { importId } = useParams<{ importId: string }>()
@@ -175,6 +176,9 @@ export function ManifestDetailPage() {
                     {canSeeCost ? (
                       <th className="px-2 py-2 text-right font-medium">Landed cost</th>
                     ) : null}
+                    {canSeeCost ? (
+                      <th className="px-2 py-2 text-right font-medium">Liquidation price</th>
+                    ) : null}
                     <th className="px-2 py-2 font-medium">Condition</th>
                   </tr>
                 </thead>
@@ -195,6 +199,11 @@ export function ManifestDetailPage() {
                       {canSeeCost ? (
                         <td className="px-2 py-2 text-right">
                           ${calculateLandedCost(item.unitCost, landedCostMultiplier).toFixed(2)}
+                        </td>
+                      ) : null}
+                      {canSeeCost ? (
+                        <td className="px-2 py-2 text-right">
+                          {formatMoney(item.liquidationPrice ?? null)}
                         </td>
                       ) : null}
                       <td className="px-2 py-2">

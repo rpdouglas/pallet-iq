@@ -40,4 +40,23 @@ describe('computeCacheKey', () => {
   it('omits missing fields from the fingerprint rather than leaving gaps', () => {
     expect(computeCacheKey({ ...BASE, brand: null, model: null })).toBe('fp:instant pot duo')
   })
+
+  it('falls back to the fingerprint when barcodeNumber is a placeholder like "N/A"', () => {
+    // "N/A" contains a literal "/" - passed through unsanitized, this
+    // corrupts a Firestore document path built from it (found
+    // live-verifying PALLETIQ-042 against real manifest data).
+    expect(computeCacheKey({ ...BASE, barcodeNumber: 'N/A' })).toBe(
+      'fp:instant pot|duo60|instant pot duo',
+    )
+  })
+
+  it('strips non-digit noise from an otherwise-real barcode', () => {
+    expect(computeCacheKey({ ...BASE, barcodeNumber: '012-345-678905' })).toBe('upc:012345678905')
+  })
+
+  it('falls back to the fingerprint when the digits-only barcode is too short to be real', () => {
+    expect(computeCacheKey({ ...BASE, barcodeNumber: '123' })).toBe(
+      'fp:instant pot|duo60|instant pot duo',
+    )
+  })
 })

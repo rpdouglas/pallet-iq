@@ -54,6 +54,11 @@ export interface LineItem {
   unitCost: number
   condition: string | null
   category: string | null
+  // PALLETIQ-053 - absent (undefined) on line items created before this
+  // shipped, no backfill; written by lotProfitabilityWorker.ts once a
+  // lot profitability score runs. null again if that SKU wasn't
+  // researched (past the per-import cap) or had no usable price found.
+  liquidationPrice?: number | null
 }
 
 export interface ImportErrorRecord {

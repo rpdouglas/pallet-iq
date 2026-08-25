@@ -13,8 +13,11 @@ const mockDoc = vi.fn((path: string) => {
   return { get: mockImportGet, update: mockUpdate }
 })
 const mockCollection = vi.fn(() => ({ get: mockLineItemsGet }))
+const mockBatchUpdate = vi.fn()
+const mockBatchCommit = vi.fn(() => Promise.resolve())
+const mockBatch = vi.fn(() => ({ update: mockBatchUpdate, commit: mockBatchCommit }))
 vi.mock('firebase-admin/firestore', () => ({
-  getFirestore: () => ({ doc: mockDoc, collection: mockCollection }),
+  getFirestore: () => ({ doc: mockDoc, collection: mockCollection, batch: mockBatch }),
   FieldValue: { serverTimestamp: () => 'SERVER_TIMESTAMP' },
 }))
 
@@ -86,6 +89,9 @@ function resetMocks() {
   mockCacheSet.mockReset()
   mockDoc.mockClear()
   mockCollection.mockClear()
+  mockBatchUpdate.mockClear()
+  mockBatchCommit.mockClear()
+  mockBatch.mockClear()
   mockResearchPricingLegs.mockReset()
   mockSynthesizePricing.mockReset()
   mockVerifyPricingComps.mockReset()
@@ -116,7 +122,9 @@ describe('lotProfitabilityWorker', () => {
   it('scores a single-SKU lot on a cache miss and writes the aggregate result', async () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({ data: () => IMPORT_DOC })
-    mockLineItemsGet.mockResolvedValueOnce({ docs: [{ data: () => LINE_ITEM }] })
+    mockLineItemsGet.mockResolvedValueOnce({
+      docs: [{ data: () => LINE_ITEM, ref: { id: 'item-1' } }],
+    })
     mockCacheGet.mockResolvedValueOnce({ exists: false })
     mockResearchPricingLegs.mockResolvedValueOnce(LEGS_RESULT)
     mockSynthesizePricing.mockResolvedValueOnce(FULL_RESEARCH_RESPONSE)
@@ -132,12 +140,18 @@ describe('lotProfitabilityWorker', () => {
     expect(updateArg.profitability?.skusResearched).toBe(1)
     expect(updateArg.profitability?.skusTotal).toBe(1)
     expect(mockRecordGeminiCalls).toHaveBeenCalledWith('tenant-a', 4) // 3 legs + synthesis
+    // PALLETIQ-053: the researched sale price is written back onto the
+    // line item doc itself, not just folded into the lot-level aggregate.
+    expect(mockBatchUpdate).toHaveBeenCalledWith({ id: 'item-1' }, { liquidationPrice: 100 })
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1)
   })
 
   it('skips research on a fresh cache hit', async () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({ data: () => IMPORT_DOC })
-    mockLineItemsGet.mockResolvedValueOnce({ docs: [{ data: () => LINE_ITEM }] })
+    mockLineItemsGet.mockResolvedValueOnce({
+      docs: [{ data: () => LINE_ITEM, ref: { id: 'item-1' } }],
+    })
     mockCacheGet.mockResolvedValueOnce({
       exists: true,
       data: () => ({
@@ -157,7 +171,9 @@ describe('lotProfitabilityWorker', () => {
   it('treats a stale (expired TTL) cache entry as a miss and re-researches - same 30-day cache refresh interval priceItemScanWorker.ts uses', async () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({ data: () => IMPORT_DOC })
-    mockLineItemsGet.mockResolvedValueOnce({ docs: [{ data: () => LINE_ITEM }] })
+    mockLineItemsGet.mockResolvedValueOnce({
+      docs: [{ data: () => LINE_ITEM, ref: { id: 'item-1' } }],
+    })
     const THIRTY_ONE_DAYS_MS = 31 * 24 * 60 * 60 * 1000
     mockCacheGet.mockResolvedValueOnce({
       exists: true,
@@ -180,7 +196,9 @@ describe('lotProfitabilityWorker', () => {
   it("one SKU's research failing degrades that SKU to unresearched instead of failing the whole lot", async () => {
     resetMocks()
     mockImportGet.mockResolvedValueOnce({ data: () => IMPORT_DOC })
-    mockLineItemsGet.mockResolvedValueOnce({ docs: [{ data: () => LINE_ITEM }] })
+    mockLineItemsGet.mockResolvedValueOnce({
+      docs: [{ data: () => LINE_ITEM, ref: { id: 'item-1' } }],
+    })
     mockCacheGet.mockResolvedValueOnce({ exists: false })
     mockResearchPricingLegs.mockRejectedValueOnce(new Error('Gemini timed out'))
 
@@ -190,6 +208,9 @@ describe('lotProfitabilityWorker', () => {
     expect(updateArg.profitabilityStatus).toBe('scored')
     expect(updateArg.profitability?.skusResearched).toBe(0)
     expect(updateArg.profitability?.projectedResaleValue).toBe(0)
+    // PALLETIQ-053: a failed (or, equivalently, never-attempted-past-cap)
+    // group still writes an explicit null, not left unset.
+    expect(mockBatchUpdate).toHaveBeenCalledWith({ id: 'item-1' }, { liquidationPrice: null })
   })
 
   it('marks the import failed and rethrows on a whole-worker failure (line items unreadable)', async () => {
