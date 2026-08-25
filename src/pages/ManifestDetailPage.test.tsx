@@ -19,11 +19,13 @@ const updateImportCosts =
       costs: { freightCost: number; otherFees: number },
     ) => Promise<void>
   >()
+const enqueueLotProfitabilityScore = vi.fn<(importId: string) => Promise<void>>()
 vi.mock('../lib/manifests/manifestActions', () => ({
   getImport,
   listLineItems,
   listImportErrors,
   updateImportCosts,
+  enqueueLotProfitabilityScore,
 }))
 
 const { ManifestDetailPage } = await import('./ManifestDetailPage')
@@ -218,5 +220,97 @@ describe('ManifestDetailPage', () => {
       })
     })
     expect(await screen.findByText('Saved.')).toBeInTheDocument()
+  })
+
+  it('shows a "Score profitability" button for a completed, not-yet-scored import', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByRole('button', { name: 'Score profitability' })).toBeInTheDocument()
+  })
+
+  it('enqueues profitability scoring when the button is clicked', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    enqueueLotProfitabilityScore.mockResolvedValueOnce(undefined)
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Score profitability' }))
+
+    await waitFor(() => {
+      expect(enqueueLotProfitabilityScore).toHaveBeenCalledWith('import-1')
+    })
+  })
+
+  it('shows a scoring indicator while profitabilityStatus is "scoring"', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'scoring' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByText('Scoring…')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Score profitability' })).not.toBeInTheDocument()
+  })
+
+  it('shows the profitability panel once scored', async () => {
+    getImport.mockResolvedValueOnce({
+      ...IMPORT,
+      profitabilityStatus: 'scored',
+      profitability: {
+        totalLandedCost: 100,
+        projectedResaleValue: 150,
+        projectedProfit: 50,
+        marginPct: 0.5,
+        skusResearched: 1,
+        skusTotal: 1,
+        factors: [
+          { label: 'All 1 distinct items researched', direction: 'neutral', explanation: null },
+        ],
+      },
+    })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('Projected margin')).toBeInTheDocument()
+  })
+
+  it('shows "Try again" and the error message when scoring failed', async () => {
+    getImport.mockResolvedValueOnce({
+      ...IMPORT,
+      profitabilityStatus: 'failed',
+      profitabilityError: 'Gemini timed out',
+    })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(screen.getByText('Gemini timed out')).toBeInTheDocument()
+  })
+
+  it('does not show the profitability section for a warehouse-role user', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('warehouse')
+
+    expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
+    expect(screen.queryByText('Profitability')).not.toBeInTheDocument()
+  })
+
+  it('does not show the profitability section for an import that has not finished importing', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, status: 'processing' })
+    listLineItems.mockResolvedValueOnce([])
+    renderPage('buyer')
+
+    await waitFor(() => {
+      expect(getImport).toHaveBeenCalled()
+    })
+    expect(screen.queryByText('Profitability')).not.toBeInTheDocument()
   })
 })

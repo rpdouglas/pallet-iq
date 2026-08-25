@@ -103,6 +103,10 @@ export const enqueueManifestImport = onCall<
     otherFees: 0,
     totalPurchasePrice: typeof totalPurchasePrice === 'number' ? totalPurchasePrice : null,
     sourceRestockLotId: null,
+    // PALLETIQ-042 / ADR-0015.
+    profitabilityStatus: 'not_scored',
+    profitability: null,
+    profitabilityError: null,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }

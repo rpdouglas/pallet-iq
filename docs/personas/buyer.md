@@ -38,7 +38,10 @@ Custom claim: `role: "buyer"`
   `ADR-0011`; `product_price_cache` is Cloud-Functions-write-only, same
   as `restock_lots`). Can also trigger `enqueueDiscoveredLotImport`
   (bridges a discovered `restock_lots` lot into a real tenant import via
-  the existing manifest-import pipeline — see `ADR-0015`/`PALLETIQ-041`).
+  the existing manifest-import pipeline — see `ADR-0015`/`PALLETIQ-041`)
+  and `enqueueLotProfitabilityScore` (scores a completed import's
+  profitability via text-based pricing research — see
+  `ADR-0015`/`PALLETIQ-042`).
 - **No access to:** `settings` (tenant config), `subscriptions` (billing),
   `api_keys`, `audit_logs`, team/user management
 

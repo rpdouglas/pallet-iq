@@ -85,8 +85,8 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052` closed 2026-08-24 (see
-  Drift notes). `PALLETIQ-003` is shelved, not active — see below.
+  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052`/`042` closed 2026-08-24/25
+  (see Drift notes). `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -3235,3 +3235,61 @@ none`, table renders exactly as it did before this ticket - no
   pattern whenever the feature has a UI entry point reachable by the
   owner directly; reserve credential-minting for checks with no UI path
   (e.g. verifying a scheduled/background worker with nothing to click).
+
+- **2026-08-25 — PALLETIQ-042 closed.** Shipped per its scope note and
+  `ADR-0015`: `enqueueLotProfitabilityScore` (onCall, enqueue-only) +
+  `lotProfitabilityWorker` (`onTaskDispatched`) dedupe a completed
+  import's line items by SKU/UPC, build an `ItemScanCandidate` per
+  distinct item straight from manifest fields (no photo, no Gemini
+  vision call), and call the **existing, unmodified**
+  `priceResearch.ts` once per distinct SKU - reusing the same
+  `product_price_cache` `priceItemScanWorker.ts` already reads/writes,
+  so a SKU already priced via a Treasure Hunter scan (or a prior lot
+  import) can hit cache instead of re-researching. Aggregates against
+  landed cost (`PALLETIQ-009`'s existing multiplier formula, ported into
+  `functions/src/manifests/landedCost.ts` since `functions/`'s isolated
+  `tsconfig` can't import the root copy) into a lot-level margin, shown
+  via `LotProfitabilityPanel.tsx` - the third real instance of
+  `docs/design/explainable-scoring.md`'s score-badge + factor-breakdown
+  pattern, reusing the existing `FactorBreakdownList` component.
+  `async-ai-boundary-auditor` and `design-system-auditor` both ran
+  clean (the latter caught one real pre-merge finding, see below).
+  `firestore-rules-auditor` correctly N/A - no new collection, the
+  existing `isOwnerOrBuyer` rule on `imports/{importId}` already covers
+  the new fields.
+
+  **The ADR's own flagged open question, resolved as planned, not
+  deferred again:** a per-import cap of 20 distinct SKUs researched
+  (highest-value first), documented in both the code
+  (`lotProfitability.ts`'s `SKU_RESEARCH_CAP`) and `ADR-0015`'s
+  Consequences section - 80 Gemini calls max for one profitability-score
+  click, leaving headroom under `PALLETIQ-046`'s 100-call/month
+  free-plan cap. Unresearched SKUs still count toward landed cost but
+  contribute $0 to projected resale (understating margin, not
+  overstating it), surfaced explicitly in the score's own factor
+  breakdown rather than silently.
+
+  **Minor drift, both reasonable extensions within the ADR's own stated
+  flexibility, not scope changes:** (1) the ADR says "deduplicates by
+  SKU/UPC" - added a third fallback tier (normalized description) for
+  manifest rows with neither, since a manual CSV upload isn't guaranteed
+  to have either column; (2) one SKU's research failing (a thrown
+  synthesis error, a transient network issue) is caught per-SKU and
+  counted as "not researched" rather than failing the whole lot's score
+  - not specified either way in the ADR, chosen to match
+    `priceResearch.ts`'s own degrade-gracefully posture one level up
+    rather than importDiscoveredLotWorker's all-or-nothing failure model.
+
+  **Caught before merge, not shipped:** `design-system-auditor` flagged
+  `LotProfitabilityPanel.tsx` copy-inheriting `PricingPanel`/
+  `SaleabilityPanel`'s `p-8` padding - those two components' own
+  comments scope `p-8` to the mobile-first Buyer capture/scan-result
+  flow specifically (`docs/design/mobile-responsive.md`'s named
+  exception); `ManifestDetailPage.tsx` is desktop-first, same `p-6` as
+  every sibling card on that page. Fixed pre-merge.
+
+  **Also fixed as part of this close-out:** `ADR-0015`'s `Status` field
+  had been stale at `Proposed` since `PALLETIQ-041` shipped (both
+  tickets it covers are now Done) - flipped to `Accepted`.
+  `docs/personas/buyer.md` gained `enqueueLotProfitabilityScore` to its
+  trigger list, per the ADR's own deferred-to-close-out instruction.

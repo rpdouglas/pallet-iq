@@ -1,5 +1,20 @@
+import type { PricingFactor } from './itemScan'
+
 export type ManifestFormat = 'csv' | 'xlsx'
 export type ImportStatus = 'queued' | 'processing' | 'completed' | 'failed'
+
+// PALLETIQ-042 / ADR-0015.
+export type ProfitabilityStatus = 'not_scored' | 'scoring' | 'scored' | 'failed'
+
+export interface LotProfitabilityResult {
+  totalLandedCost: number
+  projectedResaleValue: number
+  projectedProfit: number
+  marginPct: number | null
+  skusResearched: number
+  skusTotal: number
+  factors: PricingFactor[]
+}
 
 export interface ImportSummary {
   id: string
@@ -22,6 +37,12 @@ export interface ImportSummary {
   // originating restock_lots doc ID for one created via the Discovered
   // Lots "Import" button.
   sourceRestockLotId: string | null
+  // PALLETIQ-042 / ADR-0015 - absent (undefined) on imports created
+  // before this shipped, no backfill; treat undefined the same as
+  // 'not_scored'.
+  profitabilityStatus?: ProfitabilityStatus
+  profitability?: LotProfitabilityResult | null
+  profitabilityError?: string | null
 }
 
 export interface LineItem {
