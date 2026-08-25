@@ -57,6 +57,7 @@ const LINE_ITEM: LineItem = {
   unitCost: 4.5,
   condition: 'New',
   category: null,
+  liquidationPrice: 12.5,
 }
 
 const IMPORT_ERROR: ImportErrorRecord = {
@@ -180,6 +181,39 @@ describe('ManifestDetailPage', () => {
     expect(screen.queryByText('Landed cost')).not.toBeInTheDocument()
     expect(screen.queryByText('$6.00')).not.toBeInTheDocument()
     expect(screen.queryByText('Shipping & fees')).not.toBeInTheDocument()
+  })
+
+  it("shows each line item's researched liquidation price for a buyer", async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(await screen.findByText('Liquidation price')).toBeInTheDocument()
+    expect(screen.getByText('$12.50')).toBeInTheDocument()
+  })
+
+  it('shows an em dash for a line item with no liquidation price yet', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([{ ...LINE_ITEM, liquidationPrice: null }])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    await screen.findByText('Liquidation price')
+    const row = screen.getByText('Wireless Mouse').closest('tr')
+    expect(row).not.toBeNull()
+    expect(row).toHaveTextContent('—')
+  })
+
+  it('omits the liquidation price column for a warehouse-role user', async () => {
+    getImport.mockResolvedValueOnce(IMPORT)
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('warehouse')
+
+    expect(await screen.findByText('Wireless Mouse')).toBeInTheDocument()
+    expect(screen.queryByText('Liquidation price')).not.toBeInTheDocument()
+    expect(screen.queryByText('$12.50')).not.toBeInTheDocument()
   })
 
   it('shows the shipping & fees form for a buyer', async () => {

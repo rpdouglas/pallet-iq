@@ -122,6 +122,8 @@ export function normalizeRow(
       unitCost,
       condition: optionalString(findField(rawRow, FIELD_ALIASES.condition)),
       category: optionalString(findField(rawRow, FIELD_ALIASES.category)),
+      // PALLETIQ-053. No price research has run yet at normalize time.
+      liquidationPrice: null,
     },
   }
 }

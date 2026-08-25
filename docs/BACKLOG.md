@@ -48,6 +48,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-040 | Fix restock.ca scraper category field sometimes containing item title, not category       | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)            | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Done        | P2       |
+| PALLETIQ-053 | Fix UPC-placeholder cache-key bug; show per-item liquidation price in the manifest table  | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list                | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest        | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug                    | Buyer         | 2     | Done        | P1       |
@@ -3022,3 +3023,65 @@ production, not just tests. See `docs/ACTIVE_CYCLE.md`'s drift notes for
 the one process deviation (backfill + live-verify ran via the owner
 directly, not Claude, after this session's credential-minting technique
 got denied by the auto-mode classifier for production writes).
+
+## PALLETIQ-053: Fix UPC-placeholder cache-key bug; show per-item liquidation price in the manifest table
+
+_Scope note (2026-08-25, closed same day):_ found live-verifying
+`PALLETIQ-042` against a real production import. Two related findings
+from that pass, both fixed in this ticket:
+
+1. **Real bug, not a data-quality limitation.** Many manifest line items
+   have `upc: "N/A"` (a common placeholder for "no barcode" in vendor
+   data). `functions/src/pricing/cacheKey.ts`'s `computeCacheKey` passes
+   `candidate.barcodeNumber` straight into a Firestore document path
+   (`product_price_cache/upc:${barcodeNumber}`) with no sanitization -
+   `"N/A"` contains a literal `/`, which corrupts the path (3 segments,
+   not 2) and throws. `lotProfitabilityWorker.ts`'s existing per-SKU
+   failure isolation (`PALLETIQ-042`) caught this and degraded those SKUs
+   to "not researched" rather than crashing the whole score, which is
+   why the bug wasn't a hard failure - but it silently ate most of a real
+   lot's SKUs in production (10 of 21 researched items hit this in one
+   live run, confirmed via Cloud Logging). This same code path is shared
+   with `priceItemScanWorker.ts` (Treasure Hunter single-item pricing) -
+   lower risk there since a vision-read barcode is unlikely to produce
+   non-digit noise, but not impossible, so the fix protects both callers.
+2. **Missing feature, not a bug** - the owner expected (reasonably) to
+   see each line item's researched liquidation price directly in
+   `ManifestDetailPage.tsx`'s table after scoring a lot, not just the
+   lot-level margin/profit rollup `PALLETIQ-042`/`ADR-0015` scoped. The
+   worker already computes a per-SKU sale price during scoring; it was
+   never persisted anywhere past the in-memory aggregation step.
+
+_In scope:_ sanitize `barcodeNumber` before it's used to build a cache
+key (strip non-digit characters, require a minimum plausible-barcode
+length, treat anything that doesn't pass as absent so the existing
+`fp:` fingerprint fallback is used instead) in `cacheKey.ts` - shared
+fix, not `lotProfitability.ts`-specific. Persist each researched (or
+explicitly not-researched) SKU's liquidation price back onto every
+`lineItems` doc sharing that SKU's dedup group key (new
+`liquidationPrice: number | null` field on `LineItemDoc`), written by
+`lotProfitabilityWorker.ts` in the same pass that already computes it.
+New "Liquidation price" column in `ManifestDetailPage.tsx`'s line-items
+table, gated the same as the existing Unit cost/Landed cost columns
+(`canSeeCost`).
+
+_Out of scope:_ changing the profitability aggregate math itself
+(`marginPct`/`projectedProfit`, unchanged); backfilling
+`liquidationPrice` onto already-scored imports (re-running "Score
+profitability" naturally repopulates it - same no-backfill posture
+`PALLETIQ-042` itself took); any change to `priceResearch.ts`'s SOP
+prompts/logic; changing the `SKU_RESEARCH_CAP` (stays 20).
+
+_Firestore/RBAC impact:_ `LineItemDoc`
+(`tenants/{tenantId}/manifests/{importId}/lineItems/{lineItemId}`) gains
+one new field, written by `lotProfitabilityWorker.ts` via the Admin SDK
+(bypasses rules, same as every other write to this collection today) -
+no rules change, no new collection, confirmed at close via
+`firestore-rules-auditor` rather than assumed.
+
+_UI pattern notes:_ reuses `docs/design/components.md`'s existing Data
+table pattern and the same `canSeeCost`-gated-column convention already
+used for Unit cost/Landed cost on the same page - no new pattern.
+
+_ADR:_ none - a bug fix plus a field addition following an already-
+established doc shape, not an architecturally significant decision.

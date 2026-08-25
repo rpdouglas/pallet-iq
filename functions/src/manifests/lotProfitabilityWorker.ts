@@ -1,4 +1,5 @@
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions/v2'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
 import { recordGeminiCalls } from '../billing/geminiUsage'
@@ -12,10 +13,14 @@ import {
   aggregateLotProfitability,
   buildResearchCandidate,
   groupLineItems,
+  lineItemGroupKey,
   selectGroupsToResearch,
 } from './lotProfitability'
 import type { GroupResearchOutcome, LineItemGroup } from './lotProfitability'
 import type { ImportDoc, LineItemDoc } from './types'
+
+// Firestore batch writes cap at 500 ops - stay comfortably under it.
+const BATCH_SIZE = 400
 
 interface LotProfitabilityWorkerPayload {
   tenantId?: unknown
@@ -105,6 +110,36 @@ async function priceGroupsWithConcurrency(
   return { outcomes, totalCallsMade }
 }
 
+// PALLETIQ-053. Writes each researched (or explicitly not-researched)
+// group's sale price back onto every lineItems doc sharing that group's
+// dedup key - the worker already computes this per-SKU price, it just
+// wasn't persisted anywhere past the in-memory aggregation step. Every
+// line item gets an explicit value on every score run (not left stale
+// from a previous run) - groups skipped past the SKU cap resolve to
+// `null` here via the map's default, same as a researched-but-priceless
+// group.
+async function writeLiquidationPrices(
+  lineItemDocs: readonly QueryDocumentSnapshot[],
+  groups: readonly LineItemGroup[],
+  outcomes: readonly GroupResearchOutcome[],
+): Promise<void> {
+  const priceByGroupKey = new Map<string, number | null>(groups.map((g) => [g.key, null]))
+  for (const outcome of outcomes) {
+    priceByGroupKey.set(outcome.group.key, outcome.salePrice)
+  }
+
+  const db = getFirestore()
+  for (let start = 0; start < lineItemDocs.length; start += BATCH_SIZE) {
+    const batch = db.batch()
+    for (const doc of lineItemDocs.slice(start, start + BATCH_SIZE)) {
+      const item = doc.data() as LineItemDoc
+      const liquidationPrice = priceByGroupKey.get(lineItemGroupKey(item)) ?? null
+      batch.update(doc.ref, { liquidationPrice } satisfies Partial<LineItemDoc>)
+    }
+    await batch.commit()
+  }
+}
+
 // PALLETIQ-042 / ADR-0015. Scores an already-completed import's
 // profitability by deduplicating its line items into distinct SKUs,
 // researching each via the existing, unmodified priceResearch.ts (no
@@ -153,6 +188,7 @@ export const lotProfitabilityWorker = onTaskDispatched<LotProfitabilityWorkerPay
         groupsToResearch,
       )
       await recordGeminiCalls(tenantId, totalCallsMade)
+      await writeLiquidationPrices(lineItemsSnap.docs, groups, outcomes)
 
       const profitability = aggregateLotProfitability(
         lineItems,
