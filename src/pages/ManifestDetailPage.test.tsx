@@ -279,6 +279,24 @@ describe('ManifestDetailPage', () => {
     })
   })
 
+  it('shows an error message when enqueueing profitability scoring fails', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    enqueueLotProfitabilityScore.mockRejectedValueOnce(
+      new Error('Monthly Gemini usage limit reached (100 calls). Upgrade or wait for next month.'),
+    )
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Score profitability' }))
+
+    expect(
+      await screen.findByText(
+        'Monthly Gemini usage limit reached (100 calls). Upgrade or wait for next month.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('shows a scoring indicator while profitabilityStatus is "scoring"', async () => {
     getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'scoring' })
     listLineItems.mockResolvedValueOnce([LINE_ITEM])
@@ -311,6 +329,34 @@ describe('ManifestDetailPage', () => {
 
     expect(await screen.findByText('50%')).toBeInTheDocument()
     expect(screen.getByText('Projected margin')).toBeInTheDocument()
+  })
+
+  it('offers a Rescore control once already scored, and re-enqueues on click', async () => {
+    getImport.mockResolvedValueOnce({
+      ...IMPORT,
+      profitabilityStatus: 'scored',
+      profitability: {
+        totalLandedCost: 100,
+        projectedResaleValue: 150,
+        projectedProfit: 50,
+        marginPct: 0.5,
+        skusResearched: 1,
+        skusTotal: 1,
+        factors: [
+          { label: 'All 1 distinct items researched', direction: 'neutral', explanation: null },
+        ],
+      },
+    })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    enqueueLotProfitabilityScore.mockResolvedValueOnce(undefined)
+    renderPage('buyer')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Rescore' }))
+
+    await waitFor(() => {
+      expect(enqueueLotProfitabilityScore).toHaveBeenCalledWith('import-1')
+    })
   })
 
   it('shows "Try again" and the error message when scoring failed', async () => {

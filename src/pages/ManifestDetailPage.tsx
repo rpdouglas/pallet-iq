@@ -17,6 +17,7 @@ import { Button } from '../components/Button'
 import { LandedCostForm } from '../components/LandedCostForm'
 import { LotProfitabilityPanel } from '../components/LotProfitabilityPanel'
 import { Spinner } from '../components/Spinner'
+import { callableErrorMessage } from '../lib/auth/errors'
 import { formatMoney } from '../lib/format'
 
 export function ManifestDetailPage() {
@@ -118,7 +119,26 @@ export function ManifestDetailPage() {
         {canManageCosts && importQuery.data?.status === 'completed' ? (
           <>
             {importQuery.data.profitabilityStatus === 'scored' && importQuery.data.profitability ? (
-              <LotProfitabilityPanel profitability={importQuery.data.profitability} />
+              <div className="flex flex-col gap-2">
+                <LotProfitabilityPanel profitability={importQuery.data.profitability} />
+                <div className="flex flex-col items-start gap-1">
+                  <Button
+                    variant="ghost"
+                    className="min-h-11"
+                    disabled={profitabilityMutation.isPending}
+                    onClick={() => {
+                      profitabilityMutation.mutate()
+                    }}
+                  >
+                    Rescore
+                  </Button>
+                  {profitabilityMutation.isError ? (
+                    <span className="text-label text-danger">
+                      {callableErrorMessage(profitabilityMutation.error)}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
             ) : (
               <div className="rounded-xl bg-white p-6 shadow-sm">
                 <h2 className="text-h2 text-ink-navy mb-2 font-semibold">Profitability</h2>
@@ -144,6 +164,11 @@ export function ManifestDetailPage() {
                     importQuery.data.profitabilityError ? (
                       <span className="text-label text-danger">
                         {importQuery.data.profitabilityError}
+                      </span>
+                    ) : null}
+                    {profitabilityMutation.isError ? (
+                      <span className="text-label text-danger">
+                        {callableErrorMessage(profitabilityMutation.error)}
                       </span>
                     ) : null}
                   </div>
