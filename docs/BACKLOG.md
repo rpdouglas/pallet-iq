@@ -49,6 +49,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-041 | Import discovered restock.ca lot's manifest into tenant inventory (`ADR-0015`)            | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-042 | Score imported lot for profitability via text-based pricing research (`ADR-0015`)         | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-053 | Fix UPC-placeholder cache-key bug; show per-item liquidation price in the manifest table  | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-054 | Fix silent Score-profitability failures; add a rescore affordance                         | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-043 | Dismiss a discovered restock.ca lot from the tenant's Discovered Lots list                | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-044 | Fix fetchManifestLink.ts extracting a false-positive nav link, not a real manifest        | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-045 | Log Gemini usage per call site and fix pricing retry-amplification bug                    | Buyer         | 2     | Done        | P1       |
@@ -3085,3 +3086,53 @@ used for Unit cost/Landed cost on the same page - no new pattern.
 
 _ADR:_ none - a bug fix plus a field addition following an already-
 established doc shape, not an architecturally significant decision.
+
+## PALLETIQ-054: Fix silent Score-profitability failures; add a rescore affordance
+
+_Scope note (2026-08-25, closed same day):_ found while
+investigating a user report of "clicking Score profitability does nothing"
+plus a null "Liquidation price" column (`PALLETIQ-053`). Two related gaps,
+both traced to `src/pages/ManifestDetailPage.tsx`:
+
+1. **Silent failure, not a dead button.** `profitabilityMutation` has no
+   `onError` handler and no JSX reads `.isError`/`.error`, so every
+   `HttpsError` `enqueueLotProfitabilityScore.ts` can throw (auth, role,
+   the `PALLETIQ-046` monthly Gemini-usage cap, missing `importId`, import
+   not found, import not yet `completed`) is swallowed - the button just
+   re-enables with no feedback. Since scoring never completes in that case,
+   `liquidationPrice` (`PALLETIQ-053`) never gets written, which is the most
+   likely explanation for the reported null column.
+2. **No rescore path once already `scored`.** The button is replaced by
+   `LotProfitabilityPanel` once `profitabilityStatus === 'scored'`, with no
+   way to re-trigger scoring from the UI. `PALLETIQ-053`'s own "out of
+   scope" note assumed re-running "Score profitability" would naturally
+   backfill `liquidationPrice` on old imports - that assumption was wrong,
+   since there's no UI affordance to re-run it once scored. Any manifest
+   scored before `PALLETIQ-053` shipped per-item writes is stuck.
+
+_In scope:_ in `ManifestDetailPage.tsx`, surface `profitabilityMutation`
+rejections using the existing `callableErrorMessage` helper
+(`src/lib/auth/errors.ts`, already reused by `OnboardingPage.tsx`/
+`AcceptInvitePage.tsx`) instead of writing a new error-mapping helper. Add a
+`ghost`-variant "Rescore" button in the already-`scored` branch that calls
+the same `profitabilityMutation.mutate()`. Both are UI-only changes -
+`enqueueLotProfitabilityScore.ts` doesn't branch on the import's current
+`profitabilityStatus`, only on `status === 'completed'`, so re-invoking it
+while already `scored` already works server-side today.
+
+_Out of scope:_ any change to `enqueueLotProfitabilityScore.ts`,
+`lotProfitabilityWorker.ts`, or the Gemini-cap logic itself
+(`PALLETIQ-046`) - if the cap is what's silently blocking a given tenant,
+this ticket makes that visible, it doesn't raise the cap; a toast/global
+error-notification system (reuses the page's existing inline-message
+pattern instead); backfilling `liquidationPrice` via any path other than a
+user-initiated rescore.
+
+_Firestore/RBAC impact:_ none - no schema or rules change.
+
+_UI pattern notes:_ reuses the existing inline error-message pattern
+already on this page (`profitabilityError` display) and the `ghost` button
+variant (`src/components/buttonVariants.ts`) - no new pattern.
+
+_ADR:_ none - a bug fix plus a UI affordance, not an architecturally
+significant decision.
