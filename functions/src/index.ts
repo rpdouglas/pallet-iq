@@ -31,6 +31,12 @@ export { lotProfitabilityWorker } from './manifests/lotProfitabilityWorker'
 // explicitly prohibit it - see PALLETIQ-021's manual watchlist instead.
 export { scrapeRestockLots } from './restock-scraper/scrapeRestockLots'
 
+// PALLETIQ-057 / ADR-0009 (Track A pattern reused for a second source).
+// Owner-confirmed kwickstock.ca's Terms of Use permit scraping - see
+// scrapeKwickstockLots.ts's header comment for the full record, including
+// the not-yet-independently-verified robots.txt caveat.
+export { scrapeKwickstockLots } from './kwickstock-scraper/scrapeKwickstockLots'
+
 // PALLETIQ-041 / ADR-0015. Bridges a discovered restock_lots doc into a
 // tenant-scoped import via the existing processManifestImport pipeline.
 export { enqueueDiscoveredLotImport } from './discovered-lots/enqueueDiscoveredLotImport'

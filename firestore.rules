@@ -302,6 +302,21 @@ service cloud.firestore {
       }
     }
 
+    // ---- Cross-tenant: kwickstock_lots ----------------------------------
+    // PALLETIQ-057 / ADR-0009 (Track A pattern reused for a second source,
+    // after restock_lots above). Same security domain shape: scraped
+    // kwickstock.ca lot listings are the same public data regardless of
+    // which tenant is looking, so this is one global collection, not
+    // tenants/{tenantId}/kwickstock_lots. Readable by any authenticated
+    // user, any tenant; never client-writable — populated exclusively by
+    // the scrapeKwickstockLots scheduled Cloud Function via the Admin SDK,
+    // which bypasses these rules.
+
+    match /kwickstock_lots/{lotId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
     // ---- Cross-tenant: product_price_cache -----------------------------
     // PALLETIQ-026 / ADR-0011. Same security domain shape as
     // product_intelligence/restock_lots above: a cached price for a given

@@ -20,8 +20,9 @@ Custom claim: `role: "buyer"`
 
 - **Read:** vendors, imports, manifests, pallets, inventory (read-only),
   bids, favorites, watchlists, notes, tasks, `product_intelligence`
-  (cross-tenant, anonymized), `restock_lots` (cross-tenant, scraped
-  sourcing feed — see `ADR-0009`), `watchlist_lots`, `dismissed_lots`
+  (cross-tenant, anonymized), `restock_lots`, `kwickstock_lots`
+  (cross-tenant, scraped sourcing feeds — see `ADR-0009`/`PALLETIQ-057`),
+  `watchlist_lots`, `dismissed_lots`
   (own tenant's per-lot dismissals overlaying `restock_lots` — see
   `ADR-0015`/`PALLETIQ-043`), `item_scans`
   (own tenant's item-identification/pricing scans — see `ADR-0011`),

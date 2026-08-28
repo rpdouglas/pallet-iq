@@ -62,6 +62,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-055 | Warn/cap Gemini cost before a high-SKU-count lot-profitability scoring run                | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-056 | Investigate reducing grounding/thinking-token cost across Gemini call sites               | Buyer         | 2     | Planned     | P1       |
+| PALLETIQ-057 | Scheduled kwickstock.ca lot scraper (Track A pattern, mirrors ADR-0009/PALLETIQ-020)      | Buyer         | 4     | In Progress | P1       |
 
 ## Adding a ticket
 
@@ -3241,3 +3242,103 @@ _UI pattern notes:_ none - no UI change, server-side call-site tuning only.
 _ADR:_ none - a call-configuration tuning decision validated against real
 data before shipping, not a new architecture or data-model shape; same
 posture `PALLETIQ-045`/`047` used, neither of which needed one.
+
+_Scope note on `PALLETIQ-057` (2026-08-28) — Planning gate only, not started:_
+
+_Origin:_ owner request to extend `ADR-0009`'s Track A automated-scraper
+pattern to a second liquidation source, kwickstock.ca, alongside the
+existing restock.ca coverage (`PALLETIQ-020`).
+
+_Pre-flight compliance check, resolved before this ticket was opened:_
+owner-confirmed kwickstock.ca's Terms of Use permit scraping its public
+listings — same pre-flight discipline `ADR-0009` required for restock.ca
+before any scraper code was written. This session couldn't independently
+verify kwickstock.ca's robots.txt (the domain is outside this remote
+environment's network egress allowlist), so implementation still needs to
+record the specific ToS clause/robots.txt state in-repo (a short README
+note or comment near the scraper entry point, same as `PALLETIQ-020`'s own
+requirement) rather than rely on this ticket's note alone. If robots.txt
+turns out to disagree with the ToS once someone can actually fetch it,
+that's a stop-and-surface per `ADR-0009`'s own standard, not a detail to
+paper over.
+
+_Data-model decision, resolved with the owner during scoping:_ a new,
+independent `kwickstock_lots` collection (global/cross-tenant, same shape
+as `restock_lots`), not a unified collection with a `source` field. Matches
+`ADR-0009`'s own Alternatives section, which already rejected a unified
+`sourcing_lots` collection for restock.ca + the Track B watchlist sources
+as premature abstraction with no real cross-source UI consumer yet — the
+same reasoning applies to a second Track A source. Keeps each source's
+scraper independent so one site's markup change or outage can't affect the
+other's.
+
+_Known unknown, to resolve first during implementation, not blocking
+Planning:_ `ADR-0009` chose `cheerio` over a headless browser specifically
+because restock.ca's category pages are server-rendered — that's a
+restock.ca-specific finding, not a general one. Whether kwickstock.ca's
+listing pages are similarly server-rendered (cheerio-compatible) or need
+JS execution is unverified; implementation should check this first. If
+kwickstock.ca turns out to need a headless browser, that's a real deviation
+from `ADR-0009`'s established Track A shape and warrants a short new ADR at
+that point — not a decision to make speculatively now.
+
+_In scope:_ a new `functions/src/kwickstock-scraper/` Cloud Functions
+folder, mirroring `functions/src/restock-scraper/`'s structure
+(`scrapeKwickstockLots.ts` as the `onSchedule` entry point, `types.ts`,
+a page-list parser and colocated tests). Parses kwickstock.ca's public
+listing pages into lot records, diffs against the new `kwickstock_lots`
+collection (new lot → create, changed lot → update, disappeared lot → mark
+closed). New `firestore.rules` block for `kwickstock_lots` — global,
+`read: isSignedIn()`, `write: if false` (Cloud Functions only) — plus its
+own `firestore.rules.test.ts` pair proving any authenticated user across
+tenants can read and no client write path exists (Check I; same distinct
+non-tenant-isolation test shape `restock_lots` already uses).
+
+_Out of scope, deferred:_ any UI surfacing `kwickstock_lots` (the existing
+`DiscoveredLotsPage.tsx` is restock.ca-only today; merging a second source
+into that page, or listing them separately, is a follow-on UI ticket once
+this ticket's data exists — not decided here); importing a discovered
+kwickstock.ca lot into a tenant's manifest/inventory
+(`enqueueDiscoveredLotImport.ts`'s equivalent for this source, mirrors
+`PALLETIQ-041`, separate ticket); manifest-detail scraping for kwickstock.ca
+lots (mirrors `PALLETIQ-052`'s embedded-table approach for restock.ca, but
+depends on how kwickstock.ca actually exposes manifest data — investigate
+during implementation, don't assume the same page shape); any scoring/
+profitability logic (mirrors `PALLETIQ-042`, separate ticket, and gated on
+the import ticket above existing first).
+
+_Firestore/RBAC impact:_ new collection `kwickstock_lots`, global/
+cross-tenant (not `tenants/{tenantId}/...`-scoped) — same shape as
+`restock_lots`/`product_intelligence`. `read: isSignedIn()` (any
+authenticated PalletIQ user, any tenant); `write: if false` (Cloud
+Functions/Admin SDK only — the scheduled scraper is the only writer).
+
+_UI pattern notes:_ none — this ticket ships no UI, data-ingestion only,
+same as `PALLETIQ-020`.
+
+_ADR:_ not written — this ticket applies `ADR-0009`'s already-decided Track
+A pattern (ToS-permitted public source → `onSchedule` + `cheerio` + a
+global, Cloud-Functions-write-only collection) to a second source. The one
+genuinely new call made during scoping (independent `kwickstock_lots`
+collection over unifying with `restock_lots`) was resolved directly against
+`ADR-0009`'s own existing Alternatives-section reasoning, not a fresh
+tradeoff — see above. Revisit this "no ADR" call if implementation's
+server-rendered-pages check comes back negative (see Known unknown above).
+
+_Status update (2026-08-28) — moved to In Progress, not Done:_ the code
+described above (`functions/src/kwickstock-scraper/`, the `kwickstock_lots`
+rules block + Check I test pair) is written, tested (unit tests, typecheck,
+lint, and a real Firestore-emulator run of the rules test pair all pass),
+and pushed on `claude/kwickstock-scraping-tool-xsjg23`. Not marked Done,
+because two real gaps from this ticket's own scope note are still open, not
+just theoretical: (1) `parseLotListPage.ts` was written from phone
+screenshots, not real captured kwickstock.ca markup — this session had no
+network access to the domain, and the user couldn't get view-source/
+DevTools working from mobile Chrome to paste real HTML back, so the parser
+is unverified against the real site (see that file's own header comment);
+(2) the robots.txt pre-flight check this scope note flagged as still owed
+is still unverified for the same reason. Both are real signals to prioritize
+once this deploys and runs for real, not paperwork - expect a fast
+follow-up fix once production logs show what actually happened, the same
+pattern restock.ca's own scraper went through (`PALLETIQ-031`/`032`/`040`/
+`044`).
