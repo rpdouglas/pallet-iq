@@ -196,6 +196,15 @@ persona already responsible for `imports`/`manifests`/`item_scans`.
   still count toward landed cost but contribute $0 to projected resale
   value, understating margin conservatively rather than guessing — surfaced
   explicitly in the score's factor breakdown, not a silent gap.
+  **Superseded by `PALLETIQ-055` (2026-08-28):** a live billing review found
+  the flat 20/80-call cap let one click on one large manifest burn 80% of a
+  free-tier tenant's entire monthly `PALLETIQ-046` budget, with no warning
+  beforehand. The cap is now plan-tier-aware
+  (`SKU_RESEARCH_CAP_BY_PLAN`) — free tier cut to 5 (20 calls max, 20% of
+  the monthly budget), pro unchanged at 20 (no monthly Gemini cap to
+  dominate). `ManifestDetailPage.tsx` also now shows the distinct-SKU count
+  before the Buyer clicks "Score profitability," so the action's scale is
+  never a surprise regardless of plan.
 - No `firestore.rules` change is anticipated beyond what `isOwnerOrBuyer`
   already covers on `imports`/`manifests`/`vendors` — confirmed at each
   ticket's close via `firestore-rules-auditor`, not assumed here.

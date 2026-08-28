@@ -41,9 +41,11 @@ Three standing checks apply across every phase:
 - **Check IV — Design system adherence.** UI code follows `docs/design/` tokens and
   patterns — no unapproved hardcoded colors/fonts, denied-role fields omitted from
   the DOM (not CSS-hidden), new components reuse a documented pattern before
-  inventing a new one. See ADR-0002. **Known live gap:** `src/App.tsx` already uses
-  default Tailwind slate colors instead of any design-system token — no token
-  system exists yet for compliant code to use (tracked as `PALLETIQ-016`).
+  inventing a new one. See ADR-0002. The `@theme` token block (`src/index.css`) and
+  `App.tsx`'s migration off default Tailwind colors shipped in `PALLETIQ-016` — this
+  note's old "no token system exists yet" gap is closed; caught stale during
+  `PALLETIQ-055`'s `design-system-auditor` pass (2026-08-28), corrected here rather
+  than left inaccurate, same as Check II's own note above.
 
 ## Document map
 

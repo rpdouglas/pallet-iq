@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { SKU_RESEARCH_CAP_BY_PLAN } from './lotProfitability'
 import type { ImportDoc } from './types'
 
 const mockUpdate = vi.fn()
@@ -34,7 +35,11 @@ vi.mock('../pricing/verifyComps', () => ({ verifyPricingComps: mockVerifyPricing
 vi.mock('../gemini/params', () => ({ geminiApiKey: { value: () => 'fake-key' } }))
 
 const mockRecordGeminiCalls = vi.fn(() => Promise.resolve())
-vi.mock('../billing/geminiUsage', () => ({ recordGeminiCalls: mockRecordGeminiCalls }))
+const mockGetSubscriptionPlan = vi.fn<(...args: unknown[]) => Promise<string>>()
+vi.mock('../billing/geminiUsage', () => ({
+  recordGeminiCalls: mockRecordGeminiCalls,
+  getSubscriptionPlan: mockGetSubscriptionPlan,
+}))
 
 const { lotProfitabilityWorker } = await import('./lotProfitabilityWorker')
 
@@ -96,6 +101,10 @@ function resetMocks() {
   mockSynthesizePricing.mockReset()
   mockVerifyPricingComps.mockReset()
   mockRecordGeminiCalls.mockClear()
+  mockGetSubscriptionPlan.mockReset()
+  // Pro by default so existing tests (all well under even the free-tier
+  // cap) aren't affected by PALLETIQ-055's plan-aware SKU_RESEARCH_CAP_BY_PLAN.
+  mockGetSubscriptionPlan.mockResolvedValue('pro')
   mockVerifyPricingComps.mockImplementation((pricing: unknown) => Promise.resolve(pricing))
 }
 
@@ -211,6 +220,31 @@ describe('lotProfitabilityWorker', () => {
     // PALLETIQ-053: a failed (or, equivalently, never-attempted-past-cap)
     // group still writes an explicit null, not left unset.
     expect(mockBatchUpdate).toHaveBeenCalledWith({ id: 'item-1' }, { liquidationPrice: null })
+  })
+
+  it('caps SKU research tighter for a free-tier tenant than a pro one, per SKU_RESEARCH_CAP_BY_PLAN', async () => {
+    resetMocks()
+    mockGetSubscriptionPlan.mockReset()
+    mockGetSubscriptionPlan.mockResolvedValueOnce('free')
+    const freeCap = SKU_RESEARCH_CAP_BY_PLAN.free
+    const lineItems = Array.from({ length: freeCap + 2 }, (_, i) => ({
+      ...LINE_ITEM,
+      sku: `SKU-${i.toString()}`,
+      unitCost: i + 1, // distinct totalValue so the highest-value-first ordering is deterministic
+    }))
+    mockImportGet.mockResolvedValueOnce({ data: () => IMPORT_DOC })
+    mockLineItemsGet.mockResolvedValueOnce({
+      docs: lineItems.map((item, i) => ({ data: () => item, ref: { id: `item-${i.toString()}` } })),
+    })
+    mockCacheGet.mockResolvedValue({ exists: false })
+    mockResearchPricingLegs.mockResolvedValue(LEGS_RESULT)
+    mockSynthesizePricing.mockResolvedValue(FULL_RESEARCH_RESPONSE)
+
+    await lotProfitabilityWorker.run(request({ tenantId: 'tenant-a', importId: 'i1' }))
+
+    const updateArg = mockUpdate.mock.calls[0][0] as Partial<ImportDoc>
+    expect(updateArg.profitability?.skusTotal).toBe(freeCap + 2)
+    expect(updateArg.profitability?.skusResearched).toBe(freeCap)
   })
 
   it('marks the import failed and rethrows on a whole-worker failure (line items unreadable)', async () => {

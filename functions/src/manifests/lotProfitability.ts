@@ -1,17 +1,25 @@
+import type { SubscriptionPlan } from '../billing/types'
 import type { ConditionGrade, ItemScanCandidate } from '../item-scans/types'
 import type { PricingFactor } from '../pricing/types'
 import type { LineItemDoc, LotProfitabilityResult } from './types'
 import { calculateLandedCost, calculateLandedCostMultiplier } from './landedCost'
 
-// PALLETIQ-042 / ADR-0015. Resolves the "per-import SKU research cap"
-// open question the ADR flagged as needing a decision before ship. 20
-// distinct SKUs x up to 4 Gemini calls each (3 research legs +
-// synthesis, mirroring priceResearch.ts) = 80 calls max for one
-// profitability-score button click - stays under PALLETIQ-046's
-// 100-call/month free-plan cap with headroom for other usage the same
-// month, rather than letting one large manifest alone exhaust it.
-// Tunable if real usage shows it's too tight/loose.
-export const SKU_RESEARCH_CAP = 20
+// PALLETIQ-042 / ADR-0015, made plan-tier-aware by PALLETIQ-055. Resolves
+// the "per-import SKU research cap" open question the ADR flagged as
+// needing a decision before ship - originally a flat 20 for every tenant.
+// A single "Score profitability" click researches up to cap x 4 Gemini
+// calls (3 research legs + synthesis, mirroring priceResearch.ts) - a
+// live billing review (2026-08-28) found the flat-20/80-call version let
+// one click on one large manifest burn 80% of a free-tier tenant's entire
+// PALLETIQ-046 monthly 100-call budget, with zero warning beforehand.
+// Free tier's cap is cut to 5 (20 calls max, 20% of the monthly budget) so
+// one click can no longer dominate the month; pro has no monthly Gemini
+// cap at all, so its cap stays at the original 20. Tunable further if real
+// usage shows either number is too tight/loose.
+export const SKU_RESEARCH_CAP_BY_PLAN: Record<SubscriptionPlan, number> = {
+  free: 5,
+  pro: 20,
+}
 
 // A restock.ca lot's manifest line items don't grade condition
 // (PALLETIQ-052) and neither does most vendor CSV/XLSX data - this is a
@@ -69,9 +77,14 @@ export function groupLineItems(lineItems: readonly LineItemDoc[]): LineItemGroup
   return Array.from(groups.values())
 }
 
-/** Highest-value groups first, capped at SKU_RESEARCH_CAP - the SKUs that dominate the lot's economics get priced first. */
-export function selectGroupsToResearch(groups: readonly LineItemGroup[]): LineItemGroup[] {
-  return [...groups].sort((a, b) => b.totalValue - a.totalValue).slice(0, SKU_RESEARCH_CAP)
+/** Highest-value groups first, capped per SKU_RESEARCH_CAP_BY_PLAN - the SKUs that dominate the lot's economics get priced first. */
+export function selectGroupsToResearch(
+  groups: readonly LineItemGroup[],
+  plan: SubscriptionPlan,
+): LineItemGroup[] {
+  return [...groups]
+    .sort((a, b) => b.totalValue - a.totalValue)
+    .slice(0, SKU_RESEARCH_CAP_BY_PLAN[plan])
 }
 
 export function buildResearchCandidate(item: LineItemDoc): ItemScanCandidate {

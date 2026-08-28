@@ -60,7 +60,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)           | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)                    | Owner/Admin   | 0     | Done        | P1       |
 | PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Done        | P1       |
-| PALLETIQ-055 | Warn/cap Gemini cost before a high-SKU-count lot-profitability scoring run                | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-055 | Warn/cap Gemini cost before a high-SKU-count lot-profitability scoring run                | Buyer         | 4     | In Progress | P1       |
 | PALLETIQ-056 | Investigate reducing grounding/thinking-token cost across Gemini call sites               | Buyer         | 2     | Planned     | P1       |
 
 ## Adding a ticket

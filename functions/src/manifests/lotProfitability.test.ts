@@ -5,7 +5,7 @@ import {
   groupLineItems,
   lineItemGroupKey,
   selectGroupsToResearch,
-  SKU_RESEARCH_CAP,
+  SKU_RESEARCH_CAP_BY_PLAN,
 } from './lotProfitability'
 import type { LineItemDoc } from './types'
 
@@ -53,19 +53,28 @@ describe('groupLineItems', () => {
 })
 
 describe('selectGroupsToResearch', () => {
-  it('picks highest-value groups first, capped', () => {
-    const groups = Array.from({ length: SKU_RESEARCH_CAP + 5 }, (_, i) =>
+  it('picks highest-value groups first, capped to the plan-specific limit', () => {
+    const cap = SKU_RESEARCH_CAP_BY_PLAN.pro
+    const groups = Array.from({ length: cap + 5 }, (_, i) =>
       groupLineItems([item({ sku: `sku-${i.toString()}`, unitCost: i, quantity: 1 })]),
     ).flat()
-    const selected = selectGroupsToResearch(groups)
-    expect(selected).toHaveLength(SKU_RESEARCH_CAP)
+    const selected = selectGroupsToResearch(groups, 'pro')
+    expect(selected).toHaveLength(cap)
     // Highest unitCost values (i.e. the last ones generated) should win.
-    expect(selected[0]?.totalValue).toBe(SKU_RESEARCH_CAP + 4)
+    expect(selected[0]?.totalValue).toBe(cap + 4)
+  })
+
+  it("caps a free-tier tenant's run tighter than pro's, per SKU_RESEARCH_CAP_BY_PLAN", () => {
+    const cap = SKU_RESEARCH_CAP_BY_PLAN.free
+    const groups = Array.from({ length: cap + 5 }, (_, i) =>
+      groupLineItems([item({ sku: `sku-${i.toString()}`, unitCost: i, quantity: 1 })]),
+    ).flat()
+    expect(selectGroupsToResearch(groups, 'free')).toHaveLength(cap)
   })
 
   it('returns everything when under the cap', () => {
     const groups = groupLineItems([item({ sku: 'A' }), item({ sku: 'B' })])
-    expect(selectGroupsToResearch(groups)).toHaveLength(2)
+    expect(selectGroupsToResearch(groups, 'free')).toHaveLength(2)
   })
 })
 
