@@ -62,7 +62,7 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-055 | Warn/cap Gemini cost before a high-SKU-count lot-profitability scoring run                | Buyer         | 4     | Done        | P1       |
 | PALLETIQ-056 | Investigate reducing grounding/thinking-token cost across Gemini call sites               | Buyer         | 2     | Planned     | P1       |
-| PALLETIQ-057 | Scheduled kwickstock.ca lot scraper (Track A pattern, mirrors ADR-0009/PALLETIQ-020)      | Buyer         | 4     | Planned     | P1       |
+| PALLETIQ-057 | Scheduled kwickstock.ca lot scraper (Track A pattern, mirrors ADR-0009/PALLETIQ-020)      | Buyer         | 4     | In Progress | P1       |
 
 ## Adding a ticket
 
@@ -3324,3 +3324,21 @@ collection over unifying with `restock_lots`) was resolved directly against
 `ADR-0009`'s own existing Alternatives-section reasoning, not a fresh
 tradeoff — see above. Revisit this "no ADR" call if implementation's
 server-rendered-pages check comes back negative (see Known unknown above).
+
+_Status update (2026-08-28) — moved to In Progress, not Done:_ the code
+described above (`functions/src/kwickstock-scraper/`, the `kwickstock_lots`
+rules block + Check I test pair) is written, tested (unit tests, typecheck,
+lint, and a real Firestore-emulator run of the rules test pair all pass),
+and pushed on `claude/kwickstock-scraping-tool-xsjg23`. Not marked Done,
+because two real gaps from this ticket's own scope note are still open, not
+just theoretical: (1) `parseLotListPage.ts` was written from phone
+screenshots, not real captured kwickstock.ca markup — this session had no
+network access to the domain, and the user couldn't get view-source/
+DevTools working from mobile Chrome to paste real HTML back, so the parser
+is unverified against the real site (see that file's own header comment);
+(2) the robots.txt pre-flight check this scope note flagged as still owed
+is still unverified for the same reason. Both are real signals to prioritize
+once this deploys and runs for real, not paperwork - expect a fast
+follow-up fix once production logs show what actually happened, the same
+pattern restock.ca's own scraper went through (`PALLETIQ-031`/`032`/`040`/
+`044`).
