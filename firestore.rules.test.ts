@@ -268,6 +268,35 @@ describe('restock_lots/{lotId}/manifestItems (cross-tenant)', () => {
   })
 })
 
+describe('kwickstock_lots (cross-tenant)', () => {
+  it('allows any authenticated user to read regardless of tenant', async () => {
+    const memberOfA = testEnv.authenticatedContext('buyer-a', {
+      tenantId: TENANT_A,
+      role: 'buyer',
+    })
+    const memberOfB = testEnv.authenticatedContext('buyer-b', {
+      tenantId: TENANT_B,
+      role: 'buyer',
+    })
+
+    // Same doc, two different tenants - proves this collection is global,
+    // not scoped to the reader's own tenant (PALLETIQ-057 / ADR-0009).
+    await assertSucceeds(memberOfA.firestore().doc('kwickstock_lots/test-lot').get())
+    await assertSucceeds(memberOfB.firestore().doc('kwickstock_lots/test-lot').get())
+  })
+
+  it('denies client writes even from an owner', async () => {
+    const ownerOfA = testEnv.authenticatedContext('owner-a', {
+      tenantId: TENANT_A,
+      role: 'owner',
+    })
+
+    await assertFails(
+      ownerOfA.firestore().doc('kwickstock_lots/test-lot').set({ title: 'Fake lot' }),
+    )
+  })
+})
+
 describe('product_price_cache (cross-tenant)', () => {
   it('allows any authenticated user to read regardless of tenant', async () => {
     const memberOfA = testEnv.authenticatedContext('buyer-a', {
