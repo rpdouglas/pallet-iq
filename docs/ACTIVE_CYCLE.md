@@ -85,9 +85,10 @@ the process itself, not product-scoped work. Logged here per Check
   shipped 2026-08-24; the actual Console setup is the owner's own action,
   not yet confirmed done. Close once verified live via the runbook's own
   read-only check.
-  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052`/`042`/`053` closed
-  2026-08-24/25 (see Drift notes). `PALLETIQ-003` is shelved, not active
-  — see below.
+  `PALLETIQ-041`/`043`/`044`/`050`/`051`/`052`/`042`/`053`/`054`/`055`
+  closed 2026-08-24/25/25/28 (see Drift notes). `PALLETIQ-056` (opened
+  alongside `055`, same billing review) is not yet started.
+  `PALLETIQ-003` is shelved, not active — see below.
 
 ## Shelved, not a near-term blocker
 
@@ -3406,3 +3407,55 @@ none`, table renders exactly as it did before this ticket - no
   error pattern, so no new visual pattern was introduced.
   `firestore-rules-auditor` not run - no Firestore schema, rules, or new
   collection touched by this ticket.
+
+- **2026-08-28 — `PALLETIQ-055` closed.** Shipped both halves of its own
+  scope note exactly: (1) `ManifestDetailPage.tsx` now shows a Buyer how
+  many distinct items a "Score profitability"/"Rescore" click will
+  research, before they click it, with a caveat once that count is large
+  enough to risk being capped
+  (`src/lib/manifests/lineItemGrouping.ts` - a deliberate client-side
+  mirror of `lotProfitability.ts`'s grouping logic, commented on both
+  sides, since `functions/` and the root package can't share code across
+  their separate tsconfigs, the same constraint `landedCost.ts` already
+  documented); (2) the open "lower it or make it plan-tier-aware" question
+  from the scope note is resolved, not deferred again -
+  `SKU_RESEARCH_CAP_BY_PLAN` (free: 5, pro: 20) replaces the flat 20,
+  cutting a free-tier tenant's worst-case single-click spend from 80% of
+  their entire monthly `PALLETIQ-046` budget down to 20%. `pro` keeps the
+  original 20 since pro has no monthly Gemini cap to dominate.
+
+  **Drift beyond the ticket's own scope note, both small and directly in
+  service of it:** extracted `getSubscriptionDoc`/`getSubscriptionPlan`
+  helpers in `billing/geminiUsage.ts` so `lotProfitabilityWorker.ts` and
+  `checkGeminiCallCap` share one doc-read path instead of a second copy of
+  the same "read the subscription doc, default to free" logic - a
+  refactor needed to plumb the plan into the worker cleanly, not scope
+  creep. `ADR-0015`'s Consequences section amended to record the
+  superseded flat-cap decision (its own scope note said no _new_ ADR was
+  needed, which still holds - amending the existing one to stay accurate
+  is a smaller thing than that).
+
+  **Also fixed, unrelated to this ticket's scope:** `design-system-auditor`'s
+  pass flagged `CLAUDE.md`'s Check IV note as stale - it still claimed "no
+  token system exists yet for compliant code to use," when `PALLETIQ-016`
+  shipped exactly that token system and the auditor confirmed this
+  ticket's own new UI text resolves to real tokens
+  (`text-label`/`text-slate-gray`), not default Tailwind classes.
+  Corrected as a drive-by, same posture `CLAUDE.md`'s own Check II note
+  already documents taking after `PALLETIQ-035`.
+
+  **Phase 4 QA/Verification criteria re-checked, not assumed still true:**
+  "Cross-tenant benchmark figure excludes any tenant-identifying data" and
+  "pricing engine respects cached refresh interval... under load" - neither
+  applies to this ticket (no benchmarking code touched; `CACHE_TTL_MS`/
+  `RESEARCH_CONCURRENCY` confirmed untouched by reading the diff), same
+  not-applicable posture `PALLETIQ-042`/`053`/`054` themselves took for
+  these two criteria.
+
+  `async-ai-boundary-auditor` ran clean - all three real Gemini call sites
+  unchanged, still only reachable from inside their `onTaskDispatched`
+  workers; the new `getSubscriptionPlan` read added to
+  `lotProfitabilityWorker.ts` is a plain Firestore read inside the
+  existing worker, not a new trigger path. `design-system-auditor` ran
+  clean on the UI change itself (see above). `firestore-rules-auditor` not
+  run - no Firestore schema, rules, or new collection touched.
