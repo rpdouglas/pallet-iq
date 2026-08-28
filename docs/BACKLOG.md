@@ -60,6 +60,8 @@ Planned → In Progress → Done. Priority is P0 (blocking) / P1 / P2.
 | PALLETIQ-050 | Discovered Lots: card view for mobile (7-col table -> per-lot cards below `md`)           | Buyer         | 4     | Done        | P2       |
 | PALLETIQ-051 | Committed Playwright e2e suite against Firebase emulators (`ADR-0017`)                    | Owner/Admin   | 0     | Done        | P1       |
 | PALLETIQ-052 | Source restock.ca manifest data from the embedded page table, not a file URL (`ADR-0018`) | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-055 | Warn/cap Gemini cost before a high-SKU-count lot-profitability scoring run                | Buyer         | 4     | Done        | P1       |
+| PALLETIQ-056 | Investigate reducing grounding/thinking-token cost across Gemini call sites               | Buyer         | 2     | Planned     | P1       |
 
 ## Adding a ticket
 
@@ -3136,3 +3138,106 @@ variant (`src/components/buttonVariants.ts`) - no new pattern.
 
 _ADR:_ none - a bug fix plus a UI affordance, not an architecturally
 significant decision.
+
+_Scope note on `PALLETIQ-055` (2026-08-28) — Planning gate only, not
+started:_
+
+_Origin:_ a user-initiated review of real GCP billing data (Gemini API:
+CA$8.15 of this month's CA$8.16 subtotal). Traced the spike to real,
+live-verification Gemini calls during `PALLETIQ-045`-`048`/`053`/`054`'s
+implementation, not a background/scheduled leak - governance Check II
+(async AI boundary) holds, no automatic Gemini call site exists anywhere.
+That review surfaced one real, distinct gap this ticket addresses:
+`PALLETIQ-042`'s "Score profitability" action can silently trigger up to
+`SKU_RESEARCH_CAP` (20) × 4 = 80 real Gemini calls from a single click,
+with zero warning to the Buyer before they click it - a sharp, one-action
+cost spike, distinct from the steady per-scan cost `docs/reports/
+2026-08-24-gemini-cost-audit.md` already measured and `PALLETIQ-046`'s
+monthly cap already bounds at the tenant level.
+
+_In scope:_ before `enqueueLotProfitabilityScore` is called from
+`ManifestDetailPage.tsx`, surface to the Buyer how many distinct SKUs
+`groupLineItems` found and will be researched (reusing the same grouping
+logic `lotProfitabilityWorker.ts` already runs, called client-side or via
+a cheap pre-check), so the action is never a surprise regardless of manifest
+size. Resolve, not defer again, whether `SKU_RESEARCH_CAP`
+(`functions/src/manifests/lotProfitability.ts:14`, currently a flat 20 for
+every tenant) should also be lowered or made plan-tier-aware (free vs. pro),
+matching `PALLETIQ-046`'s existing per-plan shape - a decision the original
+`ADR-0015` left as a flat constant "for now."
+
+_Out of scope, deferred:_ `PALLETIQ-046`'s monthly Gemini-usage cap itself
+(unchanged - this is an additional per-action guardrail, not a replacement);
+`RESEARCH_CONCURRENCY`, `CACHE_TTL_MS`, or any other pricing-research
+mechanic; Treasure Hunter's single-item `priceItemScan` flow (already a
+small, fixed call count per scan - not the per-click-scales-with-manifest-
+size problem this ticket targets); re-scoring already-scored imports
+(`PALLETIQ-054`'s job); the grounding-token-size/`thinkingConfig` cost
+investigation flagged in the same billing review (opened separately as
+`PALLETIQ-056`).
+
+_Firestore/RBAC impact:_ none expected - if the cap becomes plan-tier-aware,
+it reads the same `tenants/{tenantId}/subscriptions/current` doc
+`PALLETIQ-046`'s `checkGeminiCallCap` already reads under the existing rule;
+no new collection or field.
+
+_UI pattern notes:_ `docs/design/Pallet-IQ-Design-System.md`'s
+Banners/Callouts pattern (dark Ink Navy background, Brand Blue accent icon)
+is the closest existing pattern for an inline pre-action notice - reuse it
+if an inline warning is what implementation lands on. No confirmation-
+dialog/modal pattern exists anywhere in `docs/design/` yet; if implementation
+decides a modal is the right shape instead of an inline banner, that's a new
+pattern to name explicitly at implementation time, not improvise silently -
+`design-system-auditor` will be checking for exactly that.
+
+_ADR:_ none - a UX guardrail plus a constant-tuning decision, not a new
+architecture or data-model shape.
+
+_Scope note on `PALLETIQ-056` (2026-08-28) — Planning gate only, not
+started:_
+
+_Origin:_ same billing review as `PALLETIQ-055` above. `PALLETIQ-045`'s own
+close note (`docs/ACTIVE_CYCLE.md`, 2026-08-24) already surfaced two real
+findings once structured per-call logging went live, both explicitly left
+as "worth its own follow-up investigation later - not opened as a ticket
+now": `toolUsePromptTokenCount` (grounding search results + fetched page
+content) ran as high as 96,282 tokens on a single pricing-research leg call
+against a ~1,500-token prompt, and `thoughtsTokenCount` is non-zero on
+every Gemini call across all three call sites because no `thinkingConfig`
+is set anywhere - the model bills real reasoning tokens by default,
+including on `generateListingCopy.ts`'s tool-free, text-only call. Opening
+this now because a live billing review confirms Gemini is ~100% of this
+project's real cloud spend, not a hypothetical.
+
+_In scope:_ evaluate whether `thinkingConfig` (e.g. a `thinkingBudget: 0`
+or low explicit budget) can be set on `gemini-3.6-flash` without a real
+accuracy regression, starting with `generateListingCopy.ts` (no tools, text
+generation only - the call least likely to be earning its reasoning-token
+spend) and extending to `identifyItem.ts`/`priceResearch.ts` if that holds
+up. Evaluate whether `priceResearch.ts`'s grounding/`urlContext` tool calls
+can be bounded (fewer fetched pages, a fetched-content size cap, or similar)
+given the observed 96k-token outlier, without materially degrading pricing
+research quality. Validate any change against a real sample of past
+scans/pricing runs before shipping - same evidence-based-before-committing
+standard `PALLETIQ-047`'s reverted model swap should have used and didn't.
+Ship whichever concrete config change(s) validate as safe, and confirm the
+real measured token/cost reduction post-deploy via the existing `gemini_call`
+structured log line (`PALLETIQ-045`), not just by assumption.
+
+_Out of scope, deferred:_ `PALLETIQ-055`'s per-click SKU-count cap (separate
+ticket, opened alongside this one); switching the underlying Gemini model
+again (`PALLETIQ-047`/`048`'s already-reverted, cautionary precedent - not
+revisited here); the prompt-caching feasibility spike the original cost
+audit already flagged as its own separate follow-up (different mechanism -
+caching the repeated SOP instruction block, not tuning per-call token
+usage); any change to `RESEARCH_CONCURRENCY`, `CACHE_TTL_MS`, or
+`PALLETIQ-046`'s free-tier monthly call cap.
+
+_Firestore/RBAC impact:_ none - Gemini SDK call-configuration only, no
+schema or rules touched.
+
+_UI pattern notes:_ none - no UI change, server-side call-site tuning only.
+
+_ADR:_ none - a call-configuration tuning decision validated against real
+data before shipping, not a new architecture or data-model shape; same
+posture `PALLETIQ-045`/`047` used, neither of which needed one.

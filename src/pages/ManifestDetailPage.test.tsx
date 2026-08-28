@@ -265,6 +265,36 @@ describe('ManifestDetailPage', () => {
     expect(await screen.findByRole('button', { name: 'Score profitability' })).toBeInTheDocument()
   })
 
+  it('shows how many distinct items scoring will research, singular, no cap caveat under the free-tier cap', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce([LINE_ITEM])
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(
+      await screen.findByText('This will research 1 distinct item for pricing.'),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the plural + cap caveat once distinct items exceed the free-tier research cap', async () => {
+    getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
+    listLineItems.mockResolvedValueOnce(
+      Array.from({ length: 6 }, (_, i) => ({
+        ...LINE_ITEM,
+        id: `item-${i.toString()}`,
+        sku: `SKU-${i.toString()}`,
+      })),
+    )
+    listImportErrors.mockResolvedValueOnce([IMPORT_ERROR])
+    renderPage('buyer')
+
+    expect(
+      await screen.findByText(
+        'This will research 6 distinct items for pricing. Larger manifests only research their highest-value items first, based on your plan.',
+      ),
+    ).toBeInTheDocument()
+  })
+
   it('enqueues profitability scoring when the button is clicked', async () => {
     getImport.mockResolvedValueOnce({ ...IMPORT, profitabilityStatus: 'not_scored' })
     listLineItems.mockResolvedValueOnce([LINE_ITEM])

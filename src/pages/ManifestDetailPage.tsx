@@ -13,6 +13,10 @@ import {
   calculateLandedCostMultiplier,
   calculateTotalPurchaseValue,
 } from '../lib/manifests/landedCost'
+import {
+  countDistinctLineItemGroups,
+  FREE_TIER_SKU_RESEARCH_CAP,
+} from '../lib/manifests/lineItemGrouping'
 import { Button } from '../components/Button'
 import { LandedCostForm } from '../components/LandedCostForm'
 import { LotProfitabilityPanel } from '../components/LotProfitabilityPanel'
@@ -78,6 +82,22 @@ export function ManifestDetailPage() {
   )
   const markupPercent = ((landedCostMultiplier - 1) * 100).toFixed(1)
 
+  // PALLETIQ-055. "Score profitability" researches one distinct item at a
+  // time server-side (up to a plan-specific per-import cap) - surfaced here
+  // so the Buyer knows the scale of the action before clicking it, not only
+  // after via the score's own factor breakdown.
+  const distinctSkuCount = countDistinctLineItemGroups(lineItems)
+  const scoringScaleNote =
+    distinctSkuCount > 0 ? (
+      <p className="text-label text-slate-gray">
+        This will research {distinctSkuCount} distinct item{distinctSkuCount === 1 ? '' : 's'} for
+        pricing.
+        {distinctSkuCount > FREE_TIER_SKU_RESEARCH_CAP
+          ? ' Larger manifests only research their highest-value items first, based on your plan.'
+          : ''}
+      </p>
+    ) : null
+
   return (
     <main className="bg-cloud-gray min-h-svh p-6">
       <div className="mx-auto flex max-w-4xl flex-col gap-4">
@@ -122,6 +142,7 @@ export function ManifestDetailPage() {
               <div className="flex flex-col gap-2">
                 <LotProfitabilityPanel profitability={importQuery.data.profitability} />
                 <div className="flex flex-col items-start gap-1">
+                  {scoringScaleNote}
                   <Button
                     variant="ghost"
                     className="min-h-11"
@@ -149,6 +170,7 @@ export function ManifestDetailPage() {
                   </span>
                 ) : (
                   <div className="flex flex-col items-start gap-1">
+                    {scoringScaleNote}
                     <Button
                       className="min-h-11"
                       disabled={profitabilityMutation.isPending}

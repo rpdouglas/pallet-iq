@@ -12,7 +12,8 @@ vi.mock('firebase-admin/firestore', () => ({
   getFirestore: () => ({ doc: mockDoc }),
 }))
 
-const { geminiCallsUsageKey, recordGeminiCalls, checkGeminiCallCap } = await import('./geminiUsage')
+const { geminiCallsUsageKey, recordGeminiCalls, checkGeminiCallCap, getSubscriptionPlan } =
+  await import('./geminiUsage')
 
 function resetMocks() {
   mockIncrementUsage.mockReset()
@@ -60,6 +61,20 @@ describe('recordGeminiCalls', () => {
 
     await expect(recordGeminiCalls('tenant-a', 1)).resolves.toBeUndefined()
     expect(mockLoggerWarn).toHaveBeenCalled()
+  })
+})
+
+describe('getSubscriptionPlan', () => {
+  it('returns the recorded plan for a tenant', async () => {
+    resetMocks()
+    mockGet.mockResolvedValueOnce({ data: () => ({ plan: 'pro' }) })
+    await expect(getSubscriptionPlan('tenant-a')).resolves.toBe('pro')
+  })
+
+  it('defaults to free when the subscription doc is missing', async () => {
+    resetMocks()
+    mockGet.mockResolvedValueOnce({ data: () => undefined })
+    await expect(getSubscriptionPlan('tenant-a')).resolves.toBe('free')
   })
 })
 

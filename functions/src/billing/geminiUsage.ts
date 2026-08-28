@@ -40,13 +40,25 @@ export async function recordGeminiCalls(tenantId: string, count: number): Promis
   }
 }
 
+async function getSubscriptionDoc(tenantId: string): Promise<SubscriptionDoc | undefined> {
+  const snap = await getFirestore().doc(`tenants/${tenantId}/subscriptions/current`).get()
+  return snap.data() as SubscriptionDoc | undefined
+}
+
+// PALLETIQ-055. Standalone so lotProfitabilityWorker.ts can look up a
+// tenant's plan too (for SKU_RESEARCH_CAP_BY_PLAN) without duplicating the
+// doc-read/default-to-free logic.
+export async function getSubscriptionPlan(tenantId: string): Promise<SubscriptionPlan> {
+  const subscription = await getSubscriptionDoc(tenantId)
+  return subscription?.plan ?? 'free'
+}
+
 // PALLETIQ-046. Called at the top of every onCall that eventually
 // triggers a Gemini call, before the Cloud Tasks dispatch - a capped
 // tenant gets a clear rejection immediately, not a `failed` status
 // discovered later.
 export async function checkGeminiCallCap(tenantId: string): Promise<void> {
-  const snap = await getFirestore().doc(`tenants/${tenantId}/subscriptions/current`).get()
-  const subscription = snap.data() as SubscriptionDoc | undefined
+  const subscription = await getSubscriptionDoc(tenantId)
   const plan: SubscriptionPlan = subscription?.plan ?? 'free'
   const cap = GEMINI_CALL_CAP_BY_PLAN[plan]
   if (cap === Infinity) return

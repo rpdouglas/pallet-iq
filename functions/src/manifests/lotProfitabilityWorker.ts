@@ -2,7 +2,8 @@ import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import type { QueryDocumentSnapshot } from 'firebase-admin/firestore'
 import { logger } from 'firebase-functions/v2'
 import { onTaskDispatched } from 'firebase-functions/v2/tasks'
-import { recordGeminiCalls } from '../billing/geminiUsage'
+import { getSubscriptionPlan, recordGeminiCalls } from '../billing/geminiUsage'
+import type { SubscriptionPlan } from '../billing/types'
 import { geminiApiKey } from '../gemini/params'
 import { computeCacheKey } from '../pricing/cacheKey'
 import { mapPriceResearchToPricingResult } from '../pricing/mapPriceResearch'
@@ -180,8 +181,11 @@ export const lotProfitabilityWorker = onTaskDispatched<LotProfitabilityWorkerPay
         .get()
       const lineItems = lineItemsSnap.docs.map((d) => d.data() as LineItemDoc)
 
+      // PALLETIQ-055. Free tier's cap is tighter than pro's - see
+      // SKU_RESEARCH_CAP_BY_PLAN's own comment for why.
+      const plan: SubscriptionPlan = await getSubscriptionPlan(tenantId)
       const groups = groupLineItems(lineItems)
-      const groupsToResearch = selectGroupsToResearch(groups)
+      const groupsToResearch = selectGroupsToResearch(groups, plan)
 
       const { outcomes, totalCallsMade } = await priceGroupsWithConcurrency(
         geminiApiKey.value(),
